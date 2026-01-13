@@ -33,6 +33,9 @@ public class arabicSync {
 
     private WordTiming[] currentWordTimings;
     private FormattedTextDataArabicSync currentFormattedData;
+    // Image cache to avoid repeated disk reads - speeds up video generation
+    private java.util.Map<Integer, java.util.List<BufferedImage>> lineImageCache = new java.util.HashMap<>();
+    private java.util.Map<String, BufferedImage> generalImageCache = new java.util.HashMap<>();
     private static final int USE_CHANGING_BACKGROUNDS = 1; //
     private VideoConfig config = new VideoConfig();
 
@@ -2037,7 +2040,7 @@ public class arabicSync {
             ProcessBuilder pb = new ProcessBuilder(
                     "ffmpeg", "-y",
                     "-framerate", String.valueOf((int)config.frameRate),
-                    "-i", tempFolder + "/frame_%04d.png",
+                    "-i", tempFolder + "/frame_%04d.jpg",
                     "-i", audioPath,
                     "-filter_complex", filterComplex,
                     "-map", "[v]",
@@ -2762,7 +2765,7 @@ public class arabicSync {
                             ", isActive=" + displayInfo.isActive);
                 }
                 // Generate frame
-                String frameName = String.format("%s/frame_%04d.png", tempFolder, frame);
+                String frameName = String.format("%s/frame_%04d.jpg", tempFolder, frame);
 
                 if (useJigsawPuzzle) {
                     double completionPercentage = currentTime / audioDuration;
@@ -2985,7 +2988,7 @@ public class arabicSync {
 //        }
 //
 //        g2d.dispose();
-//        ImageIO.write(image, "PNG", new File(outputPath));
+//        ImageIO.write(image, "JPEG", new File(outputPath));
 //    }
 
     private void generateQuizFrame(FormattedTextDataArabicSync formattedData, QuoteDisplayInfoArabicSync displayInfo,
@@ -3229,7 +3232,7 @@ public class arabicSync {
         drawCornerRibbon(g2d, width, height, currentTime);
 
         g2d.dispose();
-        ImageIO.write(image, "PNG", new File(outputPath));
+        ImageIO.write(image, "JPEG", new File(outputPath));
     }
 
     // Add this new method to load background image for quiz mode
@@ -3495,7 +3498,7 @@ public class arabicSync {
 
         if (displayInfo.currentQuote >= formattedData.lines.size()) {
             g2d.dispose();
-            ImageIO.write(image, "PNG", new File(outputPath));
+            ImageIO.write(image, "JPEG", new File(outputPath));
             return;
         }
 
@@ -3638,7 +3641,7 @@ public class arabicSync {
         }
 
         g2d.dispose();
-        ImageIO.write(image, "PNG", new File(outputPath));
+        ImageIO.write(image, "JPEG", new File(outputPath));
     }
 
     // Add corner ribbon decoration
@@ -3871,7 +3874,7 @@ public class arabicSync {
         drawArabicAudioSyncText(g2d, formattedData, displayInfo, width, height, englishFont, arabicFont, currentTime);
 
         g2d.dispose();
-        ImageIO.write(image, "PNG", new File(outputPath));
+        ImageIO.write(image, "JPEG", new File(outputPath));
     }
 
     private BufferedImage loadRandomSlideshowImage(double currentTime) {
@@ -4459,7 +4462,7 @@ public class arabicSync {
         drawArabicAudioSyncText(g2d, formattedData, displayInfo, width, height, englishFont, arabicFont, currentTime);
 
         g2d.dispose();
-        ImageIO.write(image, "PNG", new File(outputPath));
+        ImageIO.write(image, "JPEG", new File(outputPath));
     }
 
     /**
@@ -4659,7 +4662,7 @@ public class arabicSync {
         drawArabicAudioSyncText(g2d, formattedData, displayInfo, width, height, englishFont, arabicFont, currentTime);
 
         g2d.dispose();
-        ImageIO.write(image, "PNG", new File(outputPath));
+        ImageIO.write(image, "JPEG", new File(outputPath));
     }
 
 
@@ -7256,7 +7259,7 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
 
     if (displayInfo.currentQuote >= formattedData.lines.size()) {
         g2d.dispose();
-        ImageIO.write(image, "PNG", new File(outputPath));
+        ImageIO.write(image, "JPEG", new File(outputPath));
         return;
     }
 
@@ -7462,7 +7465,7 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
     }
 
     g2d.dispose();
-    ImageIO.write(image, "PNG", new File(outputPath));
+    ImageIO.write(image, "JPEG", new File(outputPath));
 }
 
 /**
@@ -8107,6 +8110,11 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
     }
 
     private java.util.List<BufferedImage> loadImagesForLine(int lineNumber) {
+        // Check cache first to avoid repeated disk reads
+        if (lineImageCache.containsKey(lineNumber)) {
+            return lineImageCache.get(lineNumber);
+        }
+
         java.util.List<BufferedImage> images = new java.util.ArrayList<>();
         File folder = new File(config.imagesPerLineFolder);
 
@@ -8185,9 +8193,17 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
          //   System.out.println("  Total " + images.size() + " image(s) for line " + lineNumber);
         }
 
+        // Cache the loaded images for faster access next time
+        lineImageCache.put(lineNumber, images);
+
         return images;
     }
 
+    // Clear image cache (call when starting new video generation)
+    private void clearImageCache() {
+        lineImageCache.clear();
+        generalImageCache.clear();
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     private static class ImagesPerLineManagerGUI extends JDialog {
