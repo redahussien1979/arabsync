@@ -32,6 +32,7 @@ public class arabicSync {
     private static final double FRAME_RATE = 10.0; // Change this value to control frame rate globally
 
     private WordTiming[] currentWordTimings;
+    private FormattedTextDataArabicSync currentFormattedData;
     private static final int USE_CHANGING_BACKGROUNDS = 1; //
     private VideoConfig config = new VideoConfig();
 
@@ -1917,8 +1918,9 @@ public class arabicSync {
                 wordTimings = generateEstimatedArabicTimings(formattedData, audioDuration);
             }
 
-// ADD THIS LINE - Store wordTimings for use in highlighting methods
+// Store for use in highlighting methods
             this.currentWordTimings = wordTimings;
+            this.currentFormattedData = formattedData;
             // Generate precisely timed sequence with Arabic audio sync
             String tempFolder = generateArabicAudioSyncSequence(formattedData, wordTimings, audioDuration);
             if (tempFolder == null) {
@@ -2274,7 +2276,9 @@ public class arabicSync {
 
             if (exitCode == 0 && !rawTimings.isEmpty()) {
                 System.out.println("✅ Generated " + rawTimings.size() + " ElevenLabs Arabic audio word timings");
-                return alignArabicTranscriptToText(rawTimings, formattedData);
+                // Return raw ElevenLabs timings directly - NO fuzzy matching needed
+                // ElevenLabs gives us accurate timings from the actual audio
+                return rawTimings.toArray(new WordTiming[0]);
             } else {
                 return null;
             }
@@ -4257,73 +4261,108 @@ public class arabicSync {
 
 
     /**
-     * Calculate gap-free line timings from word timings.
-     * Ensures each line starts exactly when the previous line ends for 100% sync.
+     * Calculate gap-free line timings using REAL audio word timings from ElevenLabs.
+     * Uses proportional distribution based on actual ElevenLabs word count to ensure accurate sync.
      */
     private QuoteTimingInfoArabicSync[] calculateArabicQuoteTimings(FormattedTextDataArabicSync formattedData, WordTiming[] wordTimings, double audioDuration) {
         QuoteTimingInfoArabicSync[] quoteTimings = new QuoteTimingInfoArabicSync[formattedData.lines.size()];
+        int numLines = formattedData.lines.size();
+        int elevenLabsWordCount = (wordTimings != null) ? wordTimings.length : 0;
 
-        System.out.println("📊 Calculating gap-free line timings:");
-        System.out.println("   Total lines: " + formattedData.lines.size());
-        System.out.println("   Total word timings: " + (wordTimings != null ? wordTimings.length : 0));
+        System.out.println("📊 Calculating line timings from REAL audio:");
+        System.out.println("   Total lines: " + numLines);
+        System.out.println("   ElevenLabs word timings: " + elevenLabsWordCount);
         System.out.println("   Audio duration: " + String.format("%.2f", audioDuration) + "s");
 
-        int globalWordIndex = 0;
+        if (wordTimings == null || wordTimings.length == 0 || numLines == 0) {
+            // Fallback: distribute audio evenly across lines
+            double timePerLine = audioDuration / numLines;
+            for (int i = 0; i < numLines; i++) {
+                double startTime = i * timePerLine;
+                double endTime = (i == numLines - 1) ? audioDuration : (i + 1) * timePerLine;
+                quoteTimings[i] = new QuoteTimingInfoArabicSync(i, startTime, endTime);
+                System.out.println("🎯 Line " + (i + 1) + ": " + String.format("%.2f", startTime) + "s → " +
+                    String.format("%.2f", endTime) + "s (even distribution)");
+            }
+            return quoteTimings;
+        }
 
-        for (int i = 0; i < formattedData.lines.size(); i++) {
+        // Calculate total original text words for proportional distribution
+        int totalOriginalWords = 0;
+        for (FormattedLineArabicSync line : formattedData.lines) {
+            totalOriginalWords += line.wordCount;
+        }
+
+        // Distribute ElevenLabs words proportionally across lines
+        // Each line gets a share of ElevenLabs words based on its original word count
+        int elevenLabsWordIndex = 0;
+        double currentTime = 0;
+
+        for (int i = 0; i < numLines; i++) {
             FormattedLineArabicSync line = formattedData.lines.get(i);
-            int wordsInThisQuote = line.wordCount;
 
+            // Calculate how many ElevenLabs words this line should get
+            double proportion = (double) line.wordCount / totalOriginalWords;
+            int wordsForThisLine = (int) Math.round(proportion * elevenLabsWordCount);
+
+            // Ensure at least 1 word per line, and don't exceed remaining words
+            wordsForThisLine = Math.max(1, wordsForThisLine);
+            int remainingLines = numLines - i - 1;
+            int remainingWords = elevenLabsWordCount - elevenLabsWordIndex;
+            if (remainingLines > 0) {
+                wordsForThisLine = Math.min(wordsForThisLine, remainingWords - remainingLines);
+            }
+
+            // For the last line, take all remaining words
+            if (i == numLines - 1) {
+                wordsForThisLine = elevenLabsWordCount - elevenLabsWordIndex;
+            }
+
+            // Get timing from actual ElevenLabs words
             double startTime = 0;
             double endTime = audioDuration;
 
-            if (wordTimings != null && wordTimings.length > 0) {
-                // Get start time from first word of this line
-                if (globalWordIndex < wordTimings.length) {
-                    startTime = wordTimings[globalWordIndex].startTime;
-                }
-
-                // Get end time from last word of this line
-                int lastWordIndex = globalWordIndex + wordsInThisQuote - 1;
-                if (lastWordIndex < wordTimings.length) {
-                    endTime = wordTimings[lastWordIndex].endTime;
-                }
-
-                // CRITICAL: Ensure gap-free timing by connecting to previous line
-                if (i > 0 && quoteTimings[i - 1] != null) {
-                    double prevEndTime = quoteTimings[i - 1].endTime;
-                    // If there's a gap, start this line at previous line's end
-                    if (startTime > prevEndTime) {
-                        startTime = prevEndTime;
-                    }
-                    // If there's overlap, adjust previous line's end
-                    else if (startTime < prevEndTime) {
-                        // Adjust the boundary to be at current line's start
-                        quoteTimings[i - 1] = new QuoteTimingInfoArabicSync(
-                            i - 1, quoteTimings[i - 1].startTime, startTime);
-                    }
-                }
+            if (elevenLabsWordIndex < elevenLabsWordCount) {
+                startTime = wordTimings[elevenLabsWordIndex].startTime;
             }
 
-            // Ensure first line starts at 0
+            int lastWordIdx = Math.min(elevenLabsWordIndex + wordsForThisLine - 1, elevenLabsWordCount - 1);
+            if (lastWordIdx >= 0 && lastWordIdx < elevenLabsWordCount) {
+                endTime = wordTimings[lastWordIdx].endTime;
+            }
+
+            // First line always starts at 0
             if (i == 0) {
                 startTime = 0;
             }
 
-            // Ensure last line ends at audio duration
-            if (i == formattedData.lines.size() - 1) {
+            // Ensure gap-free: this line starts where previous ended
+            if (i > 0 && quoteTimings[i - 1] != null) {
+                startTime = quoteTimings[i - 1].endTime;
+            }
+
+            // Last line always ends at audio duration
+            if (i == numLines - 1) {
                 endTime = audioDuration;
+            }
+
+            // CRITICAL: Ensure end time never exceeds audio duration
+            endTime = Math.min(endTime, audioDuration);
+
+            // Ensure end time is after start time
+            if (endTime <= startTime) {
+                endTime = Math.min(startTime + 0.5, audioDuration);
             }
 
             quoteTimings[i] = new QuoteTimingInfoArabicSync(i, startTime, endTime);
 
             System.out.println("🎯 Line " + (i + 1) + ": " + String.format("%.2f", startTime) + "s → " +
-                String.format("%.2f", endTime) + "s (words " + globalWordIndex + "-" + (globalWordIndex + wordsInThisQuote - 1) + ")");
+                String.format("%.2f", endTime) + "s (ElevenLabs words " + elevenLabsWordIndex + "-" + lastWordIdx + ")");
 
-            globalWordIndex += wordsInThisQuote;
+            elevenLabsWordIndex += wordsForThisLine;
         }
 
-        // Final validation: ensure no gaps or overlaps
+        // Final validation
         quoteTimings = validateLineTiming(quoteTimings, audioDuration);
 
         return quoteTimings;
@@ -5663,35 +5702,54 @@ public class arabicSync {
 
     /**
      * Get the index of the currently spoken word based on current time.
-     * Uses validated gap-free timings for 100% accurate word highlighting.
+     * Maps ElevenLabs word index proportionally to original text word index
+     * to handle word count mismatches (e.g., numbers spoken as multiple words).
      */
     private int getCurrentArabicSpokenWordIndex(double currentTime) {
         if (currentWordTimings == null || currentWordTimings.length == 0) {
             return -1;
         }
 
+        // Find which ElevenLabs word is being spoken
+        int elevenLabsWordIdx = -1;
         for (int i = 0; i < currentWordTimings.length; i++) {
             double startTime = currentWordTimings[i].startTime;
             double endTime = currentWordTimings[i].endTime;
 
-            // Use inclusive start, exclusive end (except for last word)
             boolean isLastWord = (i == currentWordTimings.length - 1);
             boolean inRange = isLastWord
                 ? (currentTime >= startTime && currentTime <= endTime)
                 : (currentTime >= startTime && currentTime < endTime);
 
             if (inRange) {
-                return i;
+                elevenLabsWordIdx = i;
+                break;
             }
         }
 
         // Handle edge cases
-        if (currentTime < currentWordTimings[0].startTime) {
-            return -1; // Before first word
+        if (elevenLabsWordIdx == -1) {
+            if (currentTime < currentWordTimings[0].startTime) {
+                return -1; // Before first word
+            }
+            elevenLabsWordIdx = currentWordTimings.length - 1; // Past all words
         }
 
-        // If past all words, return last word (keeps highlighting until end)
-        return currentWordTimings.length - 1;
+        // Map ElevenLabs word index proportionally to original text word index
+        // This handles the case where ElevenLabs has different word count than original text
+        int originalTextWordCount = 0;
+        if (this.currentFormattedData != null && this.currentFormattedData.arabicSpeakableWords != null) {
+            originalTextWordCount = this.currentFormattedData.arabicSpeakableWords.length;
+        }
+
+        if (originalTextWordCount == 0 || currentWordTimings.length == 0) {
+            return elevenLabsWordIdx;
+        }
+
+        // Calculate proportional mapping
+        double proportion = (double) elevenLabsWordIdx / currentWordTimings.length;
+        int mappedIndex = (int) Math.round(proportion * originalTextWordCount);
+        return Math.min(mappedIndex, originalTextWordCount - 1);
     }
 
 
