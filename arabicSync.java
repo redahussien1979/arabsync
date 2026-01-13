@@ -117,6 +117,20 @@ public class arabicSync {
         // Images per line mode settings
         int imagesPerLineFirstLineY = 100; // Y position for first line text (0 = top, higher = lower)
 
+        // First line text effects settings
+        int firstLineFontSize = 65; // Font size for first line (20-120)
+        Color firstLineTextColor = new Color(255, 165, 0); // Default orange color
+        int firstLineAnimationType = 0; // 0=none, 1=fade-in, 2=typewriter, 3=wave, 4=bounce, 5=glow-pulse
+        boolean firstLineShakeEnabled = false; // Enable shake/vibrate effect
+        int firstLineShakeIntensity = 5; // Shake intensity (1-20 pixels)
+        int firstLineTiltAngle = 0; // Tilt angle in degrees (-30 to 30)
+        boolean firstLineShadowEnabled = true; // Enable text shadow
+        int firstLineShadowOffset = 3; // Shadow offset pixels
+        boolean firstLineOutlineEnabled = true; // Enable text outline
+        Color firstLineOutlineColor = Color.BLACK; // Outline color
+        boolean firstLineGlowEnabled = false; // Enable glow effect
+        Color firstLineGlowColor = new Color(255, 200, 100); // Glow color
+
         // ADD THESE EFFECT FLAGS:
         boolean enableColorEnhancement = true;
         boolean enableWaterEffect = false;
@@ -500,6 +514,13 @@ public class arabicSync {
             firstLineYHint.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 10));
             firstLineYHint.setForeground(Color.GRAY);
             panel.add(firstLineYHint, gbc);
+
+            // First Line Effects Button
+            gbc.gridx = 4;
+            JButton firstLineEffectsBtn = new JButton("✨ First Line Effects");
+            firstLineEffectsBtn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+            firstLineEffectsBtn.addActionListener(e -> openFirstLineEffectsDialog());
+            panel.add(firstLineEffectsBtn, gbc);
 
             return panel;
         }
@@ -1175,6 +1196,293 @@ public class arabicSync {
             if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
                 field.setText(chooser.getSelectedFile().getAbsolutePath());
             }
+        }
+
+        private void openFirstLineEffectsDialog() {
+            JDialog dialog = new JDialog(this, "First Line Text Effects", true);
+            dialog.setSize(600, 700);
+            dialog.setLocationRelativeTo(this);
+            dialog.setLayout(new BorderLayout(10, 10));
+
+            JPanel mainPanel = new JPanel();
+            mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+            mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+            // === FONT SIZE SECTION ===
+            JPanel sizePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            sizePanel.setBorder(BorderFactory.createTitledBorder("Font Size"));
+            JSlider fontSizeSlider = new JSlider(JSlider.HORIZONTAL, 20, 120, config.firstLineFontSize);
+            fontSizeSlider.setMajorTickSpacing(20);
+            fontSizeSlider.setMinorTickSpacing(5);
+            fontSizeSlider.setPaintTicks(true);
+            fontSizeSlider.setPaintLabels(true);
+            fontSizeSlider.setPreferredSize(new Dimension(400, 50));
+            JLabel fontSizeLabel = new JLabel(config.firstLineFontSize + " pt");
+            fontSizeSlider.addChangeListener(e -> {
+                config.firstLineFontSize = fontSizeSlider.getValue();
+                fontSizeLabel.setText(config.firstLineFontSize + " pt");
+            });
+            sizePanel.add(fontSizeSlider);
+            sizePanel.add(fontSizeLabel);
+            mainPanel.add(sizePanel);
+
+            // === COLOR SECTION ===
+            JPanel colorPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            colorPanel.setBorder(BorderFactory.createTitledBorder("Text Color"));
+            JButton textColorBtn = new JButton("Choose Text Color");
+            JPanel textColorPreview = new JPanel();
+            textColorPreview.setBackground(config.firstLineTextColor);
+            textColorPreview.setPreferredSize(new Dimension(60, 30));
+            textColorPreview.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+            textColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Choose Text Color", config.firstLineTextColor);
+                if (chosen != null) {
+                    config.firstLineTextColor = chosen;
+                    textColorPreview.setBackground(chosen);
+                }
+            });
+            colorPanel.add(textColorBtn);
+            colorPanel.add(textColorPreview);
+
+            // Outline color
+            JCheckBox outlineCheck = new JCheckBox("Enable Outline", config.firstLineOutlineEnabled);
+            JButton outlineColorBtn = new JButton("Outline Color");
+            JPanel outlineColorPreview = new JPanel();
+            outlineColorPreview.setBackground(config.firstLineOutlineColor);
+            outlineColorPreview.setPreferredSize(new Dimension(40, 25));
+            outlineColorPreview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            outlineCheck.addActionListener(e -> config.firstLineOutlineEnabled = outlineCheck.isSelected());
+            outlineColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Choose Outline Color", config.firstLineOutlineColor);
+                if (chosen != null) {
+                    config.firstLineOutlineColor = chosen;
+                    outlineColorPreview.setBackground(chosen);
+                }
+            });
+            colorPanel.add(outlineCheck);
+            colorPanel.add(outlineColorBtn);
+            colorPanel.add(outlineColorPreview);
+            mainPanel.add(colorPanel);
+
+            // === ANIMATION SECTION ===
+            JPanel animPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            animPanel.setBorder(BorderFactory.createTitledBorder("Animation Effect"));
+            String[] animOptions = {"None", "Fade In", "Typewriter", "Wave", "Bounce", "Glow Pulse", "Scale In", "Slide In"};
+            JComboBox<String> animCombo = new JComboBox<>(animOptions);
+            animCombo.setSelectedIndex(config.firstLineAnimationType);
+            animCombo.addActionListener(e -> config.firstLineAnimationType = animCombo.getSelectedIndex());
+            animPanel.add(new JLabel("Animation:"));
+            animPanel.add(animCombo);
+            mainPanel.add(animPanel);
+
+            // === SHAKE EFFECT SECTION ===
+            JPanel shakePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            shakePanel.setBorder(BorderFactory.createTitledBorder("Shake Effect"));
+            JCheckBox shakeCheck = new JCheckBox("Enable Shake", config.firstLineShakeEnabled);
+            shakeCheck.addActionListener(e -> config.firstLineShakeEnabled = shakeCheck.isSelected());
+            JSlider shakeSlider = new JSlider(JSlider.HORIZONTAL, 1, 20, config.firstLineShakeIntensity);
+            shakeSlider.setPreferredSize(new Dimension(200, 40));
+            shakeSlider.setMajorTickSpacing(5);
+            shakeSlider.setPaintTicks(true);
+            shakeSlider.setPaintLabels(true);
+            JLabel shakeLabel = new JLabel(config.firstLineShakeIntensity + " px");
+            shakeSlider.addChangeListener(e -> {
+                config.firstLineShakeIntensity = shakeSlider.getValue();
+                shakeLabel.setText(config.firstLineShakeIntensity + " px");
+            });
+            shakePanel.add(shakeCheck);
+            shakePanel.add(new JLabel("Intensity:"));
+            shakePanel.add(shakeSlider);
+            shakePanel.add(shakeLabel);
+            mainPanel.add(shakePanel);
+
+            // === TILT EFFECT SECTION ===
+            JPanel tiltPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            tiltPanel.setBorder(BorderFactory.createTitledBorder("Tilt / Rotation"));
+            JSlider tiltSlider = new JSlider(JSlider.HORIZONTAL, -30, 30, config.firstLineTiltAngle);
+            tiltSlider.setPreferredSize(new Dimension(300, 50));
+            tiltSlider.setMajorTickSpacing(10);
+            tiltSlider.setMinorTickSpacing(5);
+            tiltSlider.setPaintTicks(true);
+            tiltSlider.setPaintLabels(true);
+            JLabel tiltLabel = new JLabel(config.firstLineTiltAngle + "°");
+            tiltSlider.addChangeListener(e -> {
+                config.firstLineTiltAngle = tiltSlider.getValue();
+                tiltLabel.setText(config.firstLineTiltAngle + "°");
+            });
+            tiltPanel.add(new JLabel("Tilt Angle:"));
+            tiltPanel.add(tiltSlider);
+            tiltPanel.add(tiltLabel);
+            mainPanel.add(tiltPanel);
+
+            // === SHADOW & GLOW SECTION ===
+            JPanel effectsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            effectsPanel.setBorder(BorderFactory.createTitledBorder("Shadow & Glow"));
+
+            JCheckBox shadowCheck = new JCheckBox("Enable Shadow", config.firstLineShadowEnabled);
+            shadowCheck.addActionListener(e -> config.firstLineShadowEnabled = shadowCheck.isSelected());
+            JSpinner shadowOffsetSpinner = new JSpinner(new SpinnerNumberModel(config.firstLineShadowOffset, 1, 10, 1));
+            shadowOffsetSpinner.addChangeListener(e -> config.firstLineShadowOffset = (int) shadowOffsetSpinner.getValue());
+
+            JCheckBox glowCheck = new JCheckBox("Enable Glow", config.firstLineGlowEnabled);
+            glowCheck.addActionListener(e -> config.firstLineGlowEnabled = glowCheck.isSelected());
+            JButton glowColorBtn = new JButton("Glow Color");
+            JPanel glowColorPreview = new JPanel();
+            glowColorPreview.setBackground(config.firstLineGlowColor);
+            glowColorPreview.setPreferredSize(new Dimension(40, 25));
+            glowColorPreview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            glowColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Choose Glow Color", config.firstLineGlowColor);
+                if (chosen != null) {
+                    config.firstLineGlowColor = chosen;
+                    glowColorPreview.setBackground(chosen);
+                }
+            });
+
+            effectsPanel.add(shadowCheck);
+            effectsPanel.add(new JLabel("Offset:"));
+            effectsPanel.add(shadowOffsetSpinner);
+            effectsPanel.add(Box.createHorizontalStrut(20));
+            effectsPanel.add(glowCheck);
+            effectsPanel.add(glowColorBtn);
+            effectsPanel.add(glowColorPreview);
+            mainPanel.add(effectsPanel);
+
+            // === PREVIEW SECTION ===
+            JPanel previewPanel = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    Graphics2D g2d = (Graphics2D) g;
+                    g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+                    g2d.setColor(Color.BLACK);
+                    g2d.fillRect(0, 0, getWidth(), getHeight());
+
+                    String sampleText = "نص تجريبي";
+                    Font previewFont = new Font("Arial", Font.BOLD, Math.max(20, config.firstLineFontSize / 2));
+                    g2d.setFont(previewFont);
+                    FontMetrics fm = g2d.getFontMetrics();
+
+                    int textWidth = fm.stringWidth(sampleText);
+                    int x = (getWidth() - textWidth) / 2;
+                    int y = getHeight() / 2 + fm.getAscent() / 2;
+
+                    // Apply tilt
+                    if (config.firstLineTiltAngle != 0) {
+                        Graphics2D g2dRotated = (Graphics2D) g2d.create();
+                        g2dRotated.rotate(Math.toRadians(config.firstLineTiltAngle), getWidth() / 2, getHeight() / 2);
+
+                        // Draw with effects
+                        drawPreviewText(g2dRotated, sampleText, x, y, fm);
+                        g2dRotated.dispose();
+                    } else {
+                        drawPreviewText(g2d, sampleText, x, y, fm);
+                    }
+                }
+
+                private void drawPreviewText(Graphics2D g2d, String text, int x, int y, FontMetrics fm) {
+                    // Glow effect
+                    if (config.firstLineGlowEnabled) {
+                        g2d.setColor(new Color(config.firstLineGlowColor.getRed(),
+                                config.firstLineGlowColor.getGreen(),
+                                config.firstLineGlowColor.getBlue(), 100));
+                        for (int i = 8; i > 0; i -= 2) {
+                            g2d.drawString(text, x - i, y);
+                            g2d.drawString(text, x + i, y);
+                            g2d.drawString(text, x, y - i);
+                            g2d.drawString(text, x, y + i);
+                        }
+                    }
+
+                    // Shadow
+                    if (config.firstLineShadowEnabled) {
+                        g2d.setColor(new Color(0, 0, 0, 150));
+                        g2d.drawString(text, x + config.firstLineShadowOffset, y + config.firstLineShadowOffset);
+                    }
+
+                    // Outline
+                    if (config.firstLineOutlineEnabled) {
+                        g2d.setColor(config.firstLineOutlineColor);
+                        for (int ox = -2; ox <= 2; ox++) {
+                            for (int oy = -2; oy <= 2; oy++) {
+                                if (ox != 0 || oy != 0) {
+                                    g2d.drawString(text, x + ox, y + oy);
+                                }
+                            }
+                        }
+                    }
+
+                    // Main text
+                    g2d.setColor(config.firstLineTextColor);
+                    g2d.drawString(text, x, y);
+                }
+            };
+            previewPanel.setPreferredSize(new Dimension(550, 100));
+            previewPanel.setBorder(BorderFactory.createTitledBorder("Preview"));
+
+            // Refresh preview when settings change
+            javax.swing.Timer previewTimer = new javax.swing.Timer(100, e -> previewPanel.repaint());
+            previewTimer.start();
+
+            mainPanel.add(previewPanel);
+
+            // === BUTTONS ===
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            JButton resetBtn = new JButton("Reset to Defaults");
+            resetBtn.addActionListener(e -> {
+                config.firstLineFontSize = 65;
+                config.firstLineTextColor = new Color(255, 165, 0);
+                config.firstLineAnimationType = 0;
+                config.firstLineShakeEnabled = false;
+                config.firstLineShakeIntensity = 5;
+                config.firstLineTiltAngle = 0;
+                config.firstLineShadowEnabled = true;
+                config.firstLineShadowOffset = 3;
+                config.firstLineOutlineEnabled = true;
+                config.firstLineOutlineColor = Color.BLACK;
+                config.firstLineGlowEnabled = false;
+                config.firstLineGlowColor = new Color(255, 200, 100);
+
+                // Update UI
+                fontSizeSlider.setValue(65);
+                textColorPreview.setBackground(config.firstLineTextColor);
+                animCombo.setSelectedIndex(0);
+                shakeCheck.setSelected(false);
+                shakeSlider.setValue(5);
+                tiltSlider.setValue(0);
+                shadowCheck.setSelected(true);
+                shadowOffsetSpinner.setValue(3);
+                outlineCheck.setSelected(true);
+                outlineColorPreview.setBackground(Color.BLACK);
+                glowCheck.setSelected(false);
+                glowColorPreview.setBackground(new Color(255, 200, 100));
+            });
+
+            JButton closeBtn = new JButton("Close");
+            closeBtn.addActionListener(e -> {
+                previewTimer.stop();
+                dialog.dispose();
+            });
+
+            buttonPanel.add(resetBtn);
+            buttonPanel.add(closeBtn);
+
+            JScrollPane scrollPane = new JScrollPane(mainPanel);
+            scrollPane.setBorder(null);
+
+            dialog.add(scrollPane, BorderLayout.CENTER);
+            dialog.add(buttonPanel, BorderLayout.SOUTH);
+
+            dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowClosing(java.awt.event.WindowEvent e) {
+                    previewTimer.stop();
+                }
+            });
+
+            dialog.setVisible(true);
         }
 
         private void browseFolder(JTextField field, String title) {
@@ -7069,35 +7377,9 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
         boolean isFirstLine = (displayInfo.currentQuote == 0);
 
         if (isFirstLine) {
-            // Title text code - use configurable Y position
-            Font titleFont = arabicFont.deriveFont(Font.BOLD, 65f);
-            g2d.setFont(titleFont);
-            FontMetrics fm = g2d.getFontMetrics(titleFont);
-            int textPadding = 80;
-            int textWidth = width - (2 * textPadding);
-            java.util.List<String> wrappedLines = wrapTextToLines(arabicText, fm, textWidth);
-            int textStartY = config.imagesPerLineFirstLineY; // Use configurable position
-
-            for (int lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
-                String line = wrappedLines.get(lineIdx);
-                int lineWidth = fm.stringWidth(line);
-                int centerX = (width - lineWidth) / 2;
-                int lineY = textStartY + (int)(lineIdx * fm.getHeight() * 1.1) + fm.getAscent();
-
-                g2d.setColor(Color.BLACK);
-                for (int offset = 2; offset <= 3; offset++) {
-                    g2d.drawString(line, centerX - offset, lineY);
-                    g2d.drawString(line, centerX + offset, lineY);
-                    g2d.drawString(line, centerX, lineY - offset);
-                    g2d.drawString(line, centerX, lineY + offset);
-                }
-
-                g2d.setColor(new Color(255, 165, 0));
-                g2d.drawString(line, centerX, lineY);
-
-                g2d.setColor(new Color(255, 255, 255, 100));
-                g2d.drawString(line, centerX, lineY - 2);
-            }
+            // Title text code with configurable effects
+            drawFirstLineWithEffects(g2d, arabicText, arabicFont, width, height,
+                    currentTime, currentQuoteLine.startTime, currentQuoteLine.endTime);
         } else {
             // Regular text code...
             Font textFont = arabicFont.deriveFont(Font.BOLD, 40f);
@@ -7125,7 +7407,246 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
     ImageIO.write(image, "PNG", new File(outputPath));
 }
 
+/**
+ * Draw first line text with all configurable effects
+ */
+private void drawFirstLineWithEffects(Graphics2D g2d, String arabicText, Font arabicFont,
+                                       int width, int height, double currentTime,
+                                       double lineStartTime, double lineEndTime) {
 
+    // Calculate animation progress (0.0 to 1.0)
+    double lineDuration = lineEndTime - lineStartTime;
+    double elapsed = currentTime - lineStartTime;
+    double animProgress = Math.min(1.0, Math.max(0.0, elapsed / Math.max(0.5, lineDuration * 0.3))); // Animate over first 30% of line
+
+    // Create title font with configurable size
+    Font titleFont = arabicFont.deriveFont(Font.BOLD, (float) config.firstLineFontSize);
+    g2d.setFont(titleFont);
+    FontMetrics fm = g2d.getFontMetrics(titleFont);
+
+    // Calculate text wrapping with proper padding
+    int textPadding = 80;
+    int textWidth = width - (2 * textPadding);
+    java.util.List<String> wrappedLines = wrapTextToLines(arabicText, fm, textWidth);
+    int textStartY = config.imagesPerLineFirstLineY;
+
+    // Calculate total text block dimensions for centering effects
+    int totalTextHeight = 0;
+    for (int i = 0; i < wrappedLines.size(); i++) {
+        totalTextHeight += (int)(fm.getHeight() * 1.1);
+    }
+    int textCenterY = textStartY + totalTextHeight / 2;
+    int textCenterX = width / 2;
+
+    // Apply tilt/rotation if enabled
+    Graphics2D g2dDraw = g2d;
+    java.awt.geom.AffineTransform originalTransform = g2d.getTransform();
+
+    if (config.firstLineTiltAngle != 0) {
+        g2dDraw = (Graphics2D) g2d.create();
+        g2dDraw.rotate(Math.toRadians(config.firstLineTiltAngle), textCenterX, textCenterY);
+    }
+
+    // Draw each wrapped line
+    for (int lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
+        String line = wrappedLines.get(lineIdx);
+        int lineWidth = fm.stringWidth(line);
+        int baseX = (width - lineWidth) / 2;
+        int baseY = textStartY + (int)(lineIdx * fm.getHeight() * 1.1) + fm.getAscent();
+
+        // Apply animation-based position/alpha modifications
+        int drawX = baseX;
+        int drawY = baseY;
+        float alpha = 1.0f;
+
+        // Animation type effects
+        switch (config.firstLineAnimationType) {
+            case 1: // Fade In
+                alpha = (float) animProgress;
+                break;
+
+            case 2: // Typewriter - reveal characters progressively
+                int charsToShow = (int)(line.length() * animProgress);
+                line = line.substring(0, Math.max(0, charsToShow));
+                break;
+
+            case 3: // Wave - vertical oscillation per character
+                // Wave is handled per-character below
+                break;
+
+            case 4: // Bounce
+                double bounceOffset = Math.sin(animProgress * Math.PI) * 30 * (1 - animProgress);
+                drawY = baseY - (int) bounceOffset;
+                break;
+
+            case 5: // Glow Pulse - handled in glow section
+                break;
+
+            case 6: // Scale In
+                float scale = (float) (0.3 + 0.7 * animProgress);
+                // Scale is applied by temporarily changing font size
+                Font scaledFont = titleFont.deriveFont(titleFont.getSize() * scale);
+                g2dDraw.setFont(scaledFont);
+                FontMetrics scaledFm = g2dDraw.getFontMetrics();
+                int scaledWidth = scaledFm.stringWidth(line);
+                drawX = (width - scaledWidth) / 2;
+                drawY = baseY - (int)((fm.getHeight() - scaledFm.getHeight()) / 2);
+                fm = scaledFm; // Update fm for this line
+                break;
+
+            case 7: // Slide In (from right for RTL text)
+                int slideOffset = (int)((1 - animProgress) * 500);
+                drawX = baseX - slideOffset;
+                break;
+        }
+
+        // Apply shake effect
+        if (config.firstLineShakeEnabled) {
+            java.util.Random shakeRandom = new java.util.Random((long)(currentTime * 1000));
+            int shakeX = shakeRandom.nextInt(config.firstLineShakeIntensity * 2) - config.firstLineShakeIntensity;
+            int shakeY = shakeRandom.nextInt(config.firstLineShakeIntensity * 2) - config.firstLineShakeIntensity;
+            drawX += shakeX;
+            drawY += shakeY;
+        }
+
+        // Set composite for alpha
+        Composite originalComposite = g2dDraw.getComposite();
+        if (alpha < 1.0f) {
+            g2dDraw.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+        }
+
+        // Wave animation - draw character by character
+        if (config.firstLineAnimationType == 3) {
+            drawWaveText(g2dDraw, line, drawX, drawY, fm, currentTime, lineIdx);
+        } else {
+            // Standard drawing with all effects
+
+            // 1. Glow effect (drawn first, behind everything)
+            if (config.firstLineGlowEnabled) {
+                float glowIntensity = 1.0f;
+                if (config.firstLineAnimationType == 5) { // Glow Pulse
+                    glowIntensity = 0.5f + 0.5f * (float)Math.sin(currentTime * 4);
+                }
+                int glowAlpha = (int)(100 * glowIntensity);
+                Color glowColor = new Color(
+                        config.firstLineGlowColor.getRed(),
+                        config.firstLineGlowColor.getGreen(),
+                        config.firstLineGlowColor.getBlue(),
+                        Math.min(255, glowAlpha));
+                g2dDraw.setColor(glowColor);
+                for (int offset = 12; offset > 0; offset -= 2) {
+                    g2dDraw.drawString(line, drawX - offset, drawY);
+                    g2dDraw.drawString(line, drawX + offset, drawY);
+                    g2dDraw.drawString(line, drawX, drawY - offset);
+                    g2dDraw.drawString(line, drawX, drawY + offset);
+                    // Diagonals for smoother glow
+                    int diag = (int)(offset * 0.7);
+                    g2dDraw.drawString(line, drawX - diag, drawY - diag);
+                    g2dDraw.drawString(line, drawX + diag, drawY - diag);
+                    g2dDraw.drawString(line, drawX - diag, drawY + diag);
+                    g2dDraw.drawString(line, drawX + diag, drawY + diag);
+                }
+            }
+
+            // 2. Shadow effect
+            if (config.firstLineShadowEnabled) {
+                g2dDraw.setColor(new Color(0, 0, 0, 180));
+                g2dDraw.drawString(line, drawX + config.firstLineShadowOffset,
+                        drawY + config.firstLineShadowOffset);
+            }
+
+            // 3. Outline effect
+            if (config.firstLineOutlineEnabled) {
+                g2dDraw.setColor(config.firstLineOutlineColor);
+                for (int ox = -3; ox <= 3; ox++) {
+                    for (int oy = -3; oy <= 3; oy++) {
+                        if (ox != 0 || oy != 0) {
+                            g2dDraw.drawString(line, drawX + ox, drawY + oy);
+                        }
+                    }
+                }
+            }
+
+            // 4. Main text color
+            g2dDraw.setColor(config.firstLineTextColor);
+            g2dDraw.drawString(line, drawX, drawY);
+
+            // 5. Highlight effect (subtle white on top)
+            g2dDraw.setColor(new Color(255, 255, 255, 60));
+            g2dDraw.drawString(line, drawX, drawY - 1);
+        }
+
+        // Restore composite
+        if (alpha < 1.0f) {
+            g2dDraw.setComposite(originalComposite);
+        }
+
+        // Reset font if it was scaled
+        if (config.firstLineAnimationType == 6) {
+            g2dDraw.setFont(titleFont);
+            fm = g2dDraw.getFontMetrics();
+        }
+    }
+
+    // Dispose rotated graphics if created
+    if (config.firstLineTiltAngle != 0) {
+        g2dDraw.dispose();
+    }
+}
+
+/**
+ * Draw text with wave animation effect
+ */
+private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
+                          FontMetrics fm, double currentTime, int lineIndex) {
+    int x = startX;
+
+    for (int i = 0; i < text.length(); i++) {
+        char c = text.charAt(i);
+        String charStr = String.valueOf(c);
+        int charWidth = fm.charWidth(c);
+
+        // Calculate wave offset for this character
+        double wavePhase = currentTime * 3 + i * 0.3 + lineIndex * 0.5;
+        int waveOffset = (int)(Math.sin(wavePhase) * 8);
+
+        int charY = baseY + waveOffset;
+
+        // Draw with all effects
+        if (config.firstLineGlowEnabled) {
+            Color glowColor = new Color(
+                    config.firstLineGlowColor.getRed(),
+                    config.firstLineGlowColor.getGreen(),
+                    config.firstLineGlowColor.getBlue(), 80);
+            g2d.setColor(glowColor);
+            for (int offset = 6; offset > 0; offset -= 2) {
+                g2d.drawString(charStr, x - offset, charY);
+                g2d.drawString(charStr, x + offset, charY);
+            }
+        }
+
+        if (config.firstLineShadowEnabled) {
+            g2d.setColor(new Color(0, 0, 0, 180));
+            g2d.drawString(charStr, x + config.firstLineShadowOffset, charY + config.firstLineShadowOffset);
+        }
+
+        if (config.firstLineOutlineEnabled) {
+            g2d.setColor(config.firstLineOutlineColor);
+            for (int ox = -2; ox <= 2; ox++) {
+                for (int oy = -2; oy <= 2; oy++) {
+                    if (ox != 0 || oy != 0) {
+                        g2d.drawString(charStr, x + ox, charY + oy);
+                    }
+                }
+            }
+        }
+
+        g2d.setColor(config.firstLineTextColor);
+        g2d.drawString(charStr, x, charY);
+
+        x += charWidth;
+    }
+}
 
 
     /**
