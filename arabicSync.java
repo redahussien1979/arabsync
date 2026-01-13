@@ -2646,69 +2646,49 @@ public class arabicSync {
             clearCaches();
             startBenchmark();
 
-            // Generate frames - use parallel processing for Images Per Line mode
-            if (config.backgroundMode == 7) {
-                // PARALLEL FRAME GENERATION for Images Per Line mode
-                System.out.println("🚀 Using parallel frame generation...");
+            // Generate frames SEQUENTIALLY (parallel causes sync issues with Graphics2D/fonts)
+            // Speed comes from: image caching, background caching, optimized blur
+            for (int frame = 0; frame < totalFrames; frame++) {
 
-                for (int batchStart = 0; batchStart < totalFrames && !stopRequested; batchStart += FRAME_BATCH_SIZE) {
-                    int batchEnd = Math.min(batchStart + FRAME_BATCH_SIZE, totalFrames);
+                if (stopRequested) {
+                    System.out.println("Generation stopped at frame " + frame);
+                    printBenchmarkResults();
+                    return tempFolder;
+                }
+                this.currentFrame = frame + 1;
+                recordBenchmarkFrame();
 
-                    generateFramesInParallel(formattedData, quoteTimings, tempFolder,
-                            batchStart, batchEnd, frameRate, audioDuration,
-                            preloadedEnglishFont, preloadedArabicFont);
+                double currentTime = (double) frame / frameRate;
+                QuoteDisplayInfoArabicSync displayInfo = getCurrentArabicQuoteDisplayInfo(currentTime, quoteTimings);
 
-                    // Progress update every batch
-                    int progress = (int) ((batchEnd * 100.0) / totalFrames);
-                    System.out.println("Progress: " + progress + "% (" + batchEnd + "/" + totalFrames + " frames)");
+                if (frame % 50 == 0) {
+                    System.out.println("DEBUG Frame " + frame + ": time=" + String.format("%.2f", currentTime) +
+                            "s, currentQuote=" + displayInfo.currentQuote +
+                            ", isActive=" + displayInfo.isActive);
                 }
 
-                // Shutdown executor after parallel generation
-                shutdownExecutor();
-            } else {
-                // SEQUENTIAL FRAME GENERATION for other modes
-                for (int frame = 0; frame < totalFrames; frame++) {
+                String frameName = String.format("%s/frame_%04d.png", tempFolder, frame);
 
-                    // ADD THIS CHECK:
-                    if (stopRequested) {
-                        System.out.println("Generation stopped at frame " + frame);
-                        printBenchmarkResults();
-                        return tempFolder;
-                    }
-                    this.currentFrame = frame + 1; // Update current frame counter
-                    recordBenchmarkFrame();
-
-                    double currentTime = (double) frame / frameRate;
-
-                    // Determine current quote being spoken
-                    QuoteDisplayInfoArabicSync displayInfo = getCurrentArabicQuoteDisplayInfo(currentTime, quoteTimings);
-    // ADD THIS DEBUG (only print every 50 frames to avoid spam)
-                    if (frame % 50 == 0) {
-                        System.out.println("DEBUG Frame " + frame + ": time=" + String.format("%.2f", currentTime) +
-                                "s, currentQuote=" + displayInfo.currentQuote +
-                                ", isActive=" + displayInfo.isActive);
-                    }
-                    // Generate frame
-                    String frameName = String.format("%s/frame_%04d.png", tempFolder, frame);
-
-                    if (useJigsawPuzzle) {
-                        double completionPercentage = currentTime / audioDuration;
-                        updateJigsawPieces(jigsawPieces, completionPercentage);
-                        generateArabicSyncJigsawFrame(formattedData, displayInfo, frameName, jigsawPieces, currentTime,
-                                preloadedEnglishFont, preloadedArabicFont, audioDuration);
-                    } else if (useRandomSlideshow) {
-                        generateArabicSyncSlideshowFrame(formattedData, displayInfo, frameName, currentTime,
-                                preloadedEnglishFont, preloadedArabicFont, audioDuration);
-                    } else if (config.backgroundMode == 5) {
-                        generateImagePlusTextFrame(formattedData, displayInfo, frameName, currentTime,
-                                preloadedEnglishFont, preloadedArabicFont, audioDuration);
-                    } else if (config.backgroundMode == 6) {
-                        generateQuizFrame(formattedData, displayInfo, frameName, currentTime,
-                                preloadedEnglishFont, preloadedArabicFont, audioDuration);
-                    } else {
-                        generateArabicSyncSingleImageFrame(formattedData, displayInfo, frameName, singleEffectImage, currentTime,
-                                preloadedEnglishFont, preloadedArabicFont, audioDuration);
-                    }
+                if (useJigsawPuzzle) {
+                    double completionPercentage = currentTime / audioDuration;
+                    updateJigsawPieces(jigsawPieces, completionPercentage);
+                    generateArabicSyncJigsawFrame(formattedData, displayInfo, frameName, jigsawPieces, currentTime,
+                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                } else if (useRandomSlideshow) {
+                    generateArabicSyncSlideshowFrame(formattedData, displayInfo, frameName, currentTime,
+                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                } else if (config.backgroundMode == 5) {
+                    generateImagePlusTextFrame(formattedData, displayInfo, frameName, currentTime,
+                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                } else if (config.backgroundMode == 6) {
+                    generateQuizFrame(formattedData, displayInfo, frameName, currentTime,
+                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                } else if (config.backgroundMode == 7) {
+                    generateImagesPerLineFrame(formattedData, displayInfo, frameName, currentTime,
+                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                } else {
+                    generateArabicSyncSingleImageFrame(formattedData, displayInfo, frameName, singleEffectImage, currentTime,
+                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
                 }
             }
 
