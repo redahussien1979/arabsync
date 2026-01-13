@@ -114,6 +114,9 @@ public class arabicSync {
 
         String imagesPerLineFolder = "images_per_line"; // ADD THIS
 
+        // Images per line mode settings
+        int imagesPerLineFirstLineY = 100; // Y position for first line text (0 = top, higher = lower)
+
         // ADD THESE EFFECT FLAGS:
         boolean enableColorEnhancement = true;
         boolean enableWaterEffect = false;
@@ -474,6 +477,30 @@ public class arabicSync {
                 editor.setVisible(true);
             });
             panel.add(effectsEditorBtn, gbc);
+
+            // First Line Y Position (for images per line mode)
+            gbc.gridx = 0; gbc.gridy = 3;
+            panel.add(new JLabel("First Line Y Position:"), gbc);
+            gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+            JSlider firstLineYSlider = new JSlider(JSlider.HORIZONTAL, 50, 800, config.imagesPerLineFirstLineY);
+            firstLineYSlider.setMajorTickSpacing(150);
+            firstLineYSlider.setMinorTickSpacing(50);
+            firstLineYSlider.setPaintTicks(true);
+            firstLineYSlider.setPaintLabels(true);
+            JLabel firstLineYValueLabel = new JLabel(String.valueOf(config.imagesPerLineFirstLineY) + " px");
+            firstLineYSlider.addChangeListener(e -> {
+                config.imagesPerLineFirstLineY = firstLineYSlider.getValue();
+                firstLineYValueLabel.setText(config.imagesPerLineFirstLineY + " px");
+            });
+            panel.add(firstLineYSlider, gbc);
+            gbc.gridx = 2; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+            panel.add(firstLineYValueLabel, gbc);
+            gbc.gridx = 3;
+            JLabel firstLineYHint = new JLabel("(Top=50, Middle=400, Bottom=800)");
+            firstLineYHint.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 10));
+            firstLineYHint.setForeground(Color.GRAY);
+            panel.add(firstLineYHint, gbc);
+
             return panel;
         }
         private void openTextEditorDialog() {
@@ -7010,14 +7037,14 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
         boolean isFirstLine = (displayInfo.currentQuote == 0);
 
         if (isFirstLine) {
-            // Title text code...
+            // Title text code - use configurable Y position
             Font titleFont = arabicFont.deriveFont(Font.BOLD, 65f);
             g2d.setFont(titleFont);
             FontMetrics fm = g2d.getFontMetrics(titleFont);
             int textPadding = 80;
             int textWidth = width - (2 * textPadding);
             java.util.List<String> wrappedLines = wrapTextToLines(arabicText, fm, textWidth);
-            int textStartY = 100;
+            int textStartY = config.imagesPerLineFirstLineY; // Use configurable position
 
             for (int lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
                 String line = wrappedLines.get(lineIdx);
