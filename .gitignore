@@ -1,0 +1,14 @@
+# Compiled Java class files
+*.class
+
+# Temporary folders
+temp_arabic_audio_sync_*/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

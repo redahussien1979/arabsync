@@ -70,47 +70,90 @@ public class arabicSync {
     }
 
     // ==================== PERFORMANCE OPTIMIZATION ====================
-    // Image caching to avoid reloading same images every frame
-    private java.util.concurrent.ConcurrentHashMap<String, BufferedImage> imageCache = new java.util.concurrent.ConcurrentHashMap<>();
-    private java.util.concurrent.ConcurrentHashMap<String, BufferedImage> processedBackgroundCache = new java.util.concurrent.ConcurrentHashMap<>();
+    // LRU-style caches with size limits to prevent unbounded memory growth
+    private static final int MAX_IMAGE_CACHE_SIZE = 50;  // Max raw images in cache
+    private static final int MAX_PROCESSED_CACHE_SIZE = 30;  // Max processed backgrounds in cache
+
+    // Image caching with LRU eviction
+    private java.util.LinkedHashMap<String, BufferedImage> imageCache = new java.util.LinkedHashMap<String, BufferedImage>(
+            MAX_IMAGE_CACHE_SIZE + 1, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, BufferedImage> eldest) {
+            return size() > MAX_IMAGE_CACHE_SIZE;
+        }
+    };
+
+    private java.util.LinkedHashMap<String, BufferedImage> processedBackgroundCache = new java.util.LinkedHashMap<String, BufferedImage>(
+            MAX_PROCESSED_CACHE_SIZE + 1, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, BufferedImage> eldest) {
+            return size() > MAX_PROCESSED_CACHE_SIZE;
+        }
+    };
 
     // Thread pool for parallel frame generation
     private java.util.concurrent.ExecutorService frameExecutor;
     private static final int FRAME_THREAD_POOL_SIZE = Runtime.getRuntime().availableProcessors();
 
-    // Reusable image buffer to reduce GC pressure
-    private BufferedImage reusableFrameBuffer;
+    // Batch size for parallel frame generation
+    private static final int FRAME_BATCH_SIZE = Runtime.getRuntime().availableProcessors() * 2;
+
+    // Benchmarking
+    private long benchmarkStartTime;
+    private int benchmarkFrameCount;
 
     /**
-     * Get cached image or load and cache it
+     * Get cached image or load and cache it (thread-safe)
      */
-    private BufferedImage getCachedImage(String imagePath) {
-        return imageCache.computeIfAbsent(imagePath, path -> {
-            try {
-                return ImageIO.read(new File(path));
-            } catch (IOException e) {
-                System.err.println("Error loading image: " + path);
-                return null;
+    private synchronized BufferedImage getCachedImage(String imagePath) {
+        BufferedImage cached = imageCache.get(imagePath);
+        if (cached != null) {
+            return cached;
+        }
+        try {
+            BufferedImage loaded = ImageIO.read(new File(imagePath));
+            if (loaded != null) {
+                imageCache.put(imagePath, loaded);
             }
-        });
+            return loaded;
+        } catch (IOException e) {
+            System.err.println("Error loading image: " + imagePath);
+            return null;
+        }
     }
 
     /**
-     * Get cached processed background or create and cache it
+     * Get cached processed background or create and cache it (thread-safe)
      */
-    private BufferedImage getCachedProcessedBackground(String key, BufferedImage original, int width, int height) {
-        return processedBackgroundCache.computeIfAbsent(key, k -> {
-            return fitWithBlurredBackgroundOptimized(original, width, height);
-        });
+    private synchronized BufferedImage getCachedProcessedBackground(String key, BufferedImage original, int width, int height) {
+        BufferedImage cached = processedBackgroundCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        BufferedImage processed = fitWithBlurredBackgroundOptimized(original, width, height);
+        if (processed != null) {
+            processedBackgroundCache.put(key, processed);
+        }
+        return processed;
     }
 
     /**
      * Clear all caches (call before new video generation)
      */
-    private void clearCaches() {
+    private synchronized void clearCaches() {
         imageCache.clear();
         processedBackgroundCache.clear();
-        System.out.println("✓ Cleared image caches");
+        System.out.println("✓ Cleared image caches (limits: " + MAX_IMAGE_CACHE_SIZE + " raw, " + MAX_PROCESSED_CACHE_SIZE + " processed)");
+    }
+
+    /**
+     * Initialize thread pool for parallel frame generation
+     */
+    private void initializeExecutor() {
+        if (frameExecutor == null || frameExecutor.isShutdown()) {
+            frameExecutor = java.util.concurrent.Executors.newFixedThreadPool(FRAME_THREAD_POOL_SIZE);
+            System.out.println("✓ Initialized thread pool with " + FRAME_THREAD_POOL_SIZE + " threads");
+        }
     }
 
     /**
@@ -127,6 +170,114 @@ public class arabicSync {
                 frameExecutor.shutdownNow();
             }
         }
+    }
+
+    /**
+     * Start benchmark timing
+     */
+    private void startBenchmark() {
+        benchmarkStartTime = System.currentTimeMillis();
+        benchmarkFrameCount = 0;
+    }
+
+    /**
+     * Record frame for benchmark
+     */
+    private void recordBenchmarkFrame() {
+        benchmarkFrameCount++;
+    }
+
+    /**
+     * Print benchmark results
+     */
+    private void printBenchmarkResults() {
+        long elapsed = System.currentTimeMillis() - benchmarkStartTime;
+        double fps = (benchmarkFrameCount * 1000.0) / elapsed;
+        double msPerFrame = (double) elapsed / benchmarkFrameCount;
+        System.out.println("\n📊 PERFORMANCE BENCHMARK RESULTS:");
+        System.out.println("   Total frames: " + benchmarkFrameCount);
+        System.out.println("   Total time: " + String.format("%.2f", elapsed / 1000.0) + " seconds");
+        System.out.println("   Average FPS: " + String.format("%.2f", fps) + " frames/second");
+        System.out.println("   Time per frame: " + String.format("%.2f", msPerFrame) + " ms");
+        System.out.println("   Cache sizes: " + imageCache.size() + " raw images, " + processedBackgroundCache.size() + " processed");
+    }
+
+    /**
+     * Frame generation task for parallel processing
+     */
+    private class FrameGenerationTask implements java.util.concurrent.Callable<Boolean> {
+        private final FormattedTextDataArabicSync formattedData;
+        private final QuoteTimingInfoArabicSync[] quoteTimings;
+        private final String tempFolder;
+        private final int frame;
+        private final double frameRate;
+        private final double audioDuration;
+        private final Font englishFont;
+        private final Font arabicFont;
+
+        FrameGenerationTask(FormattedTextDataArabicSync formattedData, QuoteTimingInfoArabicSync[] quoteTimings,
+                           String tempFolder, int frame, double frameRate, double audioDuration,
+                           Font englishFont, Font arabicFont) {
+            this.formattedData = formattedData;
+            this.quoteTimings = quoteTimings;
+            this.tempFolder = tempFolder;
+            this.frame = frame;
+            this.frameRate = frameRate;
+            this.audioDuration = audioDuration;
+            this.englishFont = englishFont;
+            this.arabicFont = arabicFont;
+        }
+
+        @Override
+        public Boolean call() {
+            try {
+                double currentTime = (double) frame / frameRate;
+                QuoteDisplayInfoArabicSync displayInfo = getCurrentArabicQuoteDisplayInfo(currentTime, quoteTimings);
+                String frameName = String.format("%s/frame_%04d.png", tempFolder, frame);
+                generateImagesPerLineFrame(formattedData, displayInfo, frameName, currentTime,
+                        englishFont, arabicFont, audioDuration);
+                return true;
+            } catch (Exception e) {
+                System.err.println("Error generating frame " + frame + ": " + e.getMessage());
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Generate frames in parallel batches for Images Per Line mode
+     */
+    private void generateFramesInParallel(FormattedTextDataArabicSync formattedData,
+                                          QuoteTimingInfoArabicSync[] quoteTimings,
+                                          String tempFolder, int startFrame, int endFrame,
+                                          double frameRate, double audioDuration,
+                                          Font englishFont, Font arabicFont) throws Exception {
+        initializeExecutor();
+
+        java.util.List<java.util.concurrent.Future<Boolean>> futures = new java.util.ArrayList<>();
+
+        for (int frame = startFrame; frame < endFrame && !stopRequested; frame++) {
+            FrameGenerationTask task = new FrameGenerationTask(
+                formattedData, quoteTimings, tempFolder, frame, frameRate, audioDuration,
+                englishFont, arabicFont
+            );
+            futures.add(frameExecutor.submit(task));
+        }
+
+        // Wait for all frames in this batch to complete
+        int completed = 0;
+        for (java.util.concurrent.Future<Boolean> future : futures) {
+            try {
+                if (future.get()) {
+                    completed++;
+                    recordBenchmarkFrame();
+                }
+            } catch (Exception e) {
+                System.err.println("Frame generation failed: " + e.getMessage());
+            }
+        }
+
+        this.currentFrame = endFrame;
     }
     // ==================== END PERFORMANCE OPTIMIZATION ====================
 
@@ -2479,8 +2630,9 @@ public class arabicSync {
                 System.out.println("❓ Selected: QUIZ MODE for Arabic audio sync");
                 // No pre-loading needed for quiz mode - handled per frame
             } else if (config.backgroundMode == 7) {
-                System.out.println("🖼️ Selected: IMAGES PER LINE mode for Arabic audio sync");
-                // No pre-loading needed - images loaded per line
+                System.out.println("🖼️ Selected: IMAGES PER LINE mode for Arabic audio sync (PARALLEL PROCESSING ENABLED)");
+                System.out.println("   Threads: " + FRAME_THREAD_POOL_SIZE + ", Batch size: " + FRAME_BATCH_SIZE);
+                // No pre-loading needed - images loaded per line with caching
 
             } else {
                 System.out.println("🎨 Selected: SINGLE IMAGE with effects for Arabic audio sync");
@@ -2490,52 +2642,78 @@ public class arabicSync {
                 }
             }
 
-            // Generate frames
-            for (int frame = 0; frame < totalFrames; frame++) {
+            // Clear caches and start benchmark
+            clearCaches();
+            startBenchmark();
 
-                // ADD THIS CHECK:
-                if (stopRequested) {
-                    System.out.println("Generation stopped at frame " + frame);
-                    return tempFolder;
+            // Generate frames - use parallel processing for Images Per Line mode
+            if (config.backgroundMode == 7) {
+                // PARALLEL FRAME GENERATION for Images Per Line mode
+                System.out.println("🚀 Using parallel frame generation...");
+
+                for (int batchStart = 0; batchStart < totalFrames && !stopRequested; batchStart += FRAME_BATCH_SIZE) {
+                    int batchEnd = Math.min(batchStart + FRAME_BATCH_SIZE, totalFrames);
+
+                    generateFramesInParallel(formattedData, quoteTimings, tempFolder,
+                            batchStart, batchEnd, frameRate, audioDuration,
+                            preloadedEnglishFont, preloadedArabicFont);
+
+                    // Progress update every batch
+                    int progress = (int) ((batchEnd * 100.0) / totalFrames);
+                    System.out.println("Progress: " + progress + "% (" + batchEnd + "/" + totalFrames + " frames)");
                 }
-                this.currentFrame = frame + 1; // Update current frame counter
 
-                double currentTime = (double) frame / frameRate;
+                // Shutdown executor after parallel generation
+                shutdownExecutor();
+            } else {
+                // SEQUENTIAL FRAME GENERATION for other modes
+                for (int frame = 0; frame < totalFrames; frame++) {
 
-                // Determine current quote being spoken
-                QuoteDisplayInfoArabicSync displayInfo = getCurrentArabicQuoteDisplayInfo(currentTime, quoteTimings);
-// ADD THIS DEBUG (only print every 50 frames to avoid spam)
-                if (frame % 50 == 0) {
-                    System.out.println("DEBUG Frame " + frame + ": time=" + String.format("%.2f", currentTime) +
-                            "s, currentQuote=" + displayInfo.currentQuote +
-                            ", isActive=" + displayInfo.isActive);
-                }
-                // Generate frame
-                String frameName = String.format("%s/frame_%04d.png", tempFolder, frame);
+                    // ADD THIS CHECK:
+                    if (stopRequested) {
+                        System.out.println("Generation stopped at frame " + frame);
+                        printBenchmarkResults();
+                        return tempFolder;
+                    }
+                    this.currentFrame = frame + 1; // Update current frame counter
+                    recordBenchmarkFrame();
 
-                if (useJigsawPuzzle) {
-                    double completionPercentage = currentTime / audioDuration;
-                    updateJigsawPieces(jigsawPieces, completionPercentage);
-                    generateArabicSyncJigsawFrame(formattedData, displayInfo, frameName, jigsawPieces, currentTime,
-                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
-                } else if (useRandomSlideshow) {
-                    generateArabicSyncSlideshowFrame(formattedData, displayInfo, frameName, currentTime,
-                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
-                } else if (config.backgroundMode == 5) {
-                    generateImagePlusTextFrame(formattedData, displayInfo, frameName, currentTime,
-                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
-                } else if (config.backgroundMode == 6) {
-                    generateQuizFrame(formattedData, displayInfo, frameName, currentTime,
-                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
-                } else if (config.backgroundMode == 7) {
-                    generateImagesPerLineFrame(formattedData, displayInfo, frameName, currentTime,
-                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
-                } else {
-                    generateArabicSyncSingleImageFrame(formattedData, displayInfo, frameName, singleEffectImage, currentTime,
-                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                    double currentTime = (double) frame / frameRate;
+
+                    // Determine current quote being spoken
+                    QuoteDisplayInfoArabicSync displayInfo = getCurrentArabicQuoteDisplayInfo(currentTime, quoteTimings);
+    // ADD THIS DEBUG (only print every 50 frames to avoid spam)
+                    if (frame % 50 == 0) {
+                        System.out.println("DEBUG Frame " + frame + ": time=" + String.format("%.2f", currentTime) +
+                                "s, currentQuote=" + displayInfo.currentQuote +
+                                ", isActive=" + displayInfo.isActive);
+                    }
+                    // Generate frame
+                    String frameName = String.format("%s/frame_%04d.png", tempFolder, frame);
+
+                    if (useJigsawPuzzle) {
+                        double completionPercentage = currentTime / audioDuration;
+                        updateJigsawPieces(jigsawPieces, completionPercentage);
+                        generateArabicSyncJigsawFrame(formattedData, displayInfo, frameName, jigsawPieces, currentTime,
+                                preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                    } else if (useRandomSlideshow) {
+                        generateArabicSyncSlideshowFrame(formattedData, displayInfo, frameName, currentTime,
+                                preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                    } else if (config.backgroundMode == 5) {
+                        generateImagePlusTextFrame(formattedData, displayInfo, frameName, currentTime,
+                                preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                    } else if (config.backgroundMode == 6) {
+                        generateQuizFrame(formattedData, displayInfo, frameName, currentTime,
+                                preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                    } else {
+                        generateArabicSyncSingleImageFrame(formattedData, displayInfo, frameName, singleEffectImage, currentTime,
+                                preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                    }
                 }
             }
 
+            // Print benchmark results
+            printBenchmarkResults();
 
             System.out.println("✅ Arabic audio sync sequence generated!");
             return tempFolder;
@@ -6969,10 +7147,13 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
             // Store original image for effects
             BufferedImage originalImageForEffects = currentImage;
 
-            currentImage = fitWithBlurredBackground(currentImage, width, height);
+            // Use optimized version with caching for processed backgrounds
+            String currentCacheKey = "line" + lineNumber + "_img" + lineImages.indexOf(currentImage) + "_" + width + "x" + height;
+            currentImage = getCachedProcessedBackground(currentCacheKey, currentImage, width, height);
 
             if (nextImage != null && lineImages.size() > 1) {
-                nextImage = fitWithBlurredBackground(nextImage, width, height);
+                String nextCacheKey = "line" + lineNumber + "_img" + lineImages.indexOf(nextImage) + "_" + width + "x" + height;
+                nextImage = getCachedProcessedBackground(nextCacheKey, nextImage, width, height);
                 float transitionProgress = calculateTransitionAlpha(currentQuoteLine, currentTime, lineImages.size());
 
                 if (transitionProgress > 0) {
@@ -7777,13 +7958,13 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
             }
         });
 
-        // Load images
+        // Load images using cache for performance
         for (File file : matchingFiles) {
             try {
-                BufferedImage img = ImageIO.read(file);
+                BufferedImage img = getCachedImage(file.getAbsolutePath());
                 if (img != null) {
                     images.add(img);
-                  //  System.out.println("✓ Loaded: " + file.getName() + " for line " + lineNumber);
+                  //  System.out.println("✓ Loaded (cached): " + file.getName() + " for line " + lineNumber);
                 }
             } catch (Exception e) {
                 System.out.println("✗ Error loading image: " + file.getName());
