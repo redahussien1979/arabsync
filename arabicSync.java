@@ -69,6 +69,67 @@ public class arabicSync {
 
     }
 
+    // ==================== PERFORMANCE OPTIMIZATION ====================
+    // Image caching to avoid reloading same images every frame
+    private java.util.concurrent.ConcurrentHashMap<String, BufferedImage> imageCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private java.util.concurrent.ConcurrentHashMap<String, BufferedImage> processedBackgroundCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    // Thread pool for parallel frame generation
+    private java.util.concurrent.ExecutorService frameExecutor;
+    private static final int FRAME_THREAD_POOL_SIZE = Runtime.getRuntime().availableProcessors();
+
+    // Reusable image buffer to reduce GC pressure
+    private BufferedImage reusableFrameBuffer;
+
+    /**
+     * Get cached image or load and cache it
+     */
+    private BufferedImage getCachedImage(String imagePath) {
+        return imageCache.computeIfAbsent(imagePath, path -> {
+            try {
+                return ImageIO.read(new File(path));
+            } catch (IOException e) {
+                System.err.println("Error loading image: " + path);
+                return null;
+            }
+        });
+    }
+
+    /**
+     * Get cached processed background or create and cache it
+     */
+    private BufferedImage getCachedProcessedBackground(String key, BufferedImage original, int width, int height) {
+        return processedBackgroundCache.computeIfAbsent(key, k -> {
+            return fitWithBlurredBackgroundOptimized(original, width, height);
+        });
+    }
+
+    /**
+     * Clear all caches (call before new video generation)
+     */
+    private void clearCaches() {
+        imageCache.clear();
+        processedBackgroundCache.clear();
+        System.out.println("✓ Cleared image caches");
+    }
+
+    /**
+     * Shutdown thread pool
+     */
+    private void shutdownExecutor() {
+        if (frameExecutor != null && !frameExecutor.isShutdown()) {
+            frameExecutor.shutdown();
+            try {
+                if (!frameExecutor.awaitTermination(60, java.util.concurrent.TimeUnit.SECONDS)) {
+                    frameExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                frameExecutor.shutdownNow();
+            }
+        }
+    }
+    // ==================== END PERFORMANCE OPTIMIZATION ====================
+
 
     private static class WordTiming {
         String word;
@@ -7325,7 +7386,68 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
         return result;
     }
 
+    /**
+     * OPTIMIZED version of fitWithBlurredBackground
+     * Uses faster rendering hints for intermediate frames
+     */
+    private BufferedImage fitWithBlurredBackgroundOptimized(BufferedImage original, int targetWidth, int targetHeight) {
+        int originalWidth = original.getWidth();
+        int originalHeight = original.getHeight();
 
+        int marginHorizontal = 40;
+        int marginVertical = 200;
+        int availableWidth = targetWidth - (2 * marginHorizontal);
+        int availableHeight = targetHeight - (2 * marginVertical);
+
+        double originalAspect = (double) originalWidth / originalHeight;
+        boolean isPortrait = (originalHeight > originalWidth);
+
+        int scaledWidth, scaledHeight;
+        int offsetX, offsetY;
+
+        if (isPortrait) {
+            double portraitScale = 0.6;
+            scaledHeight = (int) (availableHeight * portraitScale);
+            scaledWidth = (int) (scaledHeight * originalAspect);
+            offsetX = marginHorizontal + ((availableWidth - scaledWidth) / 2);
+            offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
+        } else {
+            scaledWidth = availableWidth;
+            scaledHeight = (int) (availableWidth / originalAspect);
+            offsetX = marginHorizontal;
+            offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
+        }
+
+        BufferedImage result = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = result.createGraphics();
+        // Use BILINEAR instead of BICUBIC for speed (minimal quality difference at video resolution)
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+
+        // Draw blurred background
+        BufferedImage blurred = applyGaussianBlur(original, 30);
+        g2d.drawImage(blurred, 0, 0, targetWidth, targetHeight, null);
+
+        // Darken the background
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+        g2d.setColor(Color.BLACK);
+        g2d.fillRect(0, 0, targetWidth, targetHeight);
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+
+        // Draw scaled image with rounded corners
+        BufferedImage scaledOriginal = new BufferedImage(scaledWidth, scaledHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2dScale = scaledOriginal.createGraphics();
+        g2dScale.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2dScale.drawImage(original, 0, 0, scaledWidth, scaledHeight, null);
+        g2dScale.dispose();
+
+        int cornerRadius = 50;
+        BufferedImage roundedImage = applyRoundedCorners(scaledOriginal, cornerRadius);
+        g2d.drawImage(roundedImage, offsetX, offsetY, null);
+
+        g2d.dispose();
+        return result;
+    }
 
 
 
@@ -7361,40 +7483,106 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
     }
 
     /**
-     * Box blur helper
+     * Box blur helper - OPTIMIZED using separable convolution
+     * Reduces O(n⁴) complexity to O(n²) by doing horizontal then vertical passes
      */
     private BufferedImage boxBlur(BufferedImage image, int radius) {
         int width = image.getWidth();
         int height = image.getHeight();
 
-        BufferedImage result = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        // Use int arrays for faster pixel access
+        int[] pixels = new int[width * height];
+        int[] result = new int[width * height];
 
+        image.getRGB(0, 0, width, height, pixels, 0, width);
+
+        // Horizontal pass
         for (int y = 0; y < height; y++) {
+            int rowOffset = y * width;
+            int r = 0, g = 0, b = 0;
+
+            // Initialize window with first (radius+1) pixels
+            for (int x = 0; x <= radius && x < width; x++) {
+                int rgb = pixels[rowOffset + x];
+                r += (rgb >> 16) & 0xFF;
+                g += (rgb >> 8) & 0xFF;
+                b += rgb & 0xFF;
+            }
+
             for (int x = 0; x < width; x++) {
-                int r = 0, g = 0, b = 0, count = 0;
-
-                for (int dy = -radius; dy <= radius; dy++) {
-                    for (int dx = -radius; dx <= radius; dx++) {
-                        int nx = Math.max(0, Math.min(width - 1, x + dx));
-                        int ny = Math.max(0, Math.min(height - 1, y + dy));
-
-                        int rgb = image.getRGB(nx, ny);
-                        r += (rgb >> 16) & 0xFF;
-                        g += (rgb >> 8) & 0xFF;
-                        b += rgb & 0xFF;
-                        count++;
-                    }
+                // Add pixel entering window (right side)
+                int addX = x + radius;
+                if (addX < width) {
+                    int rgb = pixels[rowOffset + addX];
+                    r += (rgb >> 16) & 0xFF;
+                    g += (rgb >> 8) & 0xFF;
+                    b += rgb & 0xFF;
                 }
 
-                r /= count;
-                g /= count;
-                b /= count;
+                // Calculate window size and average
+                int windowStart = Math.max(0, x - radius);
+                int windowEnd = Math.min(width - 1, x + radius);
+                int windowSize = windowEnd - windowStart + 1;
 
-                result.setRGB(x, y, (r << 16) | (g << 8) | b);
+                result[rowOffset + x] = ((r / windowSize) << 16) | ((g / windowSize) << 8) | (b / windowSize);
+
+                // Remove pixel leaving window (left side)
+                int removeX = x - radius;
+                if (removeX >= 0) {
+                    int rgb = pixels[rowOffset + removeX];
+                    r -= (rgb >> 16) & 0xFF;
+                    g -= (rgb >> 8) & 0xFF;
+                    b -= rgb & 0xFF;
+                }
             }
         }
 
-        return result;
+        // Copy result to pixels for vertical pass
+        System.arraycopy(result, 0, pixels, 0, pixels.length);
+
+        // Vertical pass
+        for (int x = 0; x < width; x++) {
+            int r = 0, g = 0, b = 0;
+
+            // Initialize window with first (radius+1) pixels
+            for (int y = 0; y <= radius && y < height; y++) {
+                int rgb = pixels[y * width + x];
+                r += (rgb >> 16) & 0xFF;
+                g += (rgb >> 8) & 0xFF;
+                b += rgb & 0xFF;
+            }
+
+            for (int y = 0; y < height; y++) {
+                // Add pixel entering window (bottom)
+                int addY = y + radius;
+                if (addY < height) {
+                    int rgb = pixels[addY * width + x];
+                    r += (rgb >> 16) & 0xFF;
+                    g += (rgb >> 8) & 0xFF;
+                    b += rgb & 0xFF;
+                }
+
+                // Calculate window size and average
+                int windowStart = Math.max(0, y - radius);
+                int windowEnd = Math.min(height - 1, y + radius);
+                int windowSize = windowEnd - windowStart + 1;
+
+                result[y * width + x] = ((r / windowSize) << 16) | ((g / windowSize) << 8) | (b / windowSize);
+
+                // Remove pixel leaving window (top)
+                int removeY = y - radius;
+                if (removeY >= 0) {
+                    int rgb = pixels[removeY * width + x];
+                    r -= (rgb >> 16) & 0xFF;
+                    g -= (rgb >> 8) & 0xFF;
+                    b -= rgb & 0xFF;
+                }
+            }
+        }
+
+        BufferedImage output = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        output.setRGB(0, 0, width, height, result, 0, width);
+        return output;
     }
 
 
