@@ -7314,7 +7314,33 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                     g2d.drawImage(currentImage, 0, 0, null);
                 }
             } else {
-                g2d.drawImage(currentImage, 0, 0, null);
+                // Check for zoom effect and apply zoom animation to the whole image
+                String currentImageFileName = getCurrentImageFileName(lineNumber, lineImages, currentQuoteLine, currentTime);
+                java.util.List<EffectEntry> effects = (currentImageFileName != null) ?
+                    loadEffectsForImage(lineNumber, currentImageFileName) : new java.util.ArrayList<>();
+
+                // Find zoom effect if any
+                EffectEntry zoomEffect = null;
+                for (EffectEntry effect : effects) {
+                    if ("zoom".equals(effect.type)) {
+                        zoomEffect = effect;
+                        break;
+                    }
+                }
+
+                if (zoomEffect != null && displayInfo.isActive) {
+                    // Draw with zoom animation
+                    double lineDuration = currentQuoteLine.endTime - currentQuoteLine.startTime;
+                    double timeInLine = currentTime - currentQuoteLine.startTime;
+                    double maxZoom = 1.0 + (zoomEffect.size / 100.0); // size 80 = 1.8x zoom
+
+                    drawImageWithZoomAnimation(g2d, currentImage, width, height,
+                            zoomEffect.x, zoomEffect.y,
+                            originalImageForEffects.getWidth(), originalImageForEffects.getHeight(),
+                            lineDuration, timeInLine, maxZoom);
+                } else {
+                    g2d.drawImage(currentImage, 0, 0, null);
+                }
             }
 
             // ===== DRAW EFFECTS FROM SAVED CONFIG =====
@@ -7375,12 +7401,13 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
 
                             switch (effect.type) {
                                 case "text":
-                                    drawTextCaptionEffect(g2d, effect.text, videoX, videoY, arabicFont, currentTime);
+                                    drawTextCaptionEffect(g2d, effect.text, videoX, videoY, arabicFont, effect.fontSize, currentTime);
                                     break;
 
                                 case "zoom":
-                                    drawZoomEffectSimple(g2d, originalImageForEffects, effect.x, effect.y,
-                                            videoX, videoY, effect.size, currentTime);
+                                    // Zoom animation is now applied to the whole image (see above)
+                                    // Just draw a small focus indicator at the zoom point
+                                    drawZoomPointIndicator(g2d, videoX, videoY, currentTime);
                                     break;
 
                                 case "dot":
@@ -9175,7 +9202,8 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
         String text;  // Only for text type
         int x;
         int y;
-        int size;     // Optional: effect size
+        int size;     // Effect size (zoom radius, etc.)
+        int fontSize; // Font size for text captions
 
         EffectEntry(String type, String text, int x, int y) {
             this.type = type;
@@ -9183,6 +9211,16 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
             this.x = x;
             this.y = y;
             this.size = 80; // Default size
+            this.fontSize = 40; // Default font size
+        }
+
+        EffectEntry(String type, String text, int x, int y, int size, int fontSize) {
+            this.type = type;
+            this.text = text;
+            this.x = x;
+            this.y = y;
+            this.size = size;
+            this.fontSize = fontSize;
         }
     }
 
@@ -9210,7 +9248,7 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                     for (EffectEntry effect : data.effects) {
                         writer.println("EFFECT:" + effect.type + "," +
                                 (effect.text != null ? effect.text : "") + "," +
-                                effect.x + "," + effect.y + "," + effect.size);
+                                effect.x + "," + effect.y + "," + effect.size + "," + effect.fontSize);
                     }
                     writer.println("---");
                 }
@@ -9245,6 +9283,9 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                             EffectEntry effect = new EffectEntry(type, text, x, y);
                             if (parts.length > 4) {
                                 effect.size = Integer.parseInt(parts[4]);
+                            }
+                            if (parts.length > 5) {
+                                effect.fontSize = Integer.parseInt(parts[5]);
                             }
                             currentData.effects.add(effect);
                         }
@@ -9291,6 +9332,8 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
         private JComboBox<String> effectTypeCombo;
         private JTextField textInputField;
         private JSpinner sizeSpinner;
+        private JSlider fontSizeSlider;
+        private JLabel fontSizeValueLabel;
 
         private int currentLineNumber = -1;
         private String currentImageFile = null;
@@ -9582,6 +9625,32 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
             sizeSpinner.setMaximumSize(new Dimension(100, 30));
             sizeSpinner.setAlignmentX(Component.LEFT_ALIGNMENT);
             controlsPanel.add(sizeSpinner);
+            controlsPanel.add(Box.createVerticalStrut(10));
+
+            // Font Size slider (for text captions)
+            JLabel fontSizeLabel = new JLabel("Caption Font Size:");
+            fontSizeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            controlsPanel.add(fontSizeLabel);
+
+            JPanel fontSizePanel = new JPanel(new BorderLayout(5, 0));
+            fontSizePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            fontSizePanel.setMaximumSize(new Dimension(300, 30));
+
+            fontSizeSlider = new JSlider(JSlider.HORIZONTAL, 20, 100, 40);
+            fontSizeSlider.setMajorTickSpacing(20);
+            fontSizeSlider.setMinorTickSpacing(5);
+            fontSizeSlider.setPaintTicks(true);
+
+            fontSizeValueLabel = new JLabel("40 px");
+            fontSizeValueLabel.setPreferredSize(new Dimension(50, 20));
+
+            fontSizeSlider.addChangeListener(e -> {
+                fontSizeValueLabel.setText(fontSizeSlider.getValue() + " px");
+            });
+
+            fontSizePanel.add(fontSizeSlider, BorderLayout.CENTER);
+            fontSizePanel.add(fontSizeValueLabel, BorderLayout.EAST);
+            controlsPanel.add(fontSizePanel);
             controlsPanel.add(Box.createVerticalStrut(15));
 
             // Instruction label
@@ -9689,8 +9758,8 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
             }
 
             int size = (Integer) sizeSpinner.getValue();
-            EffectEntry effect = new EffectEntry(effectType, text, x, y);
-            effect.size = size;
+            int fontSize = fontSizeSlider.getValue();
+            EffectEntry effect = new EffectEntry(effectType, text, x, y, size, fontSize);
 
             // Add to config with composite key
             String key = currentLineNumber + ":" + currentImageFile;
@@ -9773,6 +9842,8 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
             private int lineNumber;
             private String imageFileName;
             private List<EffectEntry> effects = new ArrayList<>();
+            private EffectEntry draggedEffect = null;
+            private int dragOffsetX, dragOffsetY;
 
             public ImagePanel() {
                 setBackground(Color.DARK_GRAY);
@@ -9780,12 +9851,96 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
                 addMouseListener(new MouseAdapter() {
                     @Override
-                    public void mouseClicked(MouseEvent e) {
+                    public void mousePressed(MouseEvent e) {
                         if (image != null) {
-                            handleImageClick(e.getX(), e.getY());
+                            // Check if clicking on an existing effect to drag it
+                            draggedEffect = findEffectAt(e.getX(), e.getY());
+                            if (draggedEffect != null) {
+                                // Calculate offset from effect position to mouse position
+                                int panelX = imageX + (int)(draggedEffect.x / (double)image.getWidth() * imageWidth);
+                                int panelY = imageY + (int)(draggedEffect.y / (double)image.getHeight() * imageHeight);
+                                dragOffsetX = e.getX() - panelX;
+                                dragOffsetY = e.getY() - panelY;
+                                setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void mouseReleased(MouseEvent e) {
+                        if (draggedEffect != null) {
+                            // Save the updated position
+                            updateEffectInConfig(draggedEffect);
+                            draggedEffect = null;
+                            setCursor(Cursor.getDefaultCursor());
+                            repaint();
+                        }
+                    }
+
+                    @Override
+                    public void mouseClicked(MouseEvent e) {
+                        if (image != null && draggedEffect == null) {
+                            // Only add new effect if not dragging
+                            if (findEffectAt(e.getX(), e.getY()) == null) {
+                                handleImageClick(e.getX(), e.getY());
+                            }
                         }
                     }
                 });
+
+                addMouseMotionListener(new MouseMotionAdapter() {
+                    @Override
+                    public void mouseDragged(MouseEvent e) {
+                        if (draggedEffect != null && image != null) {
+                            // Update effect position
+                            int newPanelX = e.getX() - dragOffsetX;
+                            int newPanelY = e.getY() - dragOffsetY;
+
+                            // Convert panel coordinates to image coordinates
+                            int newImageX = (int)((newPanelX - imageX) / (double)imageWidth * image.getWidth());
+                            int newImageY = (int)((newPanelY - imageY) / (double)imageHeight * image.getHeight());
+
+                            // Clamp to image bounds
+                            newImageX = Math.max(0, Math.min(newImageX, image.getWidth() - 1));
+                            newImageY = Math.max(0, Math.min(newImageY, image.getHeight() - 1));
+
+                            draggedEffect.x = newImageX;
+                            draggedEffect.y = newImageY;
+                            repaint();
+                        }
+                    }
+
+                    @Override
+                    public void mouseMoved(MouseEvent e) {
+                        // Change cursor when hovering over an effect
+                        if (image != null && findEffectAt(e.getX(), e.getY()) != null) {
+                            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                        } else {
+                            setCursor(Cursor.getDefaultCursor());
+                        }
+                    }
+                });
+            }
+
+            private EffectEntry findEffectAt(int panelX, int panelY) {
+                for (EffectEntry effect : effects) {
+                    int effectPanelX = imageX + (int)(effect.x / (double)image.getWidth() * imageWidth);
+                    int effectPanelY = imageY + (int)(effect.y / (double)image.getHeight() * imageHeight);
+
+                    // Check if click is within effect bounds (use a reasonable hit area)
+                    int hitSize = 40; // Hit area size
+                    if (panelX >= effectPanelX - hitSize && panelX <= effectPanelX + hitSize &&
+                        panelY >= effectPanelY - hitSize && panelY <= effectPanelY + hitSize) {
+                        return effect;
+                    }
+                }
+                return null;
+            }
+
+            private void updateEffectInConfig(EffectEntry effect) {
+                // The effect is already updated in place since it's the same object
+                // Just trigger a save notification
+                System.out.println("✓ Moved effect to (" + effect.x + ", " + effect.y + ")");
             }
 
             public void setImage(BufferedImage img, int lineNum, String fileName) {
@@ -9873,7 +10028,7 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
                     switch (effect.type) {
                         case "text":
-                            drawTextPreview(g2d, effect.text, panelX, panelY);
+                            drawTextPreview(g2d, effect.text, panelX, panelY, effect.fontSize);
                             break;
                         case "zoom":
                             drawZoomPreview(g2d, panelX, panelY, effect.size);
@@ -9885,8 +10040,10 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                 }
             }
 
-            private void drawTextPreview(Graphics2D g2d, String text, int x, int y) {
-                Font font = new Font("Arial Unicode MS", Font.BOLD, 16);
+            private void drawTextPreview(Graphics2D g2d, String text, int x, int y, int fontSize) {
+                // Scale font size for preview (preview is smaller than actual video)
+                int previewFontSize = Math.max(12, fontSize / 3);
+                Font font = new Font("Arial Unicode MS", Font.BOLD, previewFontSize);
                 g2d.setFont(font);
                 FontMetrics fm = g2d.getFontMetrics();
 
@@ -10121,8 +10278,8 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
     /**
      * Draw text caption effect (from saved config)
      */
-    private void drawTextCaptionEffect(Graphics2D g2d, String text, int x, int y, Font arabicFont, double currentTime) {
-        Font captionFont = arabicFont.deriveFont(Font.BOLD, 40f);
+    private void drawTextCaptionEffect(Graphics2D g2d, String text, int x, int y, Font arabicFont, int fontSize, double currentTime) {
+        Font captionFont = arabicFont.deriveFont(Font.BOLD, (float) fontSize);
         g2d.setFont(captionFont);
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -10161,7 +10318,104 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
      * Draw zoom effect (simplified for saved config)
      */
     /**
-     * Draw zoom effect that actually magnifies the specified area of the image
+     * Draw a small focus indicator at the zoom target point
+     */
+    private void drawZoomPointIndicator(Graphics2D g2d, int x, int y, double currentTime) {
+        // Small pulsing circle at the zoom target
+        double pulse = (Math.sin(currentTime * 6) + 1) / 2; // 0 to 1
+        int baseSize = 15;
+        int size = baseSize + (int)(pulse * 5);
+
+        // Outer glow
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setColor(new Color(255, 215, 0, 50));
+        g2d.fillOval(x - size - 5, y - size - 5, (size + 5) * 2, (size + 5) * 2);
+
+        // Main circle
+        g2d.setColor(new Color(255, 215, 0, 150));
+        g2d.setStroke(new BasicStroke(2));
+        g2d.drawOval(x - size, y - size, size * 2, size * 2);
+
+        // Center crosshair
+        g2d.setColor(new Color(255, 255, 255, 200));
+        g2d.setStroke(new BasicStroke(1));
+        g2d.drawLine(x - 8, y, x + 8, y);
+        g2d.drawLine(x, y - 8, x, y + 8);
+    }
+
+    /**
+     * Draw image with animated zoom effect - zooms IN to target point then OUT
+     * @param g2d Graphics context
+     * @param image The image to draw
+     * @param width Video frame width
+     * @param height Video frame height
+     * @param zoomTargetX Target X in original image coordinates
+     * @param zoomTargetY Target Y in original image coordinates
+     * @param originalImageWidth Original image width (for coordinate conversion)
+     * @param originalImageHeight Original image height (for coordinate conversion)
+     * @param lineDuration Duration of the line/image display in seconds
+     * @param timeInLine Current time position within this line
+     * @param maxZoom Maximum zoom level (e.g., 1.5 for 150%)
+     */
+    private void drawImageWithZoomAnimation(Graphics2D g2d, BufferedImage image,
+                                            int width, int height,
+                                            int zoomTargetX, int zoomTargetY,
+                                            int originalImageWidth, int originalImageHeight,
+                                            double lineDuration, double timeInLine,
+                                            double maxZoom) {
+        if (image == null) return;
+
+        // Calculate animation progress (0 to 1)
+        double progress = timeInLine / lineDuration;
+        progress = Math.max(0, Math.min(1, progress)); // Clamp to 0-1
+
+        // Calculate zoom factor: zoom in first half, zoom out second half
+        double zoomFactor;
+        if (progress <= 0.5) {
+            // First half: zoom IN from 1.0 to maxZoom
+            zoomFactor = 1.0 + (progress * 2 * (maxZoom - 1.0));
+        } else {
+            // Second half: zoom OUT from maxZoom back to 1.0
+            zoomFactor = maxZoom - ((progress - 0.5) * 2 * (maxZoom - 1.0));
+        }
+
+        // Convert zoom target from original image coords to current image coords
+        double scaleX = (double) image.getWidth() / originalImageWidth;
+        double scaleY = (double) image.getHeight() / originalImageHeight;
+        int targetX = (int) (zoomTargetX * scaleX);
+        int targetY = (int) (zoomTargetY * scaleY);
+
+        // Calculate the scaled size
+        int scaledWidth = (int) (image.getWidth() * zoomFactor);
+        int scaledHeight = (int) (image.getHeight() * zoomFactor);
+
+        // Calculate offset to keep zoom target centered
+        // The target point should stay at the same screen position as we zoom
+        double targetScreenX = (double) targetX / image.getWidth() * width;
+        double targetScreenY = (double) targetY / image.getHeight() * height;
+
+        // Where the target will be after scaling
+        double scaledTargetX = (double) targetX / image.getWidth() * scaledWidth;
+        double scaledTargetY = (double) targetY / image.getHeight() * scaledHeight;
+
+        // Offset needed to keep target in same position
+        int offsetX = (int) (targetScreenX - scaledTargetX);
+        int offsetY = (int) (targetScreenY - scaledTargetY);
+
+        // Draw the scaled image
+        Graphics2D g2dZoom = (Graphics2D) g2d.create();
+        g2dZoom.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2dZoom.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+
+        // Clip to frame bounds to prevent drawing outside
+        g2dZoom.setClip(0, 0, width, height);
+
+        g2dZoom.drawImage(image, offsetX, offsetY, scaledWidth, scaledHeight, null);
+        g2dZoom.dispose();
+    }
+
+    /**
+     * Draw zoom effect that actually magnifies the specified area of the image (legacy magnifier style)
      */
     private void drawZoomEffectSimple(Graphics2D g2d, BufferedImage originalImage,
                                       int imageX, int imageY, int videoX, int videoY,
