@@ -7279,14 +7279,68 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     private static class ImagesPerLineManagerGUI extends JDialog {
+        // UI Constants for consistent sizing
+        private static final int THUMBNAIL_PANEL_SIZE = 85;
+        private static final int THUMBNAIL_IMAGE_SIZE = 70;
+        private static final int THUMBNAIL_SPACING = 5;
+        private static final int LINE_PANEL_HEIGHT = 150;
+        private static final int LEFT_PANEL_WIDTH = 250;
+        private static final int IMAGES_SCROLL_WIDTH = 500;
+        private static final int IMAGES_SCROLL_HEIGHT = 100;
+        private static final int DIALOG_WIDTH = 900;
+        private static final int DIALOG_HEIGHT = 700;
+
+        // Supported image extensions
+        private static final String[] SUPPORTED_IMAGE_EXTENSIONS = {
+            ".jpg", ".jpeg", ".jfif", ".png", ".bmp", ".gif", ".webp"
+        };
+
         private VideoConfig config;
         private JPanel linesPanel;
         private java.util.Map<Integer, java.util.List<File>> lineImagesMap = new java.util.HashMap<>();
 
+        /**
+         * Check if a file is a supported image format
+         */
+        private static boolean isSupportedImageFile(File file) {
+            if (file == null || !file.isFile()) return false;
+            String name = file.getName().toLowerCase();
+            for (String ext : SUPPORTED_IMAGE_EXTENSIONS) {
+                if (name.endsWith(ext)) return true;
+            }
+            return false;
+        }
+
+        /**
+         * Create a scaled thumbnail from a BufferedImage with high quality
+         */
+        private static BufferedImage createThumbnail(BufferedImage original, int targetSize) {
+            if (original == null) return null;
+
+            int width = original.getWidth();
+            int height = original.getHeight();
+
+            // Calculate scale to fit within targetSize while maintaining aspect ratio
+            double scale = Math.min((double) targetSize / width, (double) targetSize / height);
+            int scaledWidth = Math.max(1, (int) (width * scale));
+            int scaledHeight = Math.max(1, (int) (height * scale));
+
+            // Use high-quality scaling
+            BufferedImage thumbnail = new BufferedImage(scaledWidth, scaledHeight, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2d = thumbnail.createGraphics();
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.drawImage(original, 0, 0, scaledWidth, scaledHeight, null);
+            g2d.dispose();
+
+            return thumbnail;
+        }
+
         public ImagesPerLineManagerGUI(JFrame parent, VideoConfig config) {
             super(parent, "Manage Images Per Line", true);
             this.config = config;
-            setSize(900, 700);
+            setSize(DIALOG_WIDTH, DIALOG_HEIGHT);
             setLocationRelativeTo(parent);
 
             initializeGUI();
@@ -7370,36 +7424,34 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
             if (!folder.exists() || !folder.isDirectory()) {
                 return;
             }
-            String[] extensions = {".jpg", ".jpeg", ".jfif", ".png", ".bmp", ".gif", ".webp"};
-            File[] allFiles = folder.listFiles();
 
+            File[] allFiles = folder.listFiles();
             if (allFiles == null) return;
 
             // Parse existing images
             for (File file : allFiles) {
+                if (!isSupportedImageFile(file)) continue;
+
                 String fileName = file.getName().toLowerCase();
-
-                for (String ext : extensions) {
-                    if (fileName.endsWith(ext)) {
-                        // Extract line number from filename (image1.jpg or image1-1.jpg)
-                        if (fileName.startsWith("image")) {
-                            try {
-                                String numberPart = fileName.substring(5); // After "image"
-                                numberPart = numberPart.substring(0, numberPart.indexOf('.')); // Before extension
-
-                                int lineNumber;
-                                if (numberPart.contains("-")) {
-                                    lineNumber = Integer.parseInt(numberPart.substring(0, numberPart.indexOf('-')));
-                                } else {
-                                    lineNumber = Integer.parseInt(numberPart);
-                                }
-
-                                lineImagesMap.computeIfAbsent(lineNumber, k -> new java.util.ArrayList<>()).add(file);
-                            } catch (Exception e) {
-                                // Ignore malformed filenames
-                            }
+                // Extract line number from filename (image1.jpg or image1-1.jpg)
+                if (fileName.startsWith("image")) {
+                    try {
+                        String numberPart = fileName.substring(5); // After "image"
+                        int dotIndex = numberPart.lastIndexOf('.');
+                        if (dotIndex > 0) {
+                            numberPart = numberPart.substring(0, dotIndex);
                         }
-                        break;
+
+                        int lineNumber;
+                        if (numberPart.contains("-")) {
+                            lineNumber = Integer.parseInt(numberPart.substring(0, numberPart.indexOf('-')));
+                        } else {
+                            lineNumber = Integer.parseInt(numberPart);
+                        }
+
+                        lineImagesMap.computeIfAbsent(lineNumber, k -> new java.util.ArrayList<>()).add(file);
+                    } catch (NumberFormatException e) {
+                        // Ignore malformed filenames
                     }
                 }
             }
@@ -7446,9 +7498,6 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                 folder.mkdirs();
             }
 
-            System.out.println("DEBUG saveAndClose: Folder path: " + folder.getAbsolutePath());
-            System.out.println("DEBUG saveAndClose: lineImagesMap size: " + lineImagesMap.size());
-
             if (lineImagesMap.isEmpty()) {
                 JOptionPane.showMessageDialog(this,
                         "No images to save!\nPlease drag and drop images first.",
@@ -7456,18 +7505,12 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                 return;
             }
 
-            // STEP 1: Copy all images to temporary names first
+            // Copy all images to temporary names first to avoid conflicts
             java.util.List<FileCopyTask> copyTasks = new java.util.ArrayList<>();
 
             for (java.util.Map.Entry<Integer, java.util.List<File>> entry : lineImagesMap.entrySet()) {
                 int lineNumber = entry.getKey();
                 java.util.List<File> images = entry.getValue();
-
-                System.out.println("DEBUG saveAndClose: Line " + lineNumber + " has " + images.size() + " images");
-                System.out.println("DEBUG saveAndClose: Order in map:");
-                for (int i = 0; i < images.size(); i++) {
-                    System.out.println("  [" + i + "] " + images.get(i).getName());
-                }
 
                 for (int i = 0; i < images.size(); i++) {
                     File sourceFile = images.get(i);
@@ -7481,57 +7524,43 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                     }
 
                     String tempFileName = "temp_" + System.currentTimeMillis() + "_" + lineNumber + "_" + i + extension;
-
                     copyTasks.add(new FileCopyTask(sourceFile, tempFileName, finalFileName));
-                    System.out.println("DEBUG saveAndClose: Will copy " + sourceFile.getName() + " → " + finalFileName);
                 }
             }
 
-            // STEP 2: Copy all files to temporary names
+            // Copy all files to temporary names
             int successfulCopies = 0;
             for (FileCopyTask task : copyTasks) {
                 File tempFile = new File(folder, task.tempName);
-
                 try {
                     java.nio.file.Files.copy(task.source.toPath(), tempFile.toPath(),
                             java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    System.out.println("DEBUG saveAndClose: ✓ Copied to temp: " + task.tempName);
                     successfulCopies++;
                 } catch (IOException ex) {
-                    System.out.println("DEBUG saveAndClose: ❌ Error copying to temp: " + ex.getMessage());
+                    System.err.println("Error copying image: " + ex.getMessage());
                 }
             }
 
-            // STEP 3: Delete all old image files
+            // Delete all old image files
             File[] existingFiles = folder.listFiles();
             if (existingFiles != null) {
                 for (File file : existingFiles) {
                     String fileName = file.getName();
                     if (fileName.startsWith("image") && !fileName.startsWith("temp_")) {
-                        boolean deleted = file.delete();
-                        System.out.println("DEBUG saveAndClose: Deleted old file " + fileName + " - " + deleted);
+                        file.delete();
                     }
                 }
             }
 
-            // STEP 4: Rename all temp files to final names
+            // Rename all temp files to final names
             int renamedCount = 0;
             for (FileCopyTask task : copyTasks) {
                 File tempFile = new File(folder, task.tempName);
                 File finalFile = new File(folder, task.finalName);
-
-                if (tempFile.exists()) {
-                    boolean renamed = tempFile.renameTo(finalFile);
-                    if (renamed) {
-                        System.out.println("DEBUG saveAndClose: ✓ Renamed " + task.tempName + " → " + task.finalName);
-                        renamedCount++;
-                    } else {
-                        System.out.println("DEBUG saveAndClose: ❌ Failed to rename " + task.tempName);
-                    }
+                if (tempFile.exists() && tempFile.renameTo(finalFile)) {
+                    renamedCount++;
                 }
             }
-
-            System.out.println("DEBUG saveAndClose: Total images successfully saved: " + renamedCount);
 
             if (renamedCount > 0) {
                 JOptionPane.showMessageDialog(this,
@@ -7618,21 +7647,18 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                 this.lineNumber = lineNumber;
                 this.arabicText = arabicText;
 
-                // Load existing images from the images_per_line folder ONLY if they exist
+                // Load existing images from the images_per_line folder
                 if (existingImages != null) {
                     for (File file : existingImages) {
                         try {
                             BufferedImage img = ImageIO.read(file);
                             if (img != null) {
                                 images.add(new ImageInfo(file, img));
-                                System.out.println("DEBUG LineImagePanel: Loaded existing image " + file.getName() + " for line " + lineNumber);
                             }
                         } catch (IOException e) {
-                            System.out.println("Error loading existing image: " + file.getName());
+                            System.err.println("Error loading image: " + file.getName());
                         }
                     }
-
-                    // IMPORTANT: Update the map with existing images
                     updateImagesMap();
                 }
 
@@ -7641,11 +7667,11 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                         BorderFactory.createLineBorder(Color.GRAY, 1),
                         BorderFactory.createEmptyBorder(10, 10, 10, 10)
                 ));
-                setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+                setMaximumSize(new Dimension(Integer.MAX_VALUE, LINE_PANEL_HEIGHT));
 
                 // Left side - Line info
                 JPanel leftPanel = new JPanel(new BorderLayout());
-                leftPanel.setPreferredSize(new Dimension(250, 120));
+                leftPanel.setPreferredSize(new Dimension(LEFT_PANEL_WIDTH, LINE_PANEL_HEIGHT - 30));
 
                 JLabel lineLabel = new JLabel("Line " + lineNumber);
                 lineLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
@@ -7679,20 +7705,20 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                 rightPanel.add(topRightPanel, BorderLayout.NORTH);
 
                 imagesContainer = new JPanel();
-                imagesContainer.setLayout(new FlowLayout(FlowLayout.LEFT, 5, 5));
+                imagesContainer.setLayout(new FlowLayout(FlowLayout.LEFT, THUMBNAIL_SPACING, THUMBNAIL_SPACING));
                 imagesContainer.setBackground(new Color(240, 240, 240));
                 imagesContainer.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 2, true));
 
                 // Enable drag and drop for external files
                 setupDragAndDrop(imagesContainer);
 
-                // Display existing images
-                for (ImageInfo imgInfo : images) {
-                    addImageThumbnailDisplay(imgInfo);
+                // Display existing images with index
+                for (int i = 0; i < images.size(); i++) {
+                    addImageThumbnailDisplay(images.get(i), i);
                 }
 
                 JScrollPane scrollPane = new JScrollPane(imagesContainer);
-                scrollPane.setPreferredSize(new Dimension(500, 100));
+                scrollPane.setPreferredSize(new Dimension(IMAGES_SCROLL_WIDTH, IMAGES_SCROLL_HEIGHT));
                 scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
                 scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
 
@@ -7713,14 +7739,12 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                 fileChooser.setMultiSelectionEnabled(true);
                 fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
 
-                // Image filter
+                // Image filter using shared extensions
                 fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
                     @Override
                     public boolean accept(File f) {
                         if (f.isDirectory()) return true;
-                        String name = f.getName().toLowerCase();
-                        return name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".jfif") ||
-                                name.endsWith(".png") || name.endsWith(".bmp") || name.endsWith(".gif") || name.endsWith(".webp");
+                        return isSupportedImageFile(f);
                     }
 
                     @Override
@@ -7793,17 +7817,17 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                     if (selectedFiles != null && selectedFiles.length > 0) {
                         int addedCount = 0;
                         for (File file : selectedFiles) {
-                            if (isImageFile(file)) {
+                            if (isSupportedImageFile(file)) {
                                 try {
                                     BufferedImage img = ImageIO.read(file);
                                     if (img != null) {
                                         ImageInfo imgInfo = new ImageInfo(file, img);
                                         images.add(imgInfo);
-                                        addImageThumbnailDisplay(imgInfo);
+                                        addImageThumbnailDisplay(imgInfo, images.size() - 1);
                                         addedCount++;
                                     }
                                 } catch (IOException ex) {
-                                    System.out.println("Error loading: " + file.getName());
+                                    System.err.println("Error loading image: " + file.getName());
                                 }
                             }
                         }
@@ -7863,35 +7887,18 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                             //System.out.println("DEBUG: Dropped " + files.size() + " file(s)");
 
                             for (File file : files) {
-                                //System.out.println("DEBUG: Processing file: " + file.getName());
-                                //System.out.println("DEBUG: File exists: " + file.exists());
-                                //System.out.println("DEBUG: File path: " + file.getAbsolutePath());
-
-                                if (isImageFile(file)) {
-                                    //System.out.println("DEBUG: ✓ File passed isImageFile check");
-                                    // Load the image immediately
+                                if (isSupportedImageFile(file)) {
                                     try {
-                                        //System.out.println("DEBUG: Attempting to read image with ImageIO...");
                                         BufferedImage img = ImageIO.read(file);
-
                                         if (img != null) {
-                                            //System.out.println("DEBUG: ✓ Image loaded successfully! Size: " + img.getWidth() + "x" + img.getHeight());
                                             ImageInfo imgInfo = new ImageInfo(file, img);
                                             images.add(imgInfo);
-                                            addImageThumbnailDisplay(imgInfo);
+                                            addImageThumbnailDisplay(imgInfo, images.size() - 1);
                                             updateImagesMap();
-                                            System.out.println("✓✓✓ Added image from: " + file.getName());
-                                        } else {
-                                            //System.out.println("DEBUG: ❌ ImageIO.read() returned NULL for: " + file.getName());
-                                            //System.out.println("DEBUG: This usually means the file format is not supported by ImageIO");
                                         }
                                     } catch (IOException e) {
-                                        //System.out.println("DEBUG: ❌ IOException while loading: " + file.getName());
-                                        //System.out.println("DEBUG: Error message: " + e.getMessage());
-                                        e.printStackTrace();
+                                        System.err.println("Error loading dropped image: " + file.getName());
                                     }
-                                } else {
-                                    //System.out.println("DEBUG: ❌ File rejected by isImageFile: " + file.getName());
                                 }
                             }
 
@@ -7915,46 +7922,94 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
             }
 
 
-            private boolean isImageFile(File file) {
-                String name = file.getName().toLowerCase();
-                return name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".jfif") ||
-                        name.endsWith(".png") || name.endsWith(".bmp") || name.endsWith(".gif") || name.endsWith(".webp");
-                // Removed .webp since Java doesn't support it natively
-            }
-
-            private void addImageThumbnailDisplay(ImageInfo imgInfo) {
+            /**
+             * Add an image thumbnail to the display with its index
+             * @param imgInfo the image information
+             * @param index the position index (0-based, -1 for auto-append)
+             */
+            private void addImageThumbnailDisplay(ImageInfo imgInfo, int index) {
                 JPanel thumbPanel = new JPanel(new BorderLayout());
-                thumbPanel.setPreferredSize(new Dimension(80, 80));
+                thumbPanel.setPreferredSize(new Dimension(THUMBNAIL_PANEL_SIZE, THUMBNAIL_PANEL_SIZE));
                 thumbPanel.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
+                thumbPanel.setBackground(Color.WHITE);
 
-                // Create thumbnail
-                Image scaledImg = imgInfo.thumbnail.getScaledInstance(70, 70, Image.SCALE_SMOOTH);
-                JLabel imgLabel = new JLabel(new ImageIcon(scaledImg));
+                // Create thumbnail using the improved method
+                BufferedImage scaledThumb = createThumbnail(imgInfo.thumbnail, THUMBNAIL_IMAGE_SIZE);
+                JLabel imgLabel = new JLabel(scaledThumb != null ? new ImageIcon(scaledThumb) : null);
                 imgLabel.setHorizontalAlignment(JLabel.CENTER);
-                thumbPanel.add(imgLabel, BorderLayout.CENTER);
+                imgLabel.setVerticalAlignment(JLabel.CENTER);
+
+                // Add tooltip with file info
+                String tooltip = buildImageTooltip(imgInfo);
+                imgLabel.setToolTipText(tooltip);
+                thumbPanel.setToolTipText(tooltip);
+
+                // Create a layered panel to show index badge
+                JPanel imagePanel = new JPanel(new BorderLayout());
+                imagePanel.setOpaque(false);
+                imagePanel.add(imgLabel, BorderLayout.CENTER);
+
+                // Add index badge in top-left corner
+                int displayIndex = (index >= 0) ? index : images.indexOf(imgInfo);
+                JLabel indexLabel = new JLabel(String.valueOf(displayIndex + 1));
+                indexLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
+                indexLabel.setForeground(Color.WHITE);
+                indexLabel.setOpaque(true);
+                indexLabel.setBackground(new Color(0, 100, 200));
+                indexLabel.setBorder(BorderFactory.createEmptyBorder(1, 4, 1, 4));
+                indexLabel.setHorizontalAlignment(JLabel.CENTER);
+
+                JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 2));
+                topPanel.setOpaque(false);
+                topPanel.add(indexLabel);
+                imagePanel.add(topPanel, BorderLayout.NORTH);
+
+                thumbPanel.add(imagePanel, BorderLayout.CENTER);
 
                 // Enable dragging this thumbnail
                 setupThumbnailDragAndDrop(thumbPanel, imgInfo);
 
                 // Add remove button
                 JButton removeBtn = new JButton("×");
-                removeBtn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
-                removeBtn.setMargin(new Insets(0, 5, 0, 5));
+                removeBtn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+                removeBtn.setMargin(new Insets(0, 4, 0, 4));
+                removeBtn.setToolTipText("Remove this image");
                 removeBtn.addActionListener(e -> {
                     images.remove(imgInfo);
                     imagesContainer.remove(thumbPanel);
-                    imagesContainer.revalidate();
-                    imagesContainer.repaint();
+                    refreshThumbnails(); // Refresh to update indices
                     updateImagesMap();
                 });
 
                 JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+                bottomPanel.setOpaque(false);
                 bottomPanel.add(removeBtn);
                 thumbPanel.add(bottomPanel, BorderLayout.SOUTH);
 
                 imagesContainer.add(thumbPanel);
                 imagesContainer.revalidate();
                 imagesContainer.repaint();
+            }
+
+            /**
+             * Build tooltip text for an image
+             */
+            private String buildImageTooltip(ImageInfo imgInfo) {
+                StringBuilder tooltip = new StringBuilder("<html>");
+                tooltip.append("<b>").append(imgInfo.originalFile.getName()).append("</b>");
+                if (imgInfo.thumbnail != null) {
+                    tooltip.append("<br>Size: ").append(imgInfo.thumbnail.getWidth())
+                           .append(" x ").append(imgInfo.thumbnail.getHeight());
+                }
+                long fileSize = imgInfo.originalFile.length();
+                if (fileSize > 0) {
+                    String sizeStr = fileSize > 1024 * 1024
+                        ? String.format("%.1f MB", fileSize / (1024.0 * 1024.0))
+                        : String.format("%.1f KB", fileSize / 1024.0);
+                    tooltip.append("<br>File: ").append(sizeStr);
+                }
+                tooltip.append("</html>");
+                return tooltip.toString();
             }
 
             private void setupThumbnailDragAndDrop(JPanel thumbPanel, ImageInfo imgInfo) {
@@ -8063,16 +8118,17 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                 updateImagesMap();
             }
 
-            // Refresh all thumbnails
-            // Refresh all thumbnails
+            /**
+             * Refresh all thumbnails with updated indices
+             */
             private void refreshThumbnails() {
                 imagesContainer.removeAll();
-                for (ImageInfo imgInfo : images) {
-                    addImageThumbnailDisplay(imgInfo);
+                for (int i = 0; i < images.size(); i++) {
+                    addImageThumbnailDisplay(images.get(i), i);
                 }
                 imagesContainer.revalidate();
                 imagesContainer.repaint();
-                updateImagesMap(); // ADD THIS LINE - updates the map after refresh
+                updateImagesMap();
             }
 
             private void updateImagesMap() {
@@ -8081,11 +8137,6 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                     fileList.add(imgInfo.originalFile);
                 }
                 lineImagesMap.put(lineNumber, fileList);
-
-                System.out.println("DEBUG updateImagesMap: Line " + lineNumber + " now has " + images.size() + " images");
-                for (File f : fileList) {
-                    System.out.println("  - " + f.getName());
-                }
             }
         }
 
