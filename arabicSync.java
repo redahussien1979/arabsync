@@ -69,218 +69,6 @@ public class arabicSync {
 
     }
 
-    // ==================== PERFORMANCE OPTIMIZATION ====================
-    // LRU-style caches with size limits to prevent unbounded memory growth
-    private static final int MAX_IMAGE_CACHE_SIZE = 50;  // Max raw images in cache
-    private static final int MAX_PROCESSED_CACHE_SIZE = 30;  // Max processed backgrounds in cache
-
-    // Image caching with LRU eviction
-    private java.util.LinkedHashMap<String, BufferedImage> imageCache = new java.util.LinkedHashMap<String, BufferedImage>(
-            MAX_IMAGE_CACHE_SIZE + 1, 0.75f, true) {
-        @Override
-        protected boolean removeEldestEntry(java.util.Map.Entry<String, BufferedImage> eldest) {
-            return size() > MAX_IMAGE_CACHE_SIZE;
-        }
-    };
-
-    private java.util.LinkedHashMap<String, BufferedImage> processedBackgroundCache = new java.util.LinkedHashMap<String, BufferedImage>(
-            MAX_PROCESSED_CACHE_SIZE + 1, 0.75f, true) {
-        @Override
-        protected boolean removeEldestEntry(java.util.Map.Entry<String, BufferedImage> eldest) {
-            return size() > MAX_PROCESSED_CACHE_SIZE;
-        }
-    };
-
-    // Thread pool for parallel frame generation
-    private java.util.concurrent.ExecutorService frameExecutor;
-    private static final int FRAME_THREAD_POOL_SIZE = Runtime.getRuntime().availableProcessors();
-
-    // Batch size for parallel frame generation
-    private static final int FRAME_BATCH_SIZE = Runtime.getRuntime().availableProcessors() * 2;
-
-    // Benchmarking
-    private long benchmarkStartTime;
-    private int benchmarkFrameCount;
-
-    /**
-     * Get cached image or load and cache it (thread-safe)
-     */
-    private synchronized BufferedImage getCachedImage(String imagePath) {
-        BufferedImage cached = imageCache.get(imagePath);
-        if (cached != null) {
-            return cached;
-        }
-        try {
-            BufferedImage loaded = ImageIO.read(new File(imagePath));
-            if (loaded != null) {
-                imageCache.put(imagePath, loaded);
-            }
-            return loaded;
-        } catch (IOException e) {
-            System.err.println("Error loading image: " + imagePath);
-            return null;
-        }
-    }
-
-    /**
-     * Get cached processed background or create and cache it (thread-safe)
-     */
-    private synchronized BufferedImage getCachedProcessedBackground(String key, BufferedImage original, int width, int height) {
-        BufferedImage cached = processedBackgroundCache.get(key);
-        if (cached != null) {
-            return cached;
-        }
-        BufferedImage processed = fitWithBlurredBackgroundOptimized(original, width, height);
-        if (processed != null) {
-            processedBackgroundCache.put(key, processed);
-        }
-        return processed;
-    }
-
-    /**
-     * Clear all caches (call before new video generation)
-     */
-    private synchronized void clearCaches() {
-        imageCache.clear();
-        processedBackgroundCache.clear();
-        System.out.println("✓ Cleared image caches (limits: " + MAX_IMAGE_CACHE_SIZE + " raw, " + MAX_PROCESSED_CACHE_SIZE + " processed)");
-    }
-
-    /**
-     * Initialize thread pool for parallel frame generation
-     */
-    private void initializeExecutor() {
-        if (frameExecutor == null || frameExecutor.isShutdown()) {
-            frameExecutor = java.util.concurrent.Executors.newFixedThreadPool(FRAME_THREAD_POOL_SIZE);
-            System.out.println("✓ Initialized thread pool with " + FRAME_THREAD_POOL_SIZE + " threads");
-        }
-    }
-
-    /**
-     * Shutdown thread pool
-     */
-    private void shutdownExecutor() {
-        if (frameExecutor != null && !frameExecutor.isShutdown()) {
-            frameExecutor.shutdown();
-            try {
-                if (!frameExecutor.awaitTermination(60, java.util.concurrent.TimeUnit.SECONDS)) {
-                    frameExecutor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                frameExecutor.shutdownNow();
-            }
-        }
-    }
-
-    /**
-     * Start benchmark timing
-     */
-    private void startBenchmark() {
-        benchmarkStartTime = System.currentTimeMillis();
-        benchmarkFrameCount = 0;
-    }
-
-    /**
-     * Record frame for benchmark
-     */
-    private void recordBenchmarkFrame() {
-        benchmarkFrameCount++;
-    }
-
-    /**
-     * Print benchmark results
-     */
-    private void printBenchmarkResults() {
-        long elapsed = System.currentTimeMillis() - benchmarkStartTime;
-        double fps = (benchmarkFrameCount * 1000.0) / elapsed;
-        double msPerFrame = (double) elapsed / benchmarkFrameCount;
-        System.out.println("\n📊 PERFORMANCE BENCHMARK RESULTS:");
-        System.out.println("   Total frames: " + benchmarkFrameCount);
-        System.out.println("   Total time: " + String.format("%.2f", elapsed / 1000.0) + " seconds");
-        System.out.println("   Average FPS: " + String.format("%.2f", fps) + " frames/second");
-        System.out.println("   Time per frame: " + String.format("%.2f", msPerFrame) + " ms");
-        System.out.println("   Cache sizes: " + imageCache.size() + " raw images, " + processedBackgroundCache.size() + " processed");
-    }
-
-    /**
-     * Frame generation task for parallel processing
-     */
-    private class FrameGenerationTask implements java.util.concurrent.Callable<Boolean> {
-        private final FormattedTextDataArabicSync formattedData;
-        private final QuoteTimingInfoArabicSync[] quoteTimings;
-        private final String tempFolder;
-        private final int frame;
-        private final double frameRate;
-        private final double audioDuration;
-        private final Font englishFont;
-        private final Font arabicFont;
-
-        FrameGenerationTask(FormattedTextDataArabicSync formattedData, QuoteTimingInfoArabicSync[] quoteTimings,
-                           String tempFolder, int frame, double frameRate, double audioDuration,
-                           Font englishFont, Font arabicFont) {
-            this.formattedData = formattedData;
-            this.quoteTimings = quoteTimings;
-            this.tempFolder = tempFolder;
-            this.frame = frame;
-            this.frameRate = frameRate;
-            this.audioDuration = audioDuration;
-            this.englishFont = englishFont;
-            this.arabicFont = arabicFont;
-        }
-
-        @Override
-        public Boolean call() {
-            try {
-                double currentTime = (double) frame / frameRate;
-                QuoteDisplayInfoArabicSync displayInfo = getCurrentArabicQuoteDisplayInfo(currentTime, quoteTimings);
-                String frameName = String.format("%s/frame_%04d.png", tempFolder, frame);
-                generateImagesPerLineFrame(formattedData, displayInfo, frameName, currentTime,
-                        englishFont, arabicFont, audioDuration);
-                return true;
-            } catch (Exception e) {
-                System.err.println("Error generating frame " + frame + ": " + e.getMessage());
-                return false;
-            }
-        }
-    }
-
-    /**
-     * Generate frames in parallel batches for Images Per Line mode
-     */
-    private void generateFramesInParallel(FormattedTextDataArabicSync formattedData,
-                                          QuoteTimingInfoArabicSync[] quoteTimings,
-                                          String tempFolder, int startFrame, int endFrame,
-                                          double frameRate, double audioDuration,
-                                          Font englishFont, Font arabicFont) throws Exception {
-        initializeExecutor();
-
-        java.util.List<java.util.concurrent.Future<Boolean>> futures = new java.util.ArrayList<>();
-
-        for (int frame = startFrame; frame < endFrame && !stopRequested; frame++) {
-            FrameGenerationTask task = new FrameGenerationTask(
-                formattedData, quoteTimings, tempFolder, frame, frameRate, audioDuration,
-                englishFont, arabicFont
-            );
-            futures.add(frameExecutor.submit(task));
-        }
-
-        // Wait for all frames in this batch to complete
-        int completed = 0;
-        for (java.util.concurrent.Future<Boolean> future : futures) {
-            try {
-                if (future.get()) {
-                    completed++;
-                    recordBenchmarkFrame();
-                }
-            } catch (Exception e) {
-                System.err.println("Frame generation failed: " + e.getMessage());
-            }
-        }
-
-        this.currentFrame = endFrame;
-    }
-    // ==================== END PERFORMANCE OPTIMIZATION ====================
-
 
     private static class WordTiming {
         String word;
@@ -2630,9 +2418,8 @@ public class arabicSync {
                 System.out.println("❓ Selected: QUIZ MODE for Arabic audio sync");
                 // No pre-loading needed for quiz mode - handled per frame
             } else if (config.backgroundMode == 7) {
-                System.out.println("🖼️ Selected: IMAGES PER LINE mode for Arabic audio sync (PARALLEL PROCESSING ENABLED)");
-                System.out.println("   Threads: " + FRAME_THREAD_POOL_SIZE + ", Batch size: " + FRAME_BATCH_SIZE);
-                // No pre-loading needed - images loaded per line with caching
+                System.out.println("🖼️ Selected: IMAGES PER LINE mode for Arabic audio sync");
+                // No pre-loading needed - images loaded per line
 
             } else {
                 System.out.println("🎨 Selected: SINGLE IMAGE with effects for Arabic audio sync");
@@ -2642,31 +2429,27 @@ public class arabicSync {
                 }
             }
 
-            // Clear caches and start benchmark
-            clearCaches();
-            startBenchmark();
-
-            // Generate frames SEQUENTIALLY (parallel causes sync issues with Graphics2D/fonts)
-            // Speed comes from: image caching, background caching, optimized blur
+            // Generate frames
             for (int frame = 0; frame < totalFrames; frame++) {
 
+                // ADD THIS CHECK:
                 if (stopRequested) {
                     System.out.println("Generation stopped at frame " + frame);
-                    printBenchmarkResults();
                     return tempFolder;
                 }
-                this.currentFrame = frame + 1;
-                recordBenchmarkFrame();
+                this.currentFrame = frame + 1; // Update current frame counter
 
                 double currentTime = (double) frame / frameRate;
-                QuoteDisplayInfoArabicSync displayInfo = getCurrentArabicQuoteDisplayInfo(currentTime, quoteTimings);
 
+                // Determine current quote being spoken
+                QuoteDisplayInfoArabicSync displayInfo = getCurrentArabicQuoteDisplayInfo(currentTime, quoteTimings);
+// ADD THIS DEBUG (only print every 50 frames to avoid spam)
                 if (frame % 50 == 0) {
                     System.out.println("DEBUG Frame " + frame + ": time=" + String.format("%.2f", currentTime) +
                             "s, currentQuote=" + displayInfo.currentQuote +
                             ", isActive=" + displayInfo.isActive);
                 }
-
+                // Generate frame
                 String frameName = String.format("%s/frame_%04d.png", tempFolder, frame);
 
                 if (useJigsawPuzzle) {
@@ -2692,8 +2475,6 @@ public class arabicSync {
                 }
             }
 
-            // Print benchmark results
-            printBenchmarkResults();
 
             System.out.println("✅ Arabic audio sync sequence generated!");
             return tempFolder;
@@ -7127,13 +6908,10 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
             // Store original image for effects
             BufferedImage originalImageForEffects = currentImage;
 
-            // Use optimized version with caching for processed backgrounds
-            String currentCacheKey = "line" + lineNumber + "_img" + lineImages.indexOf(currentImage) + "_" + width + "x" + height;
-            currentImage = getCachedProcessedBackground(currentCacheKey, currentImage, width, height);
+            currentImage = fitWithBlurredBackground(currentImage, width, height);
 
             if (nextImage != null && lineImages.size() > 1) {
-                String nextCacheKey = "line" + lineNumber + "_img" + lineImages.indexOf(nextImage) + "_" + width + "x" + height;
-                nextImage = getCachedProcessedBackground(nextCacheKey, nextImage, width, height);
+                nextImage = fitWithBlurredBackground(nextImage, width, height);
                 float transitionProgress = calculateTransitionAlpha(currentQuoteLine, currentTime, lineImages.size());
 
                 if (transitionProgress > 0) {
@@ -7547,68 +7325,7 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
         return result;
     }
 
-    /**
-     * OPTIMIZED version of fitWithBlurredBackground
-     * Uses faster rendering hints for intermediate frames
-     */
-    private BufferedImage fitWithBlurredBackgroundOptimized(BufferedImage original, int targetWidth, int targetHeight) {
-        int originalWidth = original.getWidth();
-        int originalHeight = original.getHeight();
 
-        int marginHorizontal = 40;
-        int marginVertical = 200;
-        int availableWidth = targetWidth - (2 * marginHorizontal);
-        int availableHeight = targetHeight - (2 * marginVertical);
-
-        double originalAspect = (double) originalWidth / originalHeight;
-        boolean isPortrait = (originalHeight > originalWidth);
-
-        int scaledWidth, scaledHeight;
-        int offsetX, offsetY;
-
-        if (isPortrait) {
-            double portraitScale = 0.6;
-            scaledHeight = (int) (availableHeight * portraitScale);
-            scaledWidth = (int) (scaledHeight * originalAspect);
-            offsetX = marginHorizontal + ((availableWidth - scaledWidth) / 2);
-            offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
-        } else {
-            scaledWidth = availableWidth;
-            scaledHeight = (int) (availableWidth / originalAspect);
-            offsetX = marginHorizontal;
-            offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
-        }
-
-        BufferedImage result = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2d = result.createGraphics();
-        // Use BILINEAR instead of BICUBIC for speed (minimal quality difference at video resolution)
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
-
-        // Draw blurred background
-        BufferedImage blurred = applyGaussianBlur(original, 30);
-        g2d.drawImage(blurred, 0, 0, targetWidth, targetHeight, null);
-
-        // Darken the background
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
-        g2d.setColor(Color.BLACK);
-        g2d.fillRect(0, 0, targetWidth, targetHeight);
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-
-        // Draw scaled image with rounded corners
-        BufferedImage scaledOriginal = new BufferedImage(scaledWidth, scaledHeight, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2dScale = scaledOriginal.createGraphics();
-        g2dScale.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2dScale.drawImage(original, 0, 0, scaledWidth, scaledHeight, null);
-        g2dScale.dispose();
-
-        int cornerRadius = 50;
-        BufferedImage roundedImage = applyRoundedCorners(scaledOriginal, cornerRadius);
-        g2d.drawImage(roundedImage, offsetX, offsetY, null);
-
-        g2d.dispose();
-        return result;
-    }
 
 
 
@@ -7644,106 +7361,40 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
     }
 
     /**
-     * Box blur helper - OPTIMIZED using separable convolution
-     * Reduces O(n⁴) complexity to O(n²) by doing horizontal then vertical passes
+     * Box blur helper
      */
     private BufferedImage boxBlur(BufferedImage image, int radius) {
         int width = image.getWidth();
         int height = image.getHeight();
 
-        // Use int arrays for faster pixel access
-        int[] pixels = new int[width * height];
-        int[] result = new int[width * height];
+        BufferedImage result = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
-        image.getRGB(0, 0, width, height, pixels, 0, width);
-
-        // Horizontal pass
         for (int y = 0; y < height; y++) {
-            int rowOffset = y * width;
-            int r = 0, g = 0, b = 0;
-
-            // Initialize window with first (radius+1) pixels
-            for (int x = 0; x <= radius && x < width; x++) {
-                int rgb = pixels[rowOffset + x];
-                r += (rgb >> 16) & 0xFF;
-                g += (rgb >> 8) & 0xFF;
-                b += rgb & 0xFF;
-            }
-
             for (int x = 0; x < width; x++) {
-                // Add pixel entering window (right side)
-                int addX = x + radius;
-                if (addX < width) {
-                    int rgb = pixels[rowOffset + addX];
-                    r += (rgb >> 16) & 0xFF;
-                    g += (rgb >> 8) & 0xFF;
-                    b += rgb & 0xFF;
+                int r = 0, g = 0, b = 0, count = 0;
+
+                for (int dy = -radius; dy <= radius; dy++) {
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        int nx = Math.max(0, Math.min(width - 1, x + dx));
+                        int ny = Math.max(0, Math.min(height - 1, y + dy));
+
+                        int rgb = image.getRGB(nx, ny);
+                        r += (rgb >> 16) & 0xFF;
+                        g += (rgb >> 8) & 0xFF;
+                        b += rgb & 0xFF;
+                        count++;
+                    }
                 }
 
-                // Calculate window size and average
-                int windowStart = Math.max(0, x - radius);
-                int windowEnd = Math.min(width - 1, x + radius);
-                int windowSize = windowEnd - windowStart + 1;
+                r /= count;
+                g /= count;
+                b /= count;
 
-                result[rowOffset + x] = ((r / windowSize) << 16) | ((g / windowSize) << 8) | (b / windowSize);
-
-                // Remove pixel leaving window (left side)
-                int removeX = x - radius;
-                if (removeX >= 0) {
-                    int rgb = pixels[rowOffset + removeX];
-                    r -= (rgb >> 16) & 0xFF;
-                    g -= (rgb >> 8) & 0xFF;
-                    b -= rgb & 0xFF;
-                }
+                result.setRGB(x, y, (r << 16) | (g << 8) | b);
             }
         }
 
-        // Copy result to pixels for vertical pass
-        System.arraycopy(result, 0, pixels, 0, pixels.length);
-
-        // Vertical pass
-        for (int x = 0; x < width; x++) {
-            int r = 0, g = 0, b = 0;
-
-            // Initialize window with first (radius+1) pixels
-            for (int y = 0; y <= radius && y < height; y++) {
-                int rgb = pixels[y * width + x];
-                r += (rgb >> 16) & 0xFF;
-                g += (rgb >> 8) & 0xFF;
-                b += rgb & 0xFF;
-            }
-
-            for (int y = 0; y < height; y++) {
-                // Add pixel entering window (bottom)
-                int addY = y + radius;
-                if (addY < height) {
-                    int rgb = pixels[addY * width + x];
-                    r += (rgb >> 16) & 0xFF;
-                    g += (rgb >> 8) & 0xFF;
-                    b += rgb & 0xFF;
-                }
-
-                // Calculate window size and average
-                int windowStart = Math.max(0, y - radius);
-                int windowEnd = Math.min(height - 1, y + radius);
-                int windowSize = windowEnd - windowStart + 1;
-
-                result[y * width + x] = ((r / windowSize) << 16) | ((g / windowSize) << 8) | (b / windowSize);
-
-                // Remove pixel leaving window (top)
-                int removeY = y - radius;
-                if (removeY >= 0) {
-                    int rgb = pixels[removeY * width + x];
-                    r -= (rgb >> 16) & 0xFF;
-                    g -= (rgb >> 8) & 0xFF;
-                    b -= rgb & 0xFF;
-                }
-            }
-        }
-
-        BufferedImage output = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        output.setRGB(0, 0, width, height, result, 0, width);
-        return output;
+        return result;
     }
 
 
@@ -7938,13 +7589,13 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
             }
         });
 
-        // Load images using cache for performance
+        // Load images
         for (File file : matchingFiles) {
             try {
-                BufferedImage img = getCachedImage(file.getAbsolutePath());
+                BufferedImage img = ImageIO.read(file);
                 if (img != null) {
                     images.add(img);
-                  //  System.out.println("✓ Loaded (cached): " + file.getName() + " for line " + lineNumber);
+                  //  System.out.println("✓ Loaded: " + file.getName() + " for line " + lineNumber);
                 }
             } catch (Exception e) {
                 System.out.println("✗ Error loading image: " + file.getName());
