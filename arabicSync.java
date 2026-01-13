@@ -7017,6 +7017,38 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                                 case "dot":
                                     drawBlinkingDotEffect(g2d, videoX, videoY, currentTime);
                                     break;
+
+                                case "arrow":
+                                    drawArrowPointerEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                    break;
+
+                                case "circle":
+                                    drawCircleHighlightEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                    break;
+
+                                case "spotlight":
+                                    drawSpotlightEffect(g2d, videoX, videoY, effect.size, width, height, currentTime);
+                                    break;
+
+                                case "star":
+                                    drawStarBurstEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                    break;
+
+                                case "ripple":
+                                    drawRippleWaveEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                    break;
+
+                                case "focus":
+                                    drawFocusFrameEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                    break;
+
+                                case "underline":
+                                    drawUnderlineBoxEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                    break;
+
+                                case "glow":
+                                    drawGlowPulseEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                    break;
                             }
                         }
                     }
@@ -8915,7 +8947,19 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
             typeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
             controlsPanel.add(typeLabel);
 
-            effectTypeCombo = new JComboBox<>(new String[]{"Text Caption", "Zoom", "Blinking Dot"});
+            effectTypeCombo = new JComboBox<>(new String[]{
+                "Text Caption",
+                "Zoom",
+                "Blinking Dot",
+                "Arrow Pointer",
+                "Circle Highlight",
+                "Spotlight",
+                "Star Burst",
+                "Ripple Wave",
+                "Focus Frame",
+                "Underline Box",
+                "Glow Pulse"
+            });
             effectTypeCombo.setMaximumSize(new Dimension(300, 30));
             effectTypeCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
             effectTypeCombo.addActionListener(e -> updateControlsVisibility());
@@ -9006,7 +9050,7 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
             String text = null;
 
             switch (effectTypeCombo.getSelectedIndex()) {
-                case 0: // Text
+                case 0: // Text Caption
                     text = textInputField.getText().trim();
                     if (text.isEmpty()) {
                         JOptionPane.showMessageDialog(this, "Please enter caption text!",
@@ -9018,8 +9062,32 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                 case 1: // Zoom
                     effectType = "zoom";
                     break;
-                case 2: // Dot
+                case 2: // Blinking Dot
                     effectType = "dot";
+                    break;
+                case 3: // Arrow Pointer
+                    effectType = "arrow";
+                    break;
+                case 4: // Circle Highlight
+                    effectType = "circle";
+                    break;
+                case 5: // Spotlight
+                    effectType = "spotlight";
+                    break;
+                case 6: // Star Burst
+                    effectType = "star";
+                    break;
+                case 7: // Ripple Wave
+                    effectType = "ripple";
+                    break;
+                case 8: // Focus Frame
+                    effectType = "focus";
+                    break;
+                case 9: // Underline Box
+                    effectType = "underline";
+                    break;
+                case 10: // Glow Pulse
+                    effectType = "glow";
                     break;
                 default:
                     return;
@@ -9655,7 +9723,374 @@ private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedDat
                 dotSize + 6, dotSize + 6);
     }
 
+    /**
+     * Draw animated arrow pointer effect
+     */
+    private void drawArrowPointerEffect(Graphics2D g2d, int x, int y, int size, double currentTime) {
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
+        // Bouncing animation
+        double bounce = Math.sin(currentTime * 6) * 10;
+        int animY = y - (int)bounce - size/2;
+
+        // Arrow size based on effect size
+        int arrowWidth = size;
+        int arrowHeight = (int)(size * 1.2);
+
+        // Create arrow shape pointing down
+        int[] xPoints = {x, x - arrowWidth/2, x - arrowWidth/4, x - arrowWidth/4, x + arrowWidth/4, x + arrowWidth/4, x + arrowWidth/2};
+        int[] yPoints = {animY + arrowHeight, animY + arrowHeight/2, animY + arrowHeight/2, animY, animY, animY + arrowHeight/2, animY + arrowHeight/2};
+
+        // Glow effect
+        for (int i = 5; i >= 1; i--) {
+            g2d.setColor(new Color(255, 100, 0, 40/i));
+            g2d.setStroke(new BasicStroke(i * 3));
+            g2d.drawPolygon(xPoints, yPoints, 7);
+        }
+
+        // Fill with gradient
+        GradientPaint gradient = new GradientPaint(
+            x, animY, new Color(255, 200, 0),
+            x, animY + arrowHeight, new Color(255, 100, 0)
+        );
+        g2d.setPaint(gradient);
+        g2d.fillPolygon(xPoints, yPoints, 7);
+
+        // Border
+        g2d.setColor(new Color(255, 255, 255, 200));
+        g2d.setStroke(new BasicStroke(3));
+        g2d.drawPolygon(xPoints, yPoints, 7);
+
+        // Inner highlight
+        g2d.setColor(new Color(255, 255, 200, 150));
+        g2d.setStroke(new BasicStroke(1));
+        g2d.drawPolygon(xPoints, yPoints, 7);
+    }
+
+    /**
+     * Draw pulsing circle highlight effect
+     */
+    private void drawCircleHighlightEffect(Graphics2D g2d, int x, int y, int size, double currentTime) {
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        double pulse = (Math.sin(currentTime * 4) + 1) / 2; // 0 to 1
+        int baseRadius = size / 2;
+        int animRadius = baseRadius + (int)(pulse * 15);
+
+        // Multiple concentric rings with decreasing opacity
+        for (int ring = 3; ring >= 0; ring--) {
+            int ringRadius = animRadius + ring * 8;
+            int alpha = (int)(200 - ring * 50 - pulse * 30);
+            alpha = Math.max(0, Math.min(255, alpha));
+
+            // Outer glow
+            g2d.setColor(new Color(0, 200, 255, alpha / 3));
+            g2d.setStroke(new BasicStroke(6 - ring));
+            g2d.drawOval(x - ringRadius, y - ringRadius, ringRadius * 2, ringRadius * 2);
+
+            // Main ring
+            g2d.setColor(new Color(100, 220, 255, alpha));
+            g2d.setStroke(new BasicStroke(3 - ring * 0.5f));
+            g2d.drawOval(x - ringRadius, y - ringRadius, ringRadius * 2, ringRadius * 2);
+        }
+
+        // Center crosshair
+        g2d.setColor(new Color(255, 255, 255, (int)(150 + pulse * 100)));
+        g2d.setStroke(new BasicStroke(2));
+        int crossSize = 15;
+        g2d.drawLine(x - crossSize, y, x + crossSize, y);
+        g2d.drawLine(x, y - crossSize, x, y + crossSize);
+    }
+
+    /**
+     * Draw spotlight effect - darkens everything except the highlighted area
+     */
+    private void drawSpotlightEffect(Graphics2D g2d, int x, int y, int size, int width, int height, double currentTime) {
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        double pulse = (Math.sin(currentTime * 3) + 1) / 2;
+        int spotRadius = size + (int)(pulse * 20);
+
+        // Create spotlight mask (darken outside)
+        BufferedImage mask = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D maskG2d = mask.createGraphics();
+        maskG2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        // Fill with semi-transparent dark
+        maskG2d.setColor(new Color(0, 0, 0, 150));
+        maskG2d.fillRect(0, 0, width, height);
+
+        // Clear the spotlight area with radial gradient
+        maskG2d.setComposite(AlphaComposite.Clear);
+        RadialGradientPaint clearGradient = new RadialGradientPaint(
+            x, y, spotRadius,
+            new float[]{0.0f, 0.7f, 1.0f},
+            new Color[]{new Color(0, 0, 0, 255), new Color(0, 0, 0, 200), new Color(0, 0, 0, 0)}
+        );
+        maskG2d.setPaint(clearGradient);
+        maskG2d.fillOval(x - spotRadius, y - spotRadius, spotRadius * 2, spotRadius * 2);
+        maskG2d.dispose();
+
+        // Draw the mask
+        g2d.drawImage(mask, 0, 0, null);
+
+        // Draw spotlight ring
+        g2d.setColor(new Color(255, 255, 200, (int)(100 + pulse * 100)));
+        g2d.setStroke(new BasicStroke(4));
+        g2d.drawOval(x - spotRadius, y - spotRadius, spotRadius * 2, spotRadius * 2);
+
+        // Inner glow ring
+        g2d.setColor(new Color(255, 255, 255, (int)(50 + pulse * 50)));
+        g2d.setStroke(new BasicStroke(2));
+        g2d.drawOval(x - spotRadius + 5, y - spotRadius + 5, (spotRadius - 5) * 2, (spotRadius - 5) * 2);
+    }
+
+    /**
+     * Draw animated star burst effect
+     */
+    private void drawStarBurstEffect(Graphics2D g2d, int x, int y, int size, double currentTime) {
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        double rotation = currentTime * 2; // Slow rotation
+        double pulse = (Math.sin(currentTime * 5) + 1) / 2;
+        int numPoints = 8;
+        int outerRadius = size / 2 + (int)(pulse * 10);
+        int innerRadius = outerRadius / 2;
+
+        // Create star shape
+        java.awt.geom.Path2D star = new java.awt.geom.Path2D.Double();
+        for (int i = 0; i < numPoints * 2; i++) {
+            double angle = rotation + (Math.PI * i / numPoints);
+            int radius = (i % 2 == 0) ? outerRadius : innerRadius;
+            double px = x + Math.cos(angle) * radius;
+            double py = y + Math.sin(angle) * radius;
+            if (i == 0) {
+                star.moveTo(px, py);
+            } else {
+                star.lineTo(px, py);
+            }
+        }
+        star.closePath();
+
+        // Outer glow
+        for (int i = 4; i >= 1; i--) {
+            g2d.setColor(new Color(255, 215, 0, 50 / i));
+            g2d.setStroke(new BasicStroke(i * 4));
+            g2d.draw(star);
+        }
+
+        // Fill with gradient
+        RadialGradientPaint starGradient = new RadialGradientPaint(
+            x, y, outerRadius,
+            new float[]{0.0f, 0.5f, 1.0f},
+            new Color[]{
+                new Color(255, 255, 200),
+                new Color(255, 215, 0),
+                new Color(255, 150, 0)
+            }
+        );
+        g2d.setPaint(starGradient);
+        g2d.fill(star);
+
+        // Border
+        g2d.setColor(new Color(255, 255, 255, 200));
+        g2d.setStroke(new BasicStroke(2));
+        g2d.draw(star);
+
+        // Center sparkle
+        g2d.setColor(new Color(255, 255, 255, (int)(200 + pulse * 55)));
+        int sparkleSize = 8 + (int)(pulse * 4);
+        g2d.fillOval(x - sparkleSize/2, y - sparkleSize/2, sparkleSize, sparkleSize);
+    }
+
+    /**
+     * Draw expanding ripple wave effect
+     */
+    private void drawRippleWaveEffect(Graphics2D g2d, int x, int y, int size, double currentTime) {
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        int maxRadius = size;
+        int numRipples = 3;
+        double rippleSpeed = 2.0;
+
+        for (int i = 0; i < numRipples; i++) {
+            // Calculate ripple phase (0 to 1, cycling)
+            double phase = ((currentTime * rippleSpeed + i * 0.33) % 1.0);
+            int rippleRadius = (int)(phase * maxRadius);
+            int alpha = (int)(255 * (1.0 - phase)); // Fade out as it expands
+
+            if (rippleRadius > 0 && alpha > 0) {
+                // Outer ring with gradient stroke effect
+                for (int j = 3; j >= 1; j--) {
+                    g2d.setColor(new Color(0, 150, 255, alpha / (j + 1)));
+                    g2d.setStroke(new BasicStroke(j * 2));
+                    g2d.drawOval(x - rippleRadius, y - rippleRadius, rippleRadius * 2, rippleRadius * 2);
+                }
+
+                // Main ripple ring
+                g2d.setColor(new Color(100, 200, 255, alpha));
+                g2d.setStroke(new BasicStroke(3));
+                g2d.drawOval(x - rippleRadius, y - rippleRadius, rippleRadius * 2, rippleRadius * 2);
+            }
+        }
+
+        // Center dot
+        double centerPulse = (Math.sin(currentTime * 8) + 1) / 2;
+        int centerSize = 10 + (int)(centerPulse * 5);
+        g2d.setColor(new Color(150, 220, 255, 255));
+        g2d.fillOval(x - centerSize/2, y - centerSize/2, centerSize, centerSize);
+        g2d.setColor(new Color(255, 255, 255, 200));
+        g2d.fillOval(x - centerSize/4, y - centerSize/4, centerSize/2, centerSize/2);
+    }
+
+    /**
+     * Draw camera-style focus frame effect
+     */
+    private void drawFocusFrameEffect(Graphics2D g2d, int x, int y, int size, double currentTime) {
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        double pulse = (Math.sin(currentTime * 3) + 1) / 2;
+        int frameSize = size;
+        int cornerLength = frameSize / 4;
+        int cornerThickness = 4;
+
+        int left = x - frameSize / 2;
+        int top = y - frameSize / 2;
+        int right = x + frameSize / 2;
+        int bottom = y + frameSize / 2;
+
+        // Animated color
+        int green = 200 + (int)(pulse * 55);
+        Color frameColor = new Color(50, green, 50);
+        Color glowColor = new Color(100, 255, 100, (int)(100 + pulse * 100));
+
+        // Draw corner brackets with glow
+        g2d.setStroke(new BasicStroke(cornerThickness + 4));
+        g2d.setColor(glowColor);
+        drawFocusCorners(g2d, left, top, right, bottom, cornerLength);
+
+        g2d.setStroke(new BasicStroke(cornerThickness));
+        g2d.setColor(frameColor);
+        drawFocusCorners(g2d, left, top, right, bottom, cornerLength);
+
+        // Inner highlight
+        g2d.setStroke(new BasicStroke(2));
+        g2d.setColor(new Color(200, 255, 200, 150));
+        drawFocusCorners(g2d, left + 2, top + 2, right - 2, bottom - 2, cornerLength - 4);
+
+        // Center crosshair (subtle)
+        g2d.setColor(new Color(100, 255, 100, (int)(80 + pulse * 50)));
+        g2d.setStroke(new BasicStroke(1));
+        g2d.drawLine(x - 10, y, x + 10, y);
+        g2d.drawLine(x, y - 10, x, y + 10);
+    }
+
+    private void drawFocusCorners(Graphics2D g2d, int left, int top, int right, int bottom, int len) {
+        // Top-left corner
+        g2d.drawLine(left, top, left + len, top);
+        g2d.drawLine(left, top, left, top + len);
+        // Top-right corner
+        g2d.drawLine(right, top, right - len, top);
+        g2d.drawLine(right, top, right, top + len);
+        // Bottom-left corner
+        g2d.drawLine(left, bottom, left + len, bottom);
+        g2d.drawLine(left, bottom, left, bottom - len);
+        // Bottom-right corner
+        g2d.drawLine(right, bottom, right - len, bottom);
+        g2d.drawLine(right, bottom, right, bottom - len);
+    }
+
+    /**
+     * Draw animated underline/box effect
+     */
+    private void drawUnderlineBoxEffect(Graphics2D g2d, int x, int y, int size, double currentTime) {
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        double pulse = (Math.sin(currentTime * 4) + 1) / 2;
+        int boxWidth = size;
+        int boxHeight = size / 3;
+
+        int left = x - boxWidth / 2;
+        int top = y - boxHeight / 2;
+
+        // Animated drawing effect - line grows from center
+        double progress = (currentTime * 2) % 1.0;
+        int drawnWidth = (int)(boxWidth * Math.min(progress * 2, 1.0));
+        int offsetX = (boxWidth - drawnWidth) / 2;
+
+        // Glow effect
+        for (int i = 4; i >= 1; i--) {
+            g2d.setColor(new Color(255, 200, 0, 40 / i));
+            g2d.setStroke(new BasicStroke(i * 3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2d.drawRoundRect(left + offsetX, top, drawnWidth, boxHeight, 10, 10);
+        }
+
+        // Main box
+        GradientPaint boxGradient = new GradientPaint(
+            left, top, new Color(255, 180, 0, 200),
+            left, top + boxHeight, new Color(255, 100, 0, 200)
+        );
+        g2d.setPaint(boxGradient);
+        g2d.setStroke(new BasicStroke(4, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g2d.drawRoundRect(left + offsetX, top, drawnWidth, boxHeight, 10, 10);
+
+        // Inner highlight
+        g2d.setColor(new Color(255, 255, 200, (int)(100 + pulse * 100)));
+        g2d.setStroke(new BasicStroke(2));
+        g2d.drawRoundRect(left + offsetX + 2, top + 2, Math.max(0, drawnWidth - 4), Math.max(0, boxHeight - 4), 8, 8);
+    }
+
+    /**
+     * Draw soft glowing pulse effect
+     */
+    private void drawGlowPulseEffect(Graphics2D g2d, int x, int y, int size, double currentTime) {
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        double pulse = (Math.sin(currentTime * 3) + 1) / 2;
+        double fastPulse = (Math.sin(currentTime * 7) + 1) / 2;
+        int baseRadius = size / 2;
+        int glowRadius = baseRadius + (int)(pulse * 30);
+
+        // Multiple glow layers with different colors
+        Color[] glowColors = {
+            new Color(255, 100, 150), // Pink
+            new Color(150, 100, 255), // Purple
+            new Color(100, 200, 255)  // Cyan
+        };
+
+        for (int layer = 0; layer < glowColors.length; layer++) {
+            double layerPhase = currentTime * 2 + layer * Math.PI / 3;
+            double layerPulse = (Math.sin(layerPhase) + 1) / 2;
+            int layerRadius = glowRadius + layer * 10 - (int)(layerPulse * 15);
+
+            Color baseColor = glowColors[layer];
+            RadialGradientPaint glowGradient = new RadialGradientPaint(
+                x, y, layerRadius,
+                new float[]{0.0f, 0.5f, 1.0f},
+                new Color[]{
+                    new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), (int)(layerPulse * 100)),
+                    new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), (int)(layerPulse * 50)),
+                    new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), 0)
+                }
+            );
+            g2d.setPaint(glowGradient);
+            g2d.fillOval(x - layerRadius, y - layerRadius, layerRadius * 2, layerRadius * 2);
+        }
+
+        // Center bright spot
+        int centerSize = 15 + (int)(fastPulse * 10);
+        RadialGradientPaint centerGradient = new RadialGradientPaint(
+            x, y, centerSize,
+            new float[]{0.0f, 0.5f, 1.0f},
+            new Color[]{
+                new Color(255, 255, 255, 255),
+                new Color(255, 200, 255, 200),
+                new Color(255, 150, 255, 0)
+            }
+        );
+        g2d.setPaint(centerGradient);
+        g2d.fillOval(x - centerSize, y - centerSize, centerSize * 2, centerSize * 2);
+    }
 
 
 
