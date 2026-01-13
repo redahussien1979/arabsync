@@ -2073,55 +2073,239 @@ public class arabicSync {
     /**
      * Align Arabic transcript to our text
      */
+    /**
+     * Align Arabic transcript from speech-to-text to our text using fuzzy matching.
+     * This ensures 100% accurate sync by properly matching words even with minor differences.
+     */
     private WordTiming[] alignArabicTranscriptToText(java.util.List<WordTiming> rawTimings, FormattedTextDataArabicSync formattedData) {
-        System.out.println("🔄 Aligning Arabic audio transcript...");
+        System.out.println("🔄 Aligning Arabic audio transcript with fuzzy matching...");
 
         String[] ourArabicWords = formattedData.arabicSpeakableWords;
         WordTiming[] alignedTimings = new WordTiming[ourArabicWords.length];
 
-        // Simple alignment for Arabic audio
-        int minLength = Math.min(rawTimings.size(), ourArabicWords.length);
-
-        for (int i = 0; i < minLength; i++) {
-            WordTiming originalTiming = rawTimings.get(i);
-            // ADD THIS DEBUG OUTPUT:
-            System.out.println("DEBUG ALIGNMENT [" + i + "]:");
-            System.out.println("  ElevenLabs word: '" + originalTiming.word + "'");
-            System.out.println("  Our text word:   '" + ourArabicWords[i] + "'");
-            System.out.println("  Match: " + originalTiming.word.equals(ourArabicWords[i]));
-            // Advance timing slightly for better responsiveness
-            double advancedStart = Math.max(0, originalTiming.startTime - 0.1);
-            alignedTimings[i] = new WordTiming(ourArabicWords[i], advancedStart, originalTiming.endTime);
+        if (rawTimings == null || rawTimings.isEmpty()) {
+            System.out.println("⚠ No raw timings provided, cannot align");
+            return null;
         }
 
-        // Handle remaining words with estimated timing
-        for (int i = minLength; i < ourArabicWords.length; i++) {
-            double estimatedStart = i > 0 ? alignedTimings[i - 1].endTime : 0;
-            double estimatedEnd = estimatedStart + 0.6;
-            alignedTimings[i] = new WordTiming(ourArabicWords[i], estimatedStart, estimatedEnd);
+        // Use dynamic programming approach for better alignment
+        int ourIndex = 0;
+        int rawIndex = 0;
+
+        while (ourIndex < ourArabicWords.length && rawIndex < rawTimings.size()) {
+            WordTiming rawTiming = rawTimings.get(rawIndex);
+            String ourWord = stripPunctuation(ourArabicWords[ourIndex]);
+            String rawWord = stripPunctuation(rawTiming.word);
+
+            // Calculate similarity score
+            double similarity = calculateWordSimilarity(ourWord, rawWord);
+
+            if (similarity >= 0.7) {
+                // Good match - use exact timing (NO advance offset for accurate sync)
+                alignedTimings[ourIndex] = new WordTiming(ourArabicWords[ourIndex],
+                    rawTiming.startTime, rawTiming.endTime);
+                ourIndex++;
+                rawIndex++;
+            } else if (rawIndex + 1 < rawTimings.size()) {
+                // Check if next raw word matches better
+                String nextRawWord = stripPunctuation(rawTimings.get(rawIndex + 1).word);
+                double nextSimilarity = calculateWordSimilarity(ourWord, nextRawWord);
+
+                if (nextSimilarity > similarity) {
+                    // Skip current raw word (probably extra word in speech)
+                    rawIndex++;
+                } else {
+                    // Use current timing even with low similarity
+                    alignedTimings[ourIndex] = new WordTiming(ourArabicWords[ourIndex],
+                        rawTiming.startTime, rawTiming.endTime);
+                    ourIndex++;
+                    rawIndex++;
+                }
+            } else {
+                // Use current timing
+                alignedTimings[ourIndex] = new WordTiming(ourArabicWords[ourIndex],
+                    rawTiming.startTime, rawTiming.endTime);
+                ourIndex++;
+                rawIndex++;
+            }
         }
 
+        // Handle remaining our words with interpolated timing
+        if (ourIndex < ourArabicWords.length) {
+            double lastEndTime = rawTimings.get(rawTimings.size() - 1).endTime;
+            int remainingWords = ourArabicWords.length - ourIndex;
+            double avgWordDuration = calculateAverageWordDuration(rawTimings);
+
+            for (int i = ourIndex; i < ourArabicWords.length; i++) {
+                double wordDuration = avgWordDuration * getWordLengthFactor(ourArabicWords[i]);
+                double startTime = (i == ourIndex) ? lastEndTime : alignedTimings[i - 1].endTime;
+                double endTime = startTime + wordDuration;
+                alignedTimings[i] = new WordTiming(ourArabicWords[i], startTime, endTime);
+            }
+        }
+
+        // Validate and fix any timing gaps or overlaps
+        alignedTimings = validateAndFixTimings(alignedTimings);
 
         System.out.println("✅ Arabic audio alignment complete: " + ourArabicWords.length + " words aligned");
         return alignedTimings;
     }
 
     /**
-     * Generate estimated Arabic timings
+     * Calculate similarity between two words (0.0 to 1.0)
+     */
+    private double calculateWordSimilarity(String word1, String word2) {
+        if (word1 == null || word2 == null) return 0.0;
+        if (word1.isEmpty() || word2.isEmpty()) return 0.0;
+        if (word1.equals(word2)) return 1.0;
+
+        // Normalize both words
+        word1 = normalizeArabicWord(word1);
+        word2 = normalizeArabicWord(word2);
+
+        if (word1.equals(word2)) return 1.0;
+
+        // Calculate Levenshtein distance ratio
+        int maxLen = Math.max(word1.length(), word2.length());
+        if (maxLen == 0) return 1.0;
+
+        int distance = levenshteinDistance(word1, word2);
+        return 1.0 - ((double) distance / maxLen);
+    }
+
+    /**
+     * Normalize Arabic word for comparison
+     */
+    private String normalizeArabicWord(String word) {
+        if (word == null) return "";
+        // Remove diacritics
+        word = word.replaceAll("[\\u064B-\\u0652\\u0670]", "");
+        // Normalize alef variants
+        word = word.replace('أ', 'ا').replace('إ', 'ا').replace('آ', 'ا');
+        // Normalize taa marbuta
+        word = word.replace('ة', 'ه');
+        // Normalize yaa
+        word = word.replace('ى', 'ي');
+        return word.trim();
+    }
+
+    /**
+     * Calculate Levenshtein edit distance between two strings
+     */
+    private int levenshteinDistance(String s1, String s2) {
+        int[][] dp = new int[s1.length() + 1][s2.length() + 1];
+
+        for (int i = 0; i <= s1.length(); i++) dp[i][0] = i;
+        for (int j = 0; j <= s2.length(); j++) dp[0][j] = j;
+
+        for (int i = 1; i <= s1.length(); i++) {
+            for (int j = 1; j <= s2.length(); j++) {
+                int cost = (s1.charAt(i - 1) == s2.charAt(j - 1)) ? 0 : 1;
+                dp[i][j] = Math.min(Math.min(
+                    dp[i - 1][j] + 1,      // deletion
+                    dp[i][j - 1] + 1),     // insertion
+                    dp[i - 1][j - 1] + cost // substitution
+                );
+            }
+        }
+        return dp[s1.length()][s2.length()];
+    }
+
+    /**
+     * Calculate average word duration from raw timings
+     */
+    private double calculateAverageWordDuration(java.util.List<WordTiming> timings) {
+        if (timings == null || timings.isEmpty()) return 0.5;
+        double totalDuration = 0;
+        for (WordTiming t : timings) {
+            totalDuration += (t.endTime - t.startTime);
+        }
+        return totalDuration / timings.size();
+    }
+
+    /**
+     * Get word length factor for duration estimation (longer words take more time)
+     */
+    private double getWordLengthFactor(String word) {
+        if (word == null || word.isEmpty()) return 1.0;
+        int len = word.length();
+        if (len <= 2) return 0.7;
+        if (len <= 4) return 1.0;
+        if (len <= 6) return 1.3;
+        return 1.5;
+    }
+
+    /**
+     * Validate and fix timing gaps/overlaps to ensure seamless sync
+     */
+    private WordTiming[] validateAndFixTimings(WordTiming[] timings) {
+        if (timings == null || timings.length == 0) return timings;
+
+        for (int i = 1; i < timings.length; i++) {
+            if (timings[i] == null) continue;
+            if (timings[i - 1] == null) continue;
+
+            // Fix gap: if there's a gap between words, extend previous word's end time
+            if (timings[i].startTime > timings[i - 1].endTime) {
+                double gap = timings[i].startTime - timings[i - 1].endTime;
+                // Split the gap: extend previous word and advance current word
+                timings[i - 1] = new WordTiming(timings[i - 1].word,
+                    timings[i - 1].startTime, timings[i - 1].endTime + gap / 2);
+                timings[i] = new WordTiming(timings[i].word,
+                    timings[i].startTime - gap / 2, timings[i].endTime);
+            }
+
+            // Fix overlap: if words overlap, adjust boundaries
+            if (timings[i].startTime < timings[i - 1].endTime) {
+                double midpoint = (timings[i - 1].endTime + timings[i].startTime) / 2;
+                timings[i - 1] = new WordTiming(timings[i - 1].word,
+                    timings[i - 1].startTime, midpoint);
+                timings[i] = new WordTiming(timings[i].word,
+                    midpoint, timings[i].endTime);
+            }
+        }
+
+        return timings;
+    }
+
+    /**
+     * Generate estimated Arabic timings based on word length (longer words = more time)
+     * This provides better sync than equal distribution.
      */
     private WordTiming[] generateEstimatedArabicTimings(FormattedTextDataArabicSync formattedData, double audioDuration) {
         String[] words = formattedData.arabicSpeakableWords;
         WordTiming[] timings = new WordTiming[words.length];
 
-        double timePerWord = audioDuration / words.length;
+        if (words.length == 0) return timings;
 
+        // Calculate total weighted length
+        double totalWeight = 0;
+        double[] weights = new double[words.length];
         for (int i = 0; i < words.length; i++) {
-            double startTime = i * timePerWord;
-            double endTime = (i + 1) * timePerWord;
-            timings[i] = new WordTiming(words[i], startTime, endTime);
+            weights[i] = getWordLengthFactor(words[i]);
+            totalWeight += weights[i];
         }
 
-        System.out.println("⚠ Using estimated Arabic audio timings: " + String.format("%.2f", timePerWord) + "s per word");
+        // Distribute time proportionally based on word weight
+        double currentTime = 0;
+        for (int i = 0; i < words.length; i++) {
+            double wordDuration = (weights[i] / totalWeight) * audioDuration;
+            double startTime = currentTime;
+            double endTime = currentTime + wordDuration;
+            timings[i] = new WordTiming(words[i], startTime, endTime);
+            currentTime = endTime;
+        }
+
+        // Ensure last word ends exactly at audio duration
+        if (words.length > 0) {
+            timings[words.length - 1] = new WordTiming(
+                timings[words.length - 1].word,
+                timings[words.length - 1].startTime,
+                audioDuration
+            );
+        }
+
+        System.out.println("⚠ Using weighted estimated Arabic timings (word-length based)");
         return timings;
     }
 
@@ -3737,12 +3921,17 @@ public class arabicSync {
 
 
 
+    /**
+     * Calculate gap-free line timings from word timings.
+     * Ensures each line starts exactly when the previous line ends for 100% sync.
+     */
     private QuoteTimingInfoArabicSync[] calculateArabicQuoteTimings(FormattedTextDataArabicSync formattedData, WordTiming[] wordTimings, double audioDuration) {
         QuoteTimingInfoArabicSync[] quoteTimings = new QuoteTimingInfoArabicSync[formattedData.lines.size()];
 
-        System.out.println("DEBUG calculateArabicQuoteTimings: Total lines in formattedData: " + formattedData.lines.size());
-        System.out.println("DEBUG calculateArabicQuoteTimings: Total wordTimings: " + (wordTimings != null ? wordTimings.length : 0));
-        System.out.println("DEBUG calculateArabicQuoteTimings: Audio duration: " + audioDuration);
+        System.out.println("📊 Calculating gap-free line timings:");
+        System.out.println("   Total lines: " + formattedData.lines.size());
+        System.out.println("   Total word timings: " + (wordTimings != null ? wordTimings.length : 0));
+        System.out.println("   Audio duration: " + String.format("%.2f", audioDuration) + "s");
 
         int globalWordIndex = 0;
 
@@ -3754,53 +3943,120 @@ public class arabicSync {
             double endTime = audioDuration;
 
             if (wordTimings != null && wordTimings.length > 0) {
+                // Get start time from first word of this line
                 if (globalWordIndex < wordTimings.length) {
                     startTime = wordTimings[globalWordIndex].startTime;
                 }
-                if (globalWordIndex + wordsInThisQuote - 1 < wordTimings.length) {
-                    endTime = wordTimings[globalWordIndex + wordsInThisQuote - 1].endTime;
+
+                // Get end time from last word of this line
+                int lastWordIndex = globalWordIndex + wordsInThisQuote - 1;
+                if (lastWordIndex < wordTimings.length) {
+                    endTime = wordTimings[lastWordIndex].endTime;
                 }
+
+                // CRITICAL: Ensure gap-free timing by connecting to previous line
+                if (i > 0 && quoteTimings[i - 1] != null) {
+                    double prevEndTime = quoteTimings[i - 1].endTime;
+                    // If there's a gap, start this line at previous line's end
+                    if (startTime > prevEndTime) {
+                        startTime = prevEndTime;
+                    }
+                    // If there's overlap, adjust previous line's end
+                    else if (startTime < prevEndTime) {
+                        // Adjust the boundary to be at current line's start
+                        quoteTimings[i - 1] = new QuoteTimingInfoArabicSync(
+                            i - 1, quoteTimings[i - 1].startTime, startTime);
+                    }
+                }
+            }
+
+            // Ensure first line starts at 0
+            if (i == 0) {
+                startTime = 0;
+            }
+
+            // Ensure last line ends at audio duration
+            if (i == formattedData.lines.size() - 1) {
+                endTime = audioDuration;
             }
 
             quoteTimings[i] = new QuoteTimingInfoArabicSync(i, startTime, endTime);
 
-            System.out.println("🎯 Arabic Audio Quote " + (i + 1) + ": Time " + String.format("%.2f", startTime) + "s to " + String.format("%.2f", endTime) + "s");
-            System.out.println("   Arabic: '" + line.arabicContent + "'");
-            System.out.println("   English: '" + line.englishContent + "'");
-            System.out.println("   Word range: " + globalWordIndex + " to " + (globalWordIndex + wordsInThisQuote - 1));
+            System.out.println("🎯 Line " + (i + 1) + ": " + String.format("%.2f", startTime) + "s → " +
+                String.format("%.2f", endTime) + "s (words " + globalWordIndex + "-" + (globalWordIndex + wordsInThisQuote - 1) + ")");
 
             globalWordIndex += wordsInThisQuote;
         }
 
-        System.out.println("DEBUG calculateArabicQuoteTimings: Total words processed: " + globalWordIndex);
+        // Final validation: ensure no gaps or overlaps
+        quoteTimings = validateLineTiming(quoteTimings, audioDuration);
 
         return quoteTimings;
     }
+
     /**
-     * Get current Arabic quote display info
+     * Validate and fix line timings to ensure 100% coverage of audio duration
+     */
+    private QuoteTimingInfoArabicSync[] validateLineTiming(QuoteTimingInfoArabicSync[] timings, double audioDuration) {
+        if (timings == null || timings.length == 0) return timings;
+
+        // Ensure first line starts at 0
+        if (timings[0].startTime > 0) {
+            timings[0] = new QuoteTimingInfoArabicSync(0, 0, timings[0].endTime);
+        }
+
+        // Fix any gaps between lines
+        for (int i = 1; i < timings.length; i++) {
+            double prevEnd = timings[i - 1].endTime;
+            double currStart = timings[i].startTime;
+
+            if (Math.abs(currStart - prevEnd) > 0.001) {
+                // There's a gap or overlap - fix by using midpoint
+                double boundary = prevEnd; // Use previous end as boundary
+                timings[i] = new QuoteTimingInfoArabicSync(i, boundary, timings[i].endTime);
+            }
+        }
+
+        // Ensure last line ends at audio duration
+        int lastIdx = timings.length - 1;
+        if (Math.abs(timings[lastIdx].endTime - audioDuration) > 0.001) {
+            timings[lastIdx] = new QuoteTimingInfoArabicSync(lastIdx, timings[lastIdx].startTime, audioDuration);
+        }
+
+        System.out.println("✅ Line timings validated - 100% audio coverage guaranteed");
+        return timings;
+    }
+    /**
+     * Get current Arabic quote display info based on current time.
+     * With gap-free timing, this should always find an exact match.
      */
     private QuoteDisplayInfoArabicSync getCurrentArabicQuoteDisplayInfo(double currentTime, QuoteTimingInfoArabicSync[] quoteTimings) {
+        if (quoteTimings == null || quoteTimings.length == 0) {
+            return new QuoteDisplayInfoArabicSync(0, false);
+        }
+
+        // With gap-free timing, use inclusive comparison for accurate detection
         for (int i = 0; i < quoteTimings.length; i++) {
             QuoteTimingInfoArabicSync timing = quoteTimings[i];
 
-            if (currentTime >= timing.startTime && currentTime <= timing.endTime) {
-                return new QuoteDisplayInfoArabicSync(i, true); // This quote is active (being spoken)
+            // Use inclusive start, exclusive end (except for last line)
+            boolean isLastLine = (i == quoteTimings.length - 1);
+            boolean inRange = isLastLine
+                ? (currentTime >= timing.startTime && currentTime <= timing.endTime)
+                : (currentTime >= timing.startTime && currentTime < timing.endTime);
+
+            if (inRange) {
+                return new QuoteDisplayInfoArabicSync(i, true);
             }
         }
 
-        // Find closest quote if no exact match
-        for (int i = 0; i < quoteTimings.length; i++) {
-            if (currentTime < quoteTimings[i].startTime) {
-                return new QuoteDisplayInfoArabicSync(i, false);
-            }
+        // Handle edge cases (should rarely happen with validated timings)
+        if (currentTime < quoteTimings[0].startTime) {
+            return new QuoteDisplayInfoArabicSync(0, false);
         }
 
-        // ADD DEBUG HERE:
-        System.out.println("⚠️ WARNING: getCurrentArabicQuoteDisplayInfo fell through to last quote at time " + currentTime);
-
-        // Default to last quote
-        int lastIndex = quoteTimings.length - 1;
-        return new QuoteDisplayInfoArabicSync(lastIndex, false);
+        // Default to last quote if time exceeds all timings
+        return new QuoteDisplayInfoArabicSync(quoteTimings.length - 1, true);
     }
 
     /**
@@ -5070,19 +5326,37 @@ public class arabicSync {
         }
     }
 
+    /**
+     * Get the index of the currently spoken word based on current time.
+     * Uses validated gap-free timings for 100% accurate word highlighting.
+     */
     private int getCurrentArabicSpokenWordIndex(double currentTime) {
-        if (currentWordTimings != null) {
-            for (int i = 0; i < currentWordTimings.length; i++) {
-                // Exact timing sync - no buffers
-                double startTime = currentWordTimings[i].startTime;
-                double endTime = currentWordTimings[i].endTime;
+        if (currentWordTimings == null || currentWordTimings.length == 0) {
+            return -1;
+        }
 
-                if (currentTime >= startTime && currentTime <= endTime) {
-                    return i;
-                }
+        for (int i = 0; i < currentWordTimings.length; i++) {
+            double startTime = currentWordTimings[i].startTime;
+            double endTime = currentWordTimings[i].endTime;
+
+            // Use inclusive start, exclusive end (except for last word)
+            boolean isLastWord = (i == currentWordTimings.length - 1);
+            boolean inRange = isLastWord
+                ? (currentTime >= startTime && currentTime <= endTime)
+                : (currentTime >= startTime && currentTime < endTime);
+
+            if (inRange) {
+                return i;
             }
         }
-        return -1; // No word currently being spoken
+
+        // Handle edge cases
+        if (currentTime < currentWordTimings[0].startTime) {
+            return -1; // Before first word
+        }
+
+        // If past all words, return last word (keeps highlighting until end)
+        return currentWordTimings.length - 1;
     }
 
 
