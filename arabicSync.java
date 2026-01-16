@@ -8193,35 +8193,47 @@ public class arabicSync {
     }
 
     /**
-     * Extract the first digit from an image filename to determine line number
-     * Examples: image1.jpg -> 1, image11.jpg -> 1, image82.jpg -> 8
-     * Also supports: 1.webp -> 1, 11.png -> 1, 82.jpg -> 8
+     * Extract the line number from an image filename
+     * New format with underscore: 1_1.jpg -> 1, 10_2.webp -> 10, 12_1.png -> 12
+     * Also supports old formats for backward compatibility:
+     *   - image1.jpg -> 1, image11.jpg -> 1 (first digit)
+     *   - 1.webp -> 1, 11.png -> 1 (first digit without underscore)
      */
     private static int extractLineNumberFromImageName(String fileName) {
         String name = fileName.toLowerCase();
         String numberPart = "";
-        
+
         // Check if it starts with "image" (old format)
         if (name.startsWith("image")) {
             // Extract the number part after "image"
             numberPart = name.substring(5); // After "image"
         } else {
-            // New format: just a number (e.g., "1.webp", "11.png", "82.jpg")
+            // New format: just a number (e.g., "1_1.webp", "10_2.png", "12.jpg")
             numberPart = name;
         }
-        
+
         // Remove extension
         int dotIndex = numberPart.lastIndexOf('.');
         if (dotIndex > 0) {
             numberPart = numberPart.substring(0, dotIndex);
         }
-        
-        // Remove any dash and suffix (e.g., "1-1" -> "1")
+
+        // Check for underscore format first (new format: lineNumber_imageIndex)
+        if (numberPart.contains("_")) {
+            String lineNumberStr = numberPart.substring(0, numberPart.indexOf('_'));
+            try {
+                return Integer.parseInt(lineNumberStr);
+            } catch (Exception e) {
+                return -1;
+            }
+        }
+
+        // Remove any dash and suffix (e.g., "1-1" -> "1") for old format
         if (numberPart.contains("-")) {
             numberPart = numberPart.substring(0, numberPart.indexOf('-'));
         }
-        
-        // Extract first digit
+
+        // Fallback: Extract first digit (old format compatibility)
         try {
             if (numberPart.isEmpty()) {
                 return -1;
@@ -8234,35 +8246,45 @@ public class arabicSync {
     }
 
     /**
-     * Extract the full number from an image filename for sorting
-     * Examples: image1.jpg -> 1, image11.jpg -> 11, image82.jpg -> 82
-     * Also supports: 1.webp -> 1, 11.png -> 11, 82.jpg -> 82
+     * Extract the image index from an image filename for sorting within a line
+     * New format with underscore: 1_1.jpg -> 1, 1_2.jpg -> 2, 10_3.webp -> 3
+     * Old format (backward compatibility): image1.jpg -> 1, image11.jpg -> 11, 82.jpg -> 82
      */
     private static int extractFullNumberFromImageName(String fileName) {
         String name = fileName.toLowerCase();
         String numberPart = "";
-        
+
         // Check if it starts with "image" (old format)
         if (name.startsWith("image")) {
             // Extract the number part after "image"
             numberPart = name.substring(5); // After "image"
         } else {
-            // New format: just a number (e.g., "1.webp", "11.png", "82.jpg")
+            // New format: just a number (e.g., "1_1.webp", "10_2.png", "82.jpg")
             numberPart = name;
         }
-        
+
         // Remove extension
         int dotIndex = numberPart.lastIndexOf('.');
         if (dotIndex > 0) {
             numberPart = numberPart.substring(0, dotIndex);
         }
-        
-        // Remove any dash and suffix (e.g., "1-1" -> "1")
+
+        // Check for underscore format first (new format: lineNumber_imageIndex)
+        if (numberPart.contains("_")) {
+            String imageIndexStr = numberPart.substring(numberPart.indexOf('_') + 1);
+            try {
+                return Integer.parseInt(imageIndexStr);
+            } catch (Exception e) {
+                return 0;
+            }
+        }
+
+        // Remove any dash and suffix (e.g., "1-1" -> "1") for old format
         if (numberPart.contains("-")) {
             numberPart = numberPart.substring(0, numberPart.indexOf('-'));
         }
-        
-        // Extract full number
+
+        // Fallback: Extract full number (old format compatibility)
         try {
             if (numberPart.isEmpty()) {
                 return 0;
@@ -8579,22 +8601,37 @@ public class arabicSync {
         }
 
         private int extractImageIndex(String filename) {
-            // Extract index from: image1.jpg (returns 1), image11.jpg (returns 11), image82.jpg (returns 82)
-            // This is used for sorting images within a line
+            // Extract index from filename for sorting images within a line
+            // New format: 1_1.jpg -> 1, 1_2.jpg -> 2, 10_3.webp -> 3
+            // Old format: image1.jpg -> 1, image11.jpg -> 11, image82.jpg -> 82
             try {
                 String name = filename.toLowerCase();
-                if (!name.startsWith("image")) {
-                    return 0;
-                }
-                
-                String numberPart = name.substring(5); // After "image"
-                numberPart = numberPart.substring(0, numberPart.lastIndexOf('.')); // Before extension
+                String numberPart;
 
-                // Remove any dash and suffix (e.g., "1-1" -> "1")
+                // Check if it starts with "image" (old format)
+                if (name.startsWith("image")) {
+                    numberPart = name.substring(5); // After "image"
+                } else {
+                    numberPart = name;
+                }
+
+                // Remove extension
+                int dotIndex = numberPart.lastIndexOf('.');
+                if (dotIndex > 0) {
+                    numberPart = numberPart.substring(0, dotIndex);
+                }
+
+                // Check for underscore format first (new format: lineNumber_imageIndex)
+                if (numberPart.contains("_")) {
+                    String imageIndexStr = numberPart.substring(numberPart.indexOf('_') + 1);
+                    return Integer.parseInt(imageIndexStr);
+                }
+
+                // Remove any dash and suffix (e.g., "1-1" -> "1") for old format
                 if (numberPart.contains("-")) {
                     numberPart = numberPart.substring(0, numberPart.indexOf('-'));
                 }
-                
+
                 return Integer.parseInt(numberPart);
             } catch (Exception e) {
                 return 0;
@@ -8626,16 +8663,9 @@ public class arabicSync {
                     File sourceFile = images.get(i);
                     String extension = getFileExtension(sourceFile);
 
-                    String finalFileName;
-                    if (i == 0) {
-                        // First image: just the line number (e.g., "1.jpg", "2.webp")
-                        finalFileName = lineNumber + extension;
-                    } else {
-                        // Subsequent images: line number * 10 + index (e.g., "11.jpg", "12.webp" for line 1)
-                        // This ensures first digit matches line number
-                        int imageNumber = (lineNumber * 10) + i;
-                        finalFileName = imageNumber + extension;
-                    }
+                    // New format: lineNumber_imageIndex (e.g., "1_1.jpg", "1_2.jpg", "10_1.webp", "10_2.webp")
+                    // This avoids ambiguity between line 1 image 1 and line 11 image 1
+                    String finalFileName = lineNumber + "_" + (i + 1) + extension;
 
                     String tempFileName = "temp_" + System.currentTimeMillis() + "_" + lineNumber + "_" + i + extension;
                     copyTasks.add(new FileCopyTask(sourceFile, tempFileName, finalFileName));
@@ -8655,12 +8685,29 @@ public class arabicSync {
                 }
             }
 
-            // Delete all old image files
+            // Delete all old image files (both old and new formats)
             File[] existingFiles = folder.listFiles();
             if (existingFiles != null) {
                 for (File file : existingFiles) {
-                    String fileName = file.getName();
-                    if (fileName.startsWith("image") && !fileName.startsWith("temp_")) {
+                    String fileName = file.getName().toLowerCase();
+                    // Skip temp files
+                    if (fileName.startsWith("temp_")) {
+                        continue;
+                    }
+                    // Delete old format: image1.jpg, image11.jpg, etc.
+                    if (fileName.startsWith("image")) {
+                        file.delete();
+                        continue;
+                    }
+                    // Delete new format: 1_1.jpg, 10_2.webp, etc. (number_number.ext)
+                    // Also delete old numeric format: 1.jpg, 11.jpg, etc.
+                    String nameWithoutExt = fileName;
+                    int dotIdx = fileName.lastIndexOf('.');
+                    if (dotIdx > 0) {
+                        nameWithoutExt = fileName.substring(0, dotIdx);
+                    }
+                    // Check if it matches number_number or just number pattern
+                    if (nameWithoutExt.matches("\\d+_\\d+") || nameWithoutExt.matches("\\d+")) {
                         file.delete();
                     }
                 }
