@@ -2445,7 +2445,7 @@ public class arabicSync {
             if (similarity >= 0.7) {
                 // Good match - use exact timing (NO advance offset for accurate sync)
                 alignedTimings[ourIndex] = new WordTiming(ourArabicWords[ourIndex],
-                    rawTiming.startTime, rawTiming.endTime);
+                        rawTiming.startTime, rawTiming.endTime);
                 ourIndex++;
                 rawIndex++;
             } else if (rawIndex + 1 < rawTimings.size()) {
@@ -2459,14 +2459,14 @@ public class arabicSync {
                 } else {
                     // Use current timing even with low similarity
                     alignedTimings[ourIndex] = new WordTiming(ourArabicWords[ourIndex],
-                        rawTiming.startTime, rawTiming.endTime);
+                            rawTiming.startTime, rawTiming.endTime);
                     ourIndex++;
                     rawIndex++;
                 }
             } else {
                 // Use current timing
                 alignedTimings[ourIndex] = new WordTiming(ourArabicWords[ourIndex],
-                    rawTiming.startTime, rawTiming.endTime);
+                        rawTiming.startTime, rawTiming.endTime);
                 ourIndex++;
                 rawIndex++;
             }
@@ -2544,9 +2544,9 @@ public class arabicSync {
             for (int j = 1; j <= s2.length(); j++) {
                 int cost = (s1.charAt(i - 1) == s2.charAt(j - 1)) ? 0 : 1;
                 dp[i][j] = Math.min(Math.min(
-                    dp[i - 1][j] + 1,      // deletion
-                    dp[i][j - 1] + 1),     // insertion
-                    dp[i - 1][j - 1] + cost // substitution
+                                dp[i - 1][j] + 1,      // deletion
+                                dp[i][j - 1] + 1),     // insertion
+                        dp[i - 1][j - 1] + cost // substitution
                 );
             }
         }
@@ -2592,18 +2592,18 @@ public class arabicSync {
                 double gap = timings[i].startTime - timings[i - 1].endTime;
                 // Split the gap: extend previous word and advance current word
                 timings[i - 1] = new WordTiming(timings[i - 1].word,
-                    timings[i - 1].startTime, timings[i - 1].endTime + gap / 2);
+                        timings[i - 1].startTime, timings[i - 1].endTime + gap / 2);
                 timings[i] = new WordTiming(timings[i].word,
-                    timings[i].startTime - gap / 2, timings[i].endTime);
+                        timings[i].startTime - gap / 2, timings[i].endTime);
             }
 
             // Fix overlap: if words overlap, adjust boundaries
             if (timings[i].startTime < timings[i - 1].endTime) {
                 double midpoint = (timings[i - 1].endTime + timings[i].startTime) / 2;
                 timings[i - 1] = new WordTiming(timings[i - 1].word,
-                    timings[i - 1].startTime, midpoint);
+                        timings[i - 1].startTime, midpoint);
                 timings[i] = new WordTiming(timings[i].word,
-                    midpoint, timings[i].endTime);
+                        midpoint, timings[i].endTime);
             }
         }
 
@@ -2641,9 +2641,9 @@ public class arabicSync {
         // Ensure last word ends exactly at audio duration
         if (words.length > 0) {
             timings[words.length - 1] = new WordTiming(
-                timings[words.length - 1].word,
-                timings[words.length - 1].startTime,
-                audioDuration
+                    timings[words.length - 1].word,
+                    timings[words.length - 1].startTime,
+                    audioDuration
             );
         }
 
@@ -4285,7 +4285,7 @@ public class arabicSync {
                 double endTime = (i == numLines - 1) ? audioDuration : (i + 1) * timePerLine;
                 quoteTimings[i] = new QuoteTimingInfoArabicSync(i, startTime, endTime);
                 System.out.println("🎯 Line " + (i + 1) + ": " + String.format("%.2f", startTime) + "s → " +
-                    String.format("%.2f", endTime) + "s (even distribution)");
+                        String.format("%.2f", endTime) + "s (even distribution)");
             }
             return quoteTimings;
         }
@@ -4360,7 +4360,7 @@ public class arabicSync {
             quoteTimings[i] = new QuoteTimingInfoArabicSync(i, startTime, endTime);
 
             System.out.println("🎯 Line " + (i + 1) + ": " + String.format("%.2f", startTime) + "s → " +
-                String.format("%.2f", endTime) + "s (ElevenLabs words " + elevenLabsWordIndex + "-" + lastWordIdx + ")");
+                    String.format("%.2f", endTime) + "s (ElevenLabs words " + elevenLabsWordIndex + "-" + lastWordIdx + ")");
 
             elevenLabsWordIndex += wordsForThisLine;
         }
@@ -4419,8 +4419,8 @@ public class arabicSync {
             // Use inclusive start, exclusive end (except for last line)
             boolean isLastLine = (i == quoteTimings.length - 1);
             boolean inRange = isLastLine
-                ? (currentTime >= timing.startTime && currentTime <= timing.endTime)
-                : (currentTime >= timing.startTime && currentTime < timing.endTime);
+                    ? (currentTime >= timing.startTime && currentTime <= timing.endTime)
+                    : (currentTime >= timing.startTime && currentTime < timing.endTime);
 
             if (inRange) {
                 return new QuoteDisplayInfoArabicSync(i, true);
@@ -5721,8 +5721,8 @@ public class arabicSync {
 
             boolean isLastWord = (i == currentWordTimings.length - 1);
             boolean inRange = isLastWord
-                ? (currentTime >= startTime && currentTime <= endTime)
-                : (currentTime >= startTime && currentTime < endTime);
+                    ? (currentTime >= startTime && currentTime <= endTime)
+                    : (currentTime >= startTime && currentTime < endTime);
 
             if (inRange) {
                 elevenLabsWordIdx = i;
@@ -7237,504 +7237,570 @@ public class arabicSync {
 
 
 
-//here
-private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedData, QuoteDisplayInfoArabicSync displayInfo,
-                                        String outputPath, double currentTime,
-                                        Font englishFont, Font arabicFont, double totalDuration) throws Exception {
+    //here
+    private void generateImagesPerLineFrame(FormattedTextDataArabicSync formattedData, QuoteDisplayInfoArabicSync displayInfo,
+                                            String outputPath, double currentTime,
+                                            Font englishFont, Font arabicFont, double totalDuration) throws Exception {
 
-    int width = 1080;
-    int height = 1920;
+        int width = 1080;
+        int height = 1920;
 
-    BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-    Graphics2D g2d = image.createGraphics();
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = image.createGraphics();
 
-    // High-quality rendering
-    g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-    g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-    g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        // High-quality rendering
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-    // Draw black background
-    g2d.setColor(Color.BLACK);
-    g2d.fillRect(0, 0, width, height);
+        // Draw black background
+        g2d.setColor(Color.BLACK);
+        g2d.fillRect(0, 0, width, height);
 
-    if (displayInfo.currentQuote >= formattedData.lines.size()) {
-        g2d.dispose();
-        ImageIO.write(image, "JPEG", new File(outputPath));
-        return;
-    }
+        if (displayInfo.currentQuote >= formattedData.lines.size()) {
+            g2d.dispose();
+            ImageIO.write(image, "JPEG", new File(outputPath));
+            return;
+        }
 
-    FormattedLineArabicSync currentQuoteLine = formattedData.lines.get(displayInfo.currentQuote);
-    int lineNumber = displayInfo.currentQuote + 1;
+        FormattedLineArabicSync currentQuoteLine = formattedData.lines.get(displayInfo.currentQuote);
+        int lineNumber = displayInfo.currentQuote + 1;
 
-    // Load all images for this line
-    java.util.List<BufferedImage> lineImages = loadImagesForLine(lineNumber);
+        // Load all images for this line
+        java.util.List<BufferedImage> lineImages = loadImagesForLine(lineNumber);
 
-    if (!lineImages.isEmpty()) {
-        BufferedImage currentImage = selectImageForTime(lineImages, currentQuoteLine, currentTime);
-        BufferedImage nextImage = getNextImage(lineImages, currentQuoteLine, currentTime);
+        if (!lineImages.isEmpty()) {
+            BufferedImage currentImage = selectImageForTime(lineImages, currentQuoteLine, currentTime);
+            BufferedImage nextImage = getNextImage(lineImages, currentQuoteLine, currentTime);
 
-        if (currentImage != null) {
-            // Store original image for effects
-            BufferedImage originalImageForEffects = currentImage;
+            if (currentImage != null) {
+                // Store original image for effects
+                BufferedImage originalImageForEffects = currentImage;
 
-            currentImage = fitWithBlurredBackground(currentImage, width, height);
+                currentImage = fitWithBlurredBackground(currentImage, width, height);
 
-            if (nextImage != null && lineImages.size() > 1) {
-                nextImage = fitWithBlurredBackground(nextImage, width, height);
-                float transitionProgress = calculateTransitionAlpha(currentQuoteLine, currentTime, lineImages.size());
-
-                if (transitionProgress > 0) {
-                    // Transition code...
-                    Graphics2D g2dTemp = (Graphics2D) g2d.create();
-                    g2dTemp.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-
-                    float currentScale = 1.0f + (transitionProgress * 0.3f);
-                    float currentAlpha = 1.0f - transitionProgress;
-
-                    g2dTemp.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, currentAlpha));
-                    int scaledWidth = (int)(width * currentScale);
-                    int scaledHeight = (int)(height * currentScale);
-                    int offsetX = (width - scaledWidth) / 2;
-                    int offsetY = (height - scaledHeight) / 2;
-                    g2dTemp.drawImage(currentImage, offsetX, offsetY, scaledWidth, scaledHeight, null);
-                    g2dTemp.dispose();
-
-                    g2dTemp = (Graphics2D) g2d.create();
-                    g2dTemp.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                    float nextScale = 1.3f - (transitionProgress * 0.3f);
-                    float nextAlpha = transitionProgress;
-                    g2dTemp.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, nextAlpha));
-                    scaledWidth = (int)(width * nextScale);
-                    scaledHeight = (int)(height * nextScale);
-                    offsetX = (width - scaledWidth) / 2;
-                    offsetY = (height - scaledHeight) / 2;
-                    g2dTemp.drawImage(nextImage, offsetX, offsetY, scaledWidth, scaledHeight, null);
-                    g2dTemp.dispose();
-                } else {
-                    g2d.drawImage(currentImage, 0, 0, null);
-                }
-            } else {
-                // Check for zoom effect and apply zoom animation to the whole image
+                // Check for zoom effect on the currently selected image
                 String currentImageFileName = getCurrentImageFileName(lineNumber, lineImages, currentQuoteLine, currentTime);
+                System.out.println("DEBUG ZOOM: Line " + lineNumber + ", CurrentImageFileName: " + currentImageFileName + 
+                        ", CurrentTime: " + currentTime);
                 java.util.List<EffectEntry> effects = (currentImageFileName != null) ?
-                    loadEffectsForImage(lineNumber, currentImageFileName) : new java.util.ArrayList<>();
-
-                // Find zoom effect if any
+                        loadEffectsForImage(lineNumber, currentImageFileName) : new java.util.ArrayList<>();
+                
+                System.out.println("DEBUG ZOOM: Loaded " + effects.size() + " effects for " + currentImageFileName);
                 EffectEntry zoomEffect = null;
                 for (EffectEntry effect : effects) {
                     if ("zoom".equals(effect.type)) {
                         zoomEffect = effect;
+                        System.out.println("DEBUG ZOOM: Found zoom effect for " + currentImageFileName + 
+                                " at (" + effect.x + ", " + effect.y + "), size=" + effect.size);
                         break;
                     }
                 }
 
-                if (zoomEffect != null && displayInfo.isActive) {
-                    // Draw with zoom animation
-                    double lineDuration = currentQuoteLine.endTime - currentQuoteLine.startTime;
-                    double timeInLine = currentTime - currentQuoteLine.startTime;
-                    double maxZoom = 1.0 + (zoomEffect.size / 100.0); // size 80 = 1.8x zoom
+                if (nextImage != null && lineImages.size() > 1) {
+                    nextImage = fitWithBlurredBackground(nextImage, width, height);
+                    float transitionProgress = calculateTransitionAlpha(currentQuoteLine, currentTime, lineImages.size());
 
-                    drawImageWithZoomAnimation(g2d, currentImage, width, height,
-                            zoomEffect.x, zoomEffect.y,
-                            originalImageForEffects.getWidth(), originalImageForEffects.getHeight(),
-                            lineDuration, timeInLine, maxZoom);
+                    if (transitionProgress > 0) {
+                        // Transition code - apply zoom to current image if it has zoom effect
+                        float currentScale = 1.0f + (transitionProgress * 0.3f);
+                        float currentAlpha = 1.0f - transitionProgress;
+                        
+                        // Render current image (with zoom if applicable) to temporary image
+                        BufferedImage currentImageToDraw = currentImage;
+                        if (zoomEffect != null && displayInfo.isActive) {
+                            // Calculate line duration with safety check
+                            double lineDuration = currentQuoteLine.endTime - currentQuoteLine.startTime;
+                            if (lineDuration <= 0) {
+                                if (currentWordTimings != null && currentWordTimings.length > 0) {
+                                    int startWordIdx = currentQuoteLine.wordStartIndex;
+                                    int endWordIdx = startWordIdx + currentQuoteLine.wordCount - 1;
+                                    if (endWordIdx < currentWordTimings.length && startWordIdx >= 0) {
+                                        lineDuration = currentWordTimings[endWordIdx].endTime - currentWordTimings[startWordIdx].startTime;
+                                    }
+                                }
+                                if (lineDuration <= 0) {
+                                    lineDuration = 3.0;
+                                }
+                            }
+                            // Render zoomed image to temporary BufferedImage
+                            BufferedImage zoomedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+                            Graphics2D g2dZoomed = zoomedImage.createGraphics();
+                            g2dZoomed.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                            g2dZoomed.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                            applyZoomToFittedImage(g2dZoomed, currentImage, width, height, 
+                                    originalImageForEffects, zoomEffect, currentQuoteLine, currentTime, lineDuration);
+                            g2dZoomed.dispose();
+                            currentImageToDraw = zoomedImage;
+                        }
+                        
+                        // Draw current image (with zoom if applicable) with transition
+                        Graphics2D g2dTemp = (Graphics2D) g2d.create();
+                        g2dTemp.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                        g2dTemp.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, currentAlpha));
+                        int scaledWidth = (int)(width * currentScale);
+                        int scaledHeight = (int)(height * currentScale);
+                        int offsetX = (width - scaledWidth) / 2;
+                        int offsetY = (height - scaledHeight) / 2;
+                        g2dTemp.drawImage(currentImageToDraw, offsetX, offsetY, scaledWidth, scaledHeight, null);
+                        g2dTemp.dispose();
+
+                        // Draw next image (without zoom - zoom only applies to selected/current image)
+                        g2dTemp = (Graphics2D) g2d.create();
+                        g2dTemp.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                        float nextScale = 1.3f - (transitionProgress * 0.3f);
+                        float nextAlpha = transitionProgress;
+                        g2dTemp.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, nextAlpha));
+                        scaledWidth = (int)(width * nextScale);
+                        scaledHeight = (int)(height * nextScale);
+                        offsetX = (width - scaledWidth) / 2;
+                        offsetY = (height - scaledHeight) / 2;
+                        g2dTemp.drawImage(nextImage, offsetX, offsetY, scaledWidth, scaledHeight, null);
+                        g2dTemp.dispose();
+                    } else {
+                        // No transition - check for zoom effect on current image
+                        if (zoomEffect != null && displayInfo.isActive) {
+                            // Calculate line duration with safety check
+                            double lineDuration = currentQuoteLine.endTime - currentQuoteLine.startTime;
+                            if (lineDuration <= 0) {
+                                // Calculate duration from word timings if available
+                                if (currentWordTimings != null && currentWordTimings.length > 0) {
+                                    int startWordIdx = currentQuoteLine.wordStartIndex;
+                                    int endWordIdx = startWordIdx + currentQuoteLine.wordCount - 1;
+                                    if (endWordIdx < currentWordTimings.length && startWordIdx >= 0) {
+                                        lineDuration = currentWordTimings[endWordIdx].endTime - currentWordTimings[startWordIdx].startTime;
+                                    }
+                                }
+                                // If still 0, use a default duration (3 seconds)
+                                if (lineDuration <= 0) {
+                                    lineDuration = 3.0;
+                                }
+                            }
+                            // Apply zoom to current image (only the selected image gets zoom)
+                            applyZoomToFittedImage(g2d, currentImage, width, height, 
+                                    originalImageForEffects, zoomEffect, currentQuoteLine, currentTime, lineDuration);
+                        } else {
+                            g2d.drawImage(currentImage, 0, 0, null);
+                        }
+                    }
                 } else {
-                    g2d.drawImage(currentImage, 0, 0, null);
+                    // Single image or no next image - check for zoom effect
+                    if (zoomEffect != null && displayInfo.isActive) {
+                        // Calculate line duration with safety check
+                        double lineDuration = currentQuoteLine.endTime - currentQuoteLine.startTime;
+                        if (lineDuration <= 0) {
+                            // Calculate duration from word timings if available
+                            if (currentWordTimings != null && currentWordTimings.length > 0) {
+                                int startWordIdx = currentQuoteLine.wordStartIndex;
+                                int endWordIdx = startWordIdx + currentQuoteLine.wordCount - 1;
+                                if (endWordIdx < currentWordTimings.length && startWordIdx >= 0) {
+                                    lineDuration = currentWordTimings[endWordIdx].endTime - currentWordTimings[startWordIdx].startTime;
+                                }
+                            }
+                            // If still 0, use a default duration (3 seconds)
+                            if (lineDuration <= 0) {
+                                lineDuration = 3.0;
+                            }
+                        }
+                        // Apply zoom to fitted image (only the selected image gets zoom)
+                        applyZoomToFittedImage(g2d, currentImage, width, height, 
+                                originalImageForEffects, zoomEffect, currentQuoteLine, currentTime, lineDuration);
+                    } else {
+                        g2d.drawImage(currentImage, 0, 0, null);
+                    }
+                }
+
+                // ===== DRAW EFFECTS FROM SAVED CONFIG =====
+                // ===== DRAW EFFECTS FROM SAVED CONFIG =====
+                if (displayInfo.isActive) {
+                    // currentImageFileName and effects are already defined above
+
+                    // IMPORTANT: Only draw effects if NOT in transition
+                    boolean inTransition = false;
+                    if (nextImage != null && lineImages.size() > 1) {
+                        float transitionProgress = calculateTransitionAlpha(currentQuoteLine, currentTime, lineImages.size());
+                        inTransition = (transitionProgress > 0.0f); // In transition if progress > 0
+                    }
+
+                    // Draw effects ONLY if not transitioning and we have a current image
+                    if (!inTransition && currentImageFileName != null) {
+                        // Reload effects to ensure we have the latest effects for drawing (excluding zoom which is already applied)
+                        effects = loadEffectsForImage(lineNumber, currentImageFileName);
+
+                        if (!effects.isEmpty()) {
+                            //System.out.println("DEBUG: Drawing effects for " + currentImageFileName);
+
+                            // Calculate image position in frame
+                            int marginHorizontal = 40;
+                            int marginVertical = 200;
+                            int availableWidth = width - (2 * marginHorizontal);
+                            int availableHeight = height - (2 * marginVertical);
+
+                            int originalWidth = originalImageForEffects.getWidth();
+                            int originalHeight = originalImageForEffects.getHeight();
+                            double originalAspect = (double) originalWidth / originalHeight;
+                            boolean isPortrait = (originalHeight > originalWidth);
+
+                            int scaledWidth, scaledHeight;
+                            int offsetX, offsetY;
+
+                            if (isPortrait) {
+                                double portraitScale = 0.6;
+                                scaledHeight = (int) (availableHeight * portraitScale);
+                                scaledWidth = (int) (scaledHeight * originalAspect);
+                                offsetX = marginHorizontal + ((availableWidth - scaledWidth) / 2);
+                                offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
+                            } else {
+                                scaledWidth = availableWidth;
+                                scaledHeight = (int) (availableWidth / originalAspect);
+                                offsetX = marginHorizontal;
+                                offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
+                            }
+
+                            // Draw each effect
+                            for (EffectEntry effect : effects) {
+                                // Transform image coordinates to video frame coordinates
+                                double scaleX = (double) scaledWidth / originalWidth;
+                                double scaleY = (double) scaledHeight / originalHeight;
+
+                                int videoX = offsetX + (int)(effect.x * scaleX);
+                                int videoY = offsetY + (int)(effect.y * scaleY);
+
+                                switch (effect.type) {
+                                    case "text":
+                                        drawTextCaptionEffect(g2d, effect.text, videoX, videoY, arabicFont, effect.fontSize, currentTime);
+                                        break;
+
+                                    case "zoom":
+                                        // Zoom animation is already applied to the whole image (see above)
+                                        // No visual indicator needed - just the zoom effect itself
+                                        break;
+
+                                    case "dot":
+                                        drawBlinkingDotEffect(g2d, videoX, videoY, currentTime);
+                                        break;
+
+                                    case "arrow":
+                                        drawArrowPointerEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                        break;
+
+                                    case "circle":
+                                        drawCircleHighlightEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                        break;
+
+                                    case "spotlight":
+                                        drawSpotlightEffect(g2d, videoX, videoY, effect.size, width, height, currentTime);
+                                        break;
+
+                                    case "star":
+                                        drawStarBurstEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                        break;
+
+                                    case "ripple":
+                                        drawRippleWaveEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                        break;
+
+                                    case "focus":
+                                        drawFocusFrameEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                        break;
+
+                                    case "underline":
+                                        drawUnderlineBoxEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                        break;
+
+                                    case "glow":
+                                        drawGlowPulseEffect(g2d, videoX, videoY, effect.size, currentTime);
+                                        break;
+                                }
+                            }
+                        }
+                    } else if (inTransition) {
+                        //System.out.println("DEBUG: Skipping effects - in transition");
+                    }
+                }
+// ===== END OF EFFECTS =====
+                // ===== END OF EFFECTS =====
+            }
+        }
+
+        // Draw text (UNCHANGED - keep all your existing text code)
+        String arabicText = currentQuoteLine.arabicContent;
+        if (arabicText != null && !arabicText.isEmpty()) {
+            // ... ALL YOUR EXISTING TEXT DRAWING CODE ...
+
+            boolean isFirstLine = (displayInfo.currentQuote == 0);
+
+            if (isFirstLine) {
+                // Title text code with configurable effects
+                drawFirstLineWithEffects(g2d, arabicText, arabicFont, width, height,
+                        currentTime, currentQuoteLine.startTime, currentQuoteLine.endTime);
+            } else {
+                // Regular text code...
+                Font textFont = arabicFont.deriveFont(Font.BOLD, 40f);
+                FontMetrics fm = g2d.getFontMetrics(textFont);
+                int textPadding = 140;
+                int textWidth = width - (2 * textPadding);
+                java.util.List<String> wrappedLines = wrapTextToLines(arabicText, fm, textWidth);
+                int totalTextHeight = wrappedLines.size() * (int)(fm.getHeight() * 1.2);
+                int textStartY = (int)(height * 0.8) - (totalTextHeight / 2);
+
+                for (int lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
+                    String line = wrappedLines.get(lineIdx);
+                    int lineWidth = fm.stringWidth(line);
+                    int centerX = (width - lineWidth) / 2;
+                    int lineY = textStartY + (int)(lineIdx * fm.getHeight() * 1.1) + fm.getAscent();
+
+                    g2d.setFont(textFont);
+                    g2d.setColor(Color.WHITE);
+                    g2d.drawString(line, centerX, lineY);
                 }
             }
+        }
 
-            // ===== DRAW EFFECTS FROM SAVED CONFIG =====
-            // ===== DRAW EFFECTS FROM SAVED CONFIG =====
-            if (displayInfo.isActive) {
-                // Get current image filename
-                String currentImageFileName = getCurrentImageFileName(lineNumber, lineImages, currentQuoteLine, currentTime);
+        g2d.dispose();
+        ImageIO.write(image, "JPEG", new File(outputPath));
+    }
 
-                // IMPORTANT: Only draw effects if NOT in transition
-                boolean inTransition = false;
-                if (nextImage != null && lineImages.size() > 1) {
-                    float transitionProgress = calculateTransitionAlpha(currentQuoteLine, currentTime, lineImages.size());
-                    inTransition = (transitionProgress > 0.0f); // In transition if progress > 0
+    /**
+     * Draw first line text with all configurable effects
+     */
+    private void drawFirstLineWithEffects(Graphics2D g2d, String arabicText, Font arabicFont,
+                                          int width, int height, double currentTime,
+                                          double lineStartTime, double lineEndTime) {
+
+        // Calculate animation progress (0.0 to 1.0)
+        double lineDuration = lineEndTime - lineStartTime;
+        double elapsed = currentTime - lineStartTime;
+        double animProgress = Math.min(1.0, Math.max(0.0, elapsed / Math.max(0.5, lineDuration * 0.3))); // Animate over first 30% of line
+
+        // Create title font with configurable size
+        Font titleFont = arabicFont.deriveFont(Font.BOLD, (float) config.firstLineFontSize);
+        g2d.setFont(titleFont);
+        FontMetrics fm = g2d.getFontMetrics(titleFont);
+
+        // Calculate text wrapping with proper padding
+        int textPadding = 80;
+        int textWidth = width - (2 * textPadding);
+        java.util.List<String> wrappedLines = wrapTextToLines(arabicText, fm, textWidth);
+        int textStartY = config.imagesPerLineFirstLineY;
+
+        // Calculate total text block dimensions for centering effects
+        int totalTextHeight = 0;
+        for (int i = 0; i < wrappedLines.size(); i++) {
+            totalTextHeight += (int)(fm.getHeight() * 1.1);
+        }
+        int textCenterY = textStartY + totalTextHeight / 2;
+        int textCenterX = width / 2;
+
+        // Apply tilt/rotation if enabled
+        Graphics2D g2dDraw = g2d;
+        java.awt.geom.AffineTransform originalTransform = g2d.getTransform();
+
+        if (config.firstLineTiltAngle != 0) {
+            g2dDraw = (Graphics2D) g2d.create();
+            g2dDraw.rotate(Math.toRadians(config.firstLineTiltAngle), textCenterX, textCenterY);
+        }
+
+        // Draw each wrapped line
+        for (int lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
+            String line = wrappedLines.get(lineIdx);
+            int lineWidth = fm.stringWidth(line);
+            int baseX = (width - lineWidth) / 2;
+            int baseY = textStartY + (int)(lineIdx * fm.getHeight() * 1.1) + fm.getAscent();
+
+            // Apply animation-based position/alpha modifications
+            int drawX = baseX;
+            int drawY = baseY;
+            float alpha = 1.0f;
+
+            // Animation type effects
+            switch (config.firstLineAnimationType) {
+                case 1: // Fade In
+                    alpha = (float) animProgress;
+                    break;
+
+                case 2: // Typewriter - reveal characters progressively
+                    int charsToShow = (int)(line.length() * animProgress);
+                    line = line.substring(0, Math.max(0, charsToShow));
+                    break;
+
+                case 3: // Wave - vertical oscillation per character
+                    // Wave is handled per-character below
+                    break;
+
+                case 4: // Bounce
+                    double bounceOffset = Math.sin(animProgress * Math.PI) * 30 * (1 - animProgress);
+                    drawY = baseY - (int) bounceOffset;
+                    break;
+
+                case 5: // Glow Pulse - handled in glow section
+                    break;
+
+                case 6: // Scale In
+                    float scale = (float) (0.3 + 0.7 * animProgress);
+                    // Scale is applied by temporarily changing font size
+                    Font scaledFont = titleFont.deriveFont(titleFont.getSize() * scale);
+                    g2dDraw.setFont(scaledFont);
+                    FontMetrics scaledFm = g2dDraw.getFontMetrics();
+                    int scaledWidth = scaledFm.stringWidth(line);
+                    drawX = (width - scaledWidth) / 2;
+                    drawY = baseY - (int)((fm.getHeight() - scaledFm.getHeight()) / 2);
+                    fm = scaledFm; // Update fm for this line
+                    break;
+
+                case 7: // Slide In (from right for RTL text)
+                    int slideOffset = (int)((1 - animProgress) * 500);
+                    drawX = baseX - slideOffset;
+                    break;
+            }
+
+            // Apply shake effect
+            if (config.firstLineShakeEnabled) {
+                java.util.Random shakeRandom = new java.util.Random((long)(currentTime * 1000));
+                int shakeX = shakeRandom.nextInt(config.firstLineShakeIntensity * 2) - config.firstLineShakeIntensity;
+                int shakeY = shakeRandom.nextInt(config.firstLineShakeIntensity * 2) - config.firstLineShakeIntensity;
+                drawX += shakeX;
+                drawY += shakeY;
+            }
+
+            // Set composite for alpha
+            Composite originalComposite = g2dDraw.getComposite();
+            if (alpha < 1.0f) {
+                g2dDraw.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+            }
+
+            // Wave animation - draw character by character
+            if (config.firstLineAnimationType == 3) {
+                drawWaveText(g2dDraw, line, drawX, drawY, fm, currentTime, lineIdx);
+            } else {
+                // Standard drawing with all effects
+
+                // 1. Glow effect (drawn first, behind everything)
+                if (config.firstLineGlowEnabled) {
+                    float glowIntensity = 1.0f;
+                    if (config.firstLineAnimationType == 5) { // Glow Pulse
+                        glowIntensity = 0.5f + 0.5f * (float)Math.sin(currentTime * 4);
+                    }
+                    int glowAlpha = (int)(100 * glowIntensity);
+                    Color glowColor = new Color(
+                            config.firstLineGlowColor.getRed(),
+                            config.firstLineGlowColor.getGreen(),
+                            config.firstLineGlowColor.getBlue(),
+                            Math.min(255, glowAlpha));
+                    g2dDraw.setColor(glowColor);
+                    for (int offset = 12; offset > 0; offset -= 2) {
+                        g2dDraw.drawString(line, drawX - offset, drawY);
+                        g2dDraw.drawString(line, drawX + offset, drawY);
+                        g2dDraw.drawString(line, drawX, drawY - offset);
+                        g2dDraw.drawString(line, drawX, drawY + offset);
+                        // Diagonals for smoother glow
+                        int diag = (int)(offset * 0.7);
+                        g2dDraw.drawString(line, drawX - diag, drawY - diag);
+                        g2dDraw.drawString(line, drawX + diag, drawY - diag);
+                        g2dDraw.drawString(line, drawX - diag, drawY + diag);
+                        g2dDraw.drawString(line, drawX + diag, drawY + diag);
+                    }
                 }
 
-                // Draw effects ONLY if not transitioning and we have a current image
-                if (!inTransition && currentImageFileName != null) {
-                    java.util.List<EffectEntry> effects = loadEffectsForImage(lineNumber, currentImageFileName);
+                // 2. Shadow effect
+                if (config.firstLineShadowEnabled) {
+                    g2dDraw.setColor(new Color(0, 0, 0, 180));
+                    g2dDraw.drawString(line, drawX + config.firstLineShadowOffset,
+                            drawY + config.firstLineShadowOffset);
+                }
 
-                    if (!effects.isEmpty()) {
-                        //System.out.println("DEBUG: Drawing effects for " + currentImageFileName);
-
-                        // Calculate image position in frame
-                        int marginHorizontal = 40;
-                        int marginVertical = 200;
-                        int availableWidth = width - (2 * marginHorizontal);
-                        int availableHeight = height - (2 * marginVertical);
-
-                        int originalWidth = originalImageForEffects.getWidth();
-                        int originalHeight = originalImageForEffects.getHeight();
-                        double originalAspect = (double) originalWidth / originalHeight;
-                        boolean isPortrait = (originalHeight > originalWidth);
-
-                        int scaledWidth, scaledHeight;
-                        int offsetX, offsetY;
-
-                        if (isPortrait) {
-                            double portraitScale = 0.6;
-                            scaledHeight = (int) (availableHeight * portraitScale);
-                            scaledWidth = (int) (scaledHeight * originalAspect);
-                            offsetX = marginHorizontal + ((availableWidth - scaledWidth) / 2);
-                            offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
-                        } else {
-                            scaledWidth = availableWidth;
-                            scaledHeight = (int) (availableWidth / originalAspect);
-                            offsetX = marginHorizontal;
-                            offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
-                        }
-
-                        // Draw each effect
-                        for (EffectEntry effect : effects) {
-                            // Transform image coordinates to video frame coordinates
-                            double scaleX = (double) scaledWidth / originalWidth;
-                            double scaleY = (double) scaledHeight / originalHeight;
-
-                            int videoX = offsetX + (int)(effect.x * scaleX);
-                            int videoY = offsetY + (int)(effect.y * scaleY);
-
-                            switch (effect.type) {
-                                case "text":
-                                    drawTextCaptionEffect(g2d, effect.text, videoX, videoY, arabicFont, effect.fontSize, currentTime);
-                                    break;
-
-                                case "zoom":
-                                    // Zoom animation is now applied to the whole image (see above)
-                                    // Just draw a small focus indicator at the zoom point
-                                    drawZoomPointIndicator(g2d, videoX, videoY, currentTime);
-                                    break;
-
-                                case "dot":
-                                    drawBlinkingDotEffect(g2d, videoX, videoY, currentTime);
-                                    break;
-
-                                case "arrow":
-                                    drawArrowPointerEffect(g2d, videoX, videoY, effect.size, currentTime);
-                                    break;
-
-                                case "circle":
-                                    drawCircleHighlightEffect(g2d, videoX, videoY, effect.size, currentTime);
-                                    break;
-
-                                case "spotlight":
-                                    drawSpotlightEffect(g2d, videoX, videoY, effect.size, width, height, currentTime);
-                                    break;
-
-                                case "star":
-                                    drawStarBurstEffect(g2d, videoX, videoY, effect.size, currentTime);
-                                    break;
-
-                                case "ripple":
-                                    drawRippleWaveEffect(g2d, videoX, videoY, effect.size, currentTime);
-                                    break;
-
-                                case "focus":
-                                    drawFocusFrameEffect(g2d, videoX, videoY, effect.size, currentTime);
-                                    break;
-
-                                case "underline":
-                                    drawUnderlineBoxEffect(g2d, videoX, videoY, effect.size, currentTime);
-                                    break;
-
-                                case "glow":
-                                    drawGlowPulseEffect(g2d, videoX, videoY, effect.size, currentTime);
-                                    break;
+                // 3. Outline effect
+                if (config.firstLineOutlineEnabled) {
+                    g2dDraw.setColor(config.firstLineOutlineColor);
+                    for (int ox = -3; ox <= 3; ox++) {
+                        for (int oy = -3; oy <= 3; oy++) {
+                            if (ox != 0 || oy != 0) {
+                                g2dDraw.drawString(line, drawX + ox, drawY + oy);
                             }
                         }
                     }
-                } else if (inTransition) {
-                    //System.out.println("DEBUG: Skipping effects - in transition");
                 }
+
+                // 4. Main text color
+                g2dDraw.setColor(config.firstLineTextColor);
+                g2dDraw.drawString(line, drawX, drawY);
+
+                // 5. Highlight effect (subtle white on top)
+                g2dDraw.setColor(new Color(255, 255, 255, 60));
+                g2dDraw.drawString(line, drawX, drawY - 1);
             }
-// ===== END OF EFFECTS =====
-            // ===== END OF EFFECTS =====
-        }
-    }
 
-    // Draw text (UNCHANGED - keep all your existing text code)
-    String arabicText = currentQuoteLine.arabicContent;
-    if (arabicText != null && !arabicText.isEmpty()) {
-        // ... ALL YOUR EXISTING TEXT DRAWING CODE ...
+            // Restore composite
+            if (alpha < 1.0f) {
+                g2dDraw.setComposite(originalComposite);
+            }
 
-        boolean isFirstLine = (displayInfo.currentQuote == 0);
-
-        if (isFirstLine) {
-            // Title text code with configurable effects
-            drawFirstLineWithEffects(g2d, arabicText, arabicFont, width, height,
-                    currentTime, currentQuoteLine.startTime, currentQuoteLine.endTime);
-        } else {
-            // Regular text code...
-            Font textFont = arabicFont.deriveFont(Font.BOLD, 40f);
-            FontMetrics fm = g2d.getFontMetrics(textFont);
-            int textPadding = 140;
-            int textWidth = width - (2 * textPadding);
-            java.util.List<String> wrappedLines = wrapTextToLines(arabicText, fm, textWidth);
-            int totalTextHeight = wrappedLines.size() * (int)(fm.getHeight() * 1.2);
-            int textStartY = (int)(height * 0.8) - (totalTextHeight / 2);
-
-            for (int lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
-                String line = wrappedLines.get(lineIdx);
-                int lineWidth = fm.stringWidth(line);
-                int centerX = (width - lineWidth) / 2;
-                int lineY = textStartY + (int)(lineIdx * fm.getHeight() * 1.1) + fm.getAscent();
-
-                g2d.setFont(textFont);
-                g2d.setColor(Color.WHITE);
-                g2d.drawString(line, centerX, lineY);
+            // Reset font if it was scaled
+            if (config.firstLineAnimationType == 6) {
+                g2dDraw.setFont(titleFont);
+                fm = g2dDraw.getFontMetrics();
             }
         }
+
+        // Dispose rotated graphics if created
+        if (config.firstLineTiltAngle != 0) {
+            g2dDraw.dispose();
+        }
     }
 
-    g2d.dispose();
-    ImageIO.write(image, "JPEG", new File(outputPath));
-}
+    /**
+     * Draw text with wave animation effect
+     */
+    private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
+                              FontMetrics fm, double currentTime, int lineIndex) {
+        int x = startX;
 
-/**
- * Draw first line text with all configurable effects
- */
-private void drawFirstLineWithEffects(Graphics2D g2d, String arabicText, Font arabicFont,
-                                       int width, int height, double currentTime,
-                                       double lineStartTime, double lineEndTime) {
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            String charStr = String.valueOf(c);
+            int charWidth = fm.charWidth(c);
 
-    // Calculate animation progress (0.0 to 1.0)
-    double lineDuration = lineEndTime - lineStartTime;
-    double elapsed = currentTime - lineStartTime;
-    double animProgress = Math.min(1.0, Math.max(0.0, elapsed / Math.max(0.5, lineDuration * 0.3))); // Animate over first 30% of line
+            // Calculate wave offset for this character
+            double wavePhase = currentTime * 3 + i * 0.3 + lineIndex * 0.5;
+            int waveOffset = (int)(Math.sin(wavePhase) * 8);
 
-    // Create title font with configurable size
-    Font titleFont = arabicFont.deriveFont(Font.BOLD, (float) config.firstLineFontSize);
-    g2d.setFont(titleFont);
-    FontMetrics fm = g2d.getFontMetrics(titleFont);
+            int charY = baseY + waveOffset;
 
-    // Calculate text wrapping with proper padding
-    int textPadding = 80;
-    int textWidth = width - (2 * textPadding);
-    java.util.List<String> wrappedLines = wrapTextToLines(arabicText, fm, textWidth);
-    int textStartY = config.imagesPerLineFirstLineY;
-
-    // Calculate total text block dimensions for centering effects
-    int totalTextHeight = 0;
-    for (int i = 0; i < wrappedLines.size(); i++) {
-        totalTextHeight += (int)(fm.getHeight() * 1.1);
-    }
-    int textCenterY = textStartY + totalTextHeight / 2;
-    int textCenterX = width / 2;
-
-    // Apply tilt/rotation if enabled
-    Graphics2D g2dDraw = g2d;
-    java.awt.geom.AffineTransform originalTransform = g2d.getTransform();
-
-    if (config.firstLineTiltAngle != 0) {
-        g2dDraw = (Graphics2D) g2d.create();
-        g2dDraw.rotate(Math.toRadians(config.firstLineTiltAngle), textCenterX, textCenterY);
-    }
-
-    // Draw each wrapped line
-    for (int lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
-        String line = wrappedLines.get(lineIdx);
-        int lineWidth = fm.stringWidth(line);
-        int baseX = (width - lineWidth) / 2;
-        int baseY = textStartY + (int)(lineIdx * fm.getHeight() * 1.1) + fm.getAscent();
-
-        // Apply animation-based position/alpha modifications
-        int drawX = baseX;
-        int drawY = baseY;
-        float alpha = 1.0f;
-
-        // Animation type effects
-        switch (config.firstLineAnimationType) {
-            case 1: // Fade In
-                alpha = (float) animProgress;
-                break;
-
-            case 2: // Typewriter - reveal characters progressively
-                int charsToShow = (int)(line.length() * animProgress);
-                line = line.substring(0, Math.max(0, charsToShow));
-                break;
-
-            case 3: // Wave - vertical oscillation per character
-                // Wave is handled per-character below
-                break;
-
-            case 4: // Bounce
-                double bounceOffset = Math.sin(animProgress * Math.PI) * 30 * (1 - animProgress);
-                drawY = baseY - (int) bounceOffset;
-                break;
-
-            case 5: // Glow Pulse - handled in glow section
-                break;
-
-            case 6: // Scale In
-                float scale = (float) (0.3 + 0.7 * animProgress);
-                // Scale is applied by temporarily changing font size
-                Font scaledFont = titleFont.deriveFont(titleFont.getSize() * scale);
-                g2dDraw.setFont(scaledFont);
-                FontMetrics scaledFm = g2dDraw.getFontMetrics();
-                int scaledWidth = scaledFm.stringWidth(line);
-                drawX = (width - scaledWidth) / 2;
-                drawY = baseY - (int)((fm.getHeight() - scaledFm.getHeight()) / 2);
-                fm = scaledFm; // Update fm for this line
-                break;
-
-            case 7: // Slide In (from right for RTL text)
-                int slideOffset = (int)((1 - animProgress) * 500);
-                drawX = baseX - slideOffset;
-                break;
-        }
-
-        // Apply shake effect
-        if (config.firstLineShakeEnabled) {
-            java.util.Random shakeRandom = new java.util.Random((long)(currentTime * 1000));
-            int shakeX = shakeRandom.nextInt(config.firstLineShakeIntensity * 2) - config.firstLineShakeIntensity;
-            int shakeY = shakeRandom.nextInt(config.firstLineShakeIntensity * 2) - config.firstLineShakeIntensity;
-            drawX += shakeX;
-            drawY += shakeY;
-        }
-
-        // Set composite for alpha
-        Composite originalComposite = g2dDraw.getComposite();
-        if (alpha < 1.0f) {
-            g2dDraw.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
-        }
-
-        // Wave animation - draw character by character
-        if (config.firstLineAnimationType == 3) {
-            drawWaveText(g2dDraw, line, drawX, drawY, fm, currentTime, lineIdx);
-        } else {
-            // Standard drawing with all effects
-
-            // 1. Glow effect (drawn first, behind everything)
+            // Draw with all effects
             if (config.firstLineGlowEnabled) {
-                float glowIntensity = 1.0f;
-                if (config.firstLineAnimationType == 5) { // Glow Pulse
-                    glowIntensity = 0.5f + 0.5f * (float)Math.sin(currentTime * 4);
-                }
-                int glowAlpha = (int)(100 * glowIntensity);
                 Color glowColor = new Color(
                         config.firstLineGlowColor.getRed(),
                         config.firstLineGlowColor.getGreen(),
-                        config.firstLineGlowColor.getBlue(),
-                        Math.min(255, glowAlpha));
-                g2dDraw.setColor(glowColor);
-                for (int offset = 12; offset > 0; offset -= 2) {
-                    g2dDraw.drawString(line, drawX - offset, drawY);
-                    g2dDraw.drawString(line, drawX + offset, drawY);
-                    g2dDraw.drawString(line, drawX, drawY - offset);
-                    g2dDraw.drawString(line, drawX, drawY + offset);
-                    // Diagonals for smoother glow
-                    int diag = (int)(offset * 0.7);
-                    g2dDraw.drawString(line, drawX - diag, drawY - diag);
-                    g2dDraw.drawString(line, drawX + diag, drawY - diag);
-                    g2dDraw.drawString(line, drawX - diag, drawY + diag);
-                    g2dDraw.drawString(line, drawX + diag, drawY + diag);
+                        config.firstLineGlowColor.getBlue(), 80);
+                g2d.setColor(glowColor);
+                for (int offset = 6; offset > 0; offset -= 2) {
+                    g2d.drawString(charStr, x - offset, charY);
+                    g2d.drawString(charStr, x + offset, charY);
                 }
             }
 
-            // 2. Shadow effect
             if (config.firstLineShadowEnabled) {
-                g2dDraw.setColor(new Color(0, 0, 0, 180));
-                g2dDraw.drawString(line, drawX + config.firstLineShadowOffset,
-                        drawY + config.firstLineShadowOffset);
+                g2d.setColor(new Color(0, 0, 0, 180));
+                g2d.drawString(charStr, x + config.firstLineShadowOffset, charY + config.firstLineShadowOffset);
             }
 
-            // 3. Outline effect
             if (config.firstLineOutlineEnabled) {
-                g2dDraw.setColor(config.firstLineOutlineColor);
-                for (int ox = -3; ox <= 3; ox++) {
-                    for (int oy = -3; oy <= 3; oy++) {
+                g2d.setColor(config.firstLineOutlineColor);
+                for (int ox = -2; ox <= 2; ox++) {
+                    for (int oy = -2; oy <= 2; oy++) {
                         if (ox != 0 || oy != 0) {
-                            g2dDraw.drawString(line, drawX + ox, drawY + oy);
+                            g2d.drawString(charStr, x + ox, charY + oy);
                         }
                     }
                 }
             }
 
-            // 4. Main text color
-            g2dDraw.setColor(config.firstLineTextColor);
-            g2dDraw.drawString(line, drawX, drawY);
+            g2d.setColor(config.firstLineTextColor);
+            g2d.drawString(charStr, x, charY);
 
-            // 5. Highlight effect (subtle white on top)
-            g2dDraw.setColor(new Color(255, 255, 255, 60));
-            g2dDraw.drawString(line, drawX, drawY - 1);
-        }
-
-        // Restore composite
-        if (alpha < 1.0f) {
-            g2dDraw.setComposite(originalComposite);
-        }
-
-        // Reset font if it was scaled
-        if (config.firstLineAnimationType == 6) {
-            g2dDraw.setFont(titleFont);
-            fm = g2dDraw.getFontMetrics();
+            x += charWidth;
         }
     }
-
-    // Dispose rotated graphics if created
-    if (config.firstLineTiltAngle != 0) {
-        g2dDraw.dispose();
-    }
-}
-
-/**
- * Draw text with wave animation effect
- */
-private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
-                          FontMetrics fm, double currentTime, int lineIndex) {
-    int x = startX;
-
-    for (int i = 0; i < text.length(); i++) {
-        char c = text.charAt(i);
-        String charStr = String.valueOf(c);
-        int charWidth = fm.charWidth(c);
-
-        // Calculate wave offset for this character
-        double wavePhase = currentTime * 3 + i * 0.3 + lineIndex * 0.5;
-        int waveOffset = (int)(Math.sin(wavePhase) * 8);
-
-        int charY = baseY + waveOffset;
-
-        // Draw with all effects
-        if (config.firstLineGlowEnabled) {
-            Color glowColor = new Color(
-                    config.firstLineGlowColor.getRed(),
-                    config.firstLineGlowColor.getGreen(),
-                    config.firstLineGlowColor.getBlue(), 80);
-            g2d.setColor(glowColor);
-            for (int offset = 6; offset > 0; offset -= 2) {
-                g2d.drawString(charStr, x - offset, charY);
-                g2d.drawString(charStr, x + offset, charY);
-            }
-        }
-
-        if (config.firstLineShadowEnabled) {
-            g2d.setColor(new Color(0, 0, 0, 180));
-            g2d.drawString(charStr, x + config.firstLineShadowOffset, charY + config.firstLineShadowOffset);
-        }
-
-        if (config.firstLineOutlineEnabled) {
-            g2d.setColor(config.firstLineOutlineColor);
-            for (int ox = -2; ox <= 2; ox++) {
-                for (int oy = -2; oy <= 2; oy++) {
-                    if (ox != 0 || oy != 0) {
-                        g2d.drawString(charStr, x + ox, charY + oy);
-                    }
-                }
-            }
-        }
-
-        g2d.setColor(config.firstLineTextColor);
-        g2d.drawString(charStr, x, charY);
-
-        x += charWidth;
-    }
-}
 
 
     /**
@@ -7760,27 +7826,17 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
         for (File file : files) {
             String name = file.getName();
-            if (name.startsWith("image" + lineNumber + ".") ||
-                    name.startsWith("image" + lineNumber + "-")) {
+            int extractedLineNumber = extractLineNumberFromImageName(name);
+            if (extractedLineNumber == lineNumber) {
                 imageNames.add(name);
             }
         }
 
-        // Sort them properly
+        // Sort them properly by full number
         imageNames.sort((n1, n2) -> {
-            boolean hasDash1 = n1.contains("-");
-            boolean hasDash2 = n2.contains("-");
-
-            if (!hasDash1 && hasDash2) return -1;
-            if (hasDash1 && !hasDash2) return 1;
-
-            try {
-                String num1 = n1.replaceAll(".*-(\\d+).*", "$1");
-                String num2 = n2.replaceAll(".*-(\\d+).*", "$1");
-                return Integer.compare(Integer.parseInt(num1), Integer.parseInt(num2));
-            } catch (Exception e) {
-                return n1.compareTo(n2);
-            }
+            int num1 = extractFullNumberFromImageName(n1);
+            int num2 = extractFullNumberFromImageName(n2);
+            return Integer.compare(num1, num2);
         });
 
         if (imageNames.isEmpty()) return null;
@@ -7874,7 +7930,7 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
         int offsetX, offsetY;
 
         //System.out.println("DEBUG: Image " + originalWidth + "x" + originalHeight +
-                //" | Is portrait: " + isPortrait);
+        //" | Is portrait: " + isPortrait);
 
         if (isPortrait) {
             // Portrait/tall image - scale down more
@@ -8136,6 +8192,87 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
         return lineImages.get(imageIndex);
     }
 
+    /**
+     * Extract the first digit from an image filename to determine line number
+     * Examples: image1.jpg -> 1, image11.jpg -> 1, image82.jpg -> 8
+     * Also supports: 1.webp -> 1, 11.png -> 1, 82.jpg -> 8
+     */
+    private static int extractLineNumberFromImageName(String fileName) {
+        String name = fileName.toLowerCase();
+        String numberPart = "";
+        
+        // Check if it starts with "image" (old format)
+        if (name.startsWith("image")) {
+            // Extract the number part after "image"
+            numberPart = name.substring(5); // After "image"
+        } else {
+            // New format: just a number (e.g., "1.webp", "11.png", "82.jpg")
+            numberPart = name;
+        }
+        
+        // Remove extension
+        int dotIndex = numberPart.lastIndexOf('.');
+        if (dotIndex > 0) {
+            numberPart = numberPart.substring(0, dotIndex);
+        }
+        
+        // Remove any dash and suffix (e.g., "1-1" -> "1")
+        if (numberPart.contains("-")) {
+            numberPart = numberPart.substring(0, numberPart.indexOf('-'));
+        }
+        
+        // Extract first digit
+        try {
+            if (numberPart.isEmpty()) {
+                return -1;
+            }
+            String firstDigit = numberPart.substring(0, 1);
+            return Integer.parseInt(firstDigit);
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Extract the full number from an image filename for sorting
+     * Examples: image1.jpg -> 1, image11.jpg -> 11, image82.jpg -> 82
+     * Also supports: 1.webp -> 1, 11.png -> 11, 82.jpg -> 82
+     */
+    private static int extractFullNumberFromImageName(String fileName) {
+        String name = fileName.toLowerCase();
+        String numberPart = "";
+        
+        // Check if it starts with "image" (old format)
+        if (name.startsWith("image")) {
+            // Extract the number part after "image"
+            numberPart = name.substring(5); // After "image"
+        } else {
+            // New format: just a number (e.g., "1.webp", "11.png", "82.jpg")
+            numberPart = name;
+        }
+        
+        // Remove extension
+        int dotIndex = numberPart.lastIndexOf('.');
+        if (dotIndex > 0) {
+            numberPart = numberPart.substring(0, dotIndex);
+        }
+        
+        // Remove any dash and suffix (e.g., "1-1" -> "1")
+        if (numberPart.contains("-")) {
+            numberPart = numberPart.substring(0, numberPart.indexOf('-'));
+        }
+        
+        // Extract full number
+        try {
+            if (numberPart.isEmpty()) {
+                return 0;
+            }
+            return Integer.parseInt(numberPart);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     private java.util.List<BufferedImage> loadImagesForLine(int lineNumber) {
         // Check cache first to avoid repeated disk reads
         if (lineImageCache.containsKey(lineNumber)) {
@@ -8154,21 +8291,20 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
         if (allFiles == null) return images;
 
-        // Pattern: image1.jpg, image1-1.jpg, image1-2.jpg for line 1
-        //          image2.jpg, image2-1.jpg, image2-2.jpg for line 2
+        // Pattern: image1.jpg, image11.jpg, image12.jpg for line 1 (first digit is 1)
+        //          image2.jpg, image21.jpg, image22.jpg for line 2 (first digit is 2)
+        //          image82.jpg for line 8 (first digit is 8)
         java.util.List<File> matchingFiles = new java.util.ArrayList<>();
 
         for (File file : allFiles) {
             String fileName = file.getName().toLowerCase();
 
-            // Check if file matches line number pattern
+            // Check if file matches line number pattern based on first digit
+            // Supports both formats: "image1.jpg" (old) or "1.jpg", "11.jpg" (new)
             for (String ext : extensions) {
-                // Match: image1.jpg OR image1-anything.jpg
-                String basePattern = "image" + lineNumber;
-                if (fileName.startsWith(basePattern) && fileName.endsWith(ext)) {
-                    // Ensure it's exactly image1.jpg or image1-X.jpg (not image10.jpg)
-                    String afterBase = fileName.substring(basePattern.length());
-                    if (afterBase.equals(ext) || afterBase.matches("^-\\d+.*" + ext + "$")) {
+                if (fileName.endsWith(ext)) {
+                    int extractedLineNumber = extractLineNumberFromImageName(fileName);
+                    if (extractedLineNumber == lineNumber) {
                         matchingFiles.add(file);
                         break;
                     }
@@ -8176,31 +8312,16 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
             }
         }
 
-        // Sort files: image1.jpg comes first, then image1-1.jpg, image1-2.jpg, etc.
+        // Sort files by the full number: image1.jpg, image11.jpg, image12.jpg, image2.jpg, image21.jpg, etc.
         matchingFiles.sort((f1, f2) -> {
-            String name1 = f1.getName();
-            String name2 = f2.getName();
+            String name1 = f1.getName().toLowerCase();
+            String name2 = f2.getName().toLowerCase();
 
-            // Extract numbers after the dash
-            String num1 = name1.replaceAll(".*-(\\d+).*", "$1");
-            String num2 = name2.replaceAll(".*-(\\d+).*", "$1");
+            // Extract the full number from image name (e.g., "image11.jpg" -> 11, "image1.jpg" -> 1)
+            int num1 = extractFullNumberFromImageName(name1);
+            int num2 = extractFullNumberFromImageName(name2);
 
-            // If no dash (base image), it comes first
-            boolean hasDash1 = name1.contains("-");
-            boolean hasDash2 = name2.contains("-");
-
-            if (!hasDash1 && hasDash2) return -1; // image1.jpg before image1-1.jpg
-            if (hasDash1 && !hasDash2) return 1;
-            if (!hasDash1 && !hasDash2) return name1.compareTo(name2);
-
-            // Both have dashes, compare numbers
-            try {
-                int n1 = Integer.parseInt(num1);
-                int n2 = Integer.parseInt(num2);
-                return Integer.compare(n1, n2);
-            } catch (NumberFormatException e) {
-                return name1.compareTo(name2);
-            }
+            return Integer.compare(num1, num2);
         });
 
         // Load images
@@ -8209,7 +8330,7 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                 BufferedImage img = ImageIO.read(file);
                 if (img != null) {
                     images.add(img);
-                  //  System.out.println("✓ Loaded: " + file.getName() + " for line " + lineNumber);
+                    //  System.out.println("✓ Loaded: " + file.getName() + " for line " + lineNumber);
                 }
             } catch (Exception e) {
                 System.out.println("✗ Error loading image: " + file.getName());
@@ -8217,7 +8338,7 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
         }
 
         if (!images.isEmpty()) {
-         //   System.out.println("  Total " + images.size() + " image(s) for line " + lineNumber);
+            //   System.out.println("  Total " + images.size() + " image(s) for line " + lineNumber);
         }
 
         // Cache the loaded images for faster access next time
@@ -8247,7 +8368,7 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
         // Supported image extensions
         private static final String[] SUPPORTED_IMAGE_EXTENSIONS = {
-            ".jpg", ".jpeg", ".jfif", ".png", ".bmp", ".gif", ".webp"
+                ".jpg", ".jpeg", ".jfif", ".png", ".bmp", ".gif", ".webp"
         };
 
         private VideoConfig config;
@@ -8364,7 +8485,12 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                 String arabicText = arabicLines[i].trim();
 
                 if (!arabicText.isEmpty()) {
-                    LineImagePanel linePanel = new LineImagePanel(lineNumber, arabicText, lineImagesMap.get(lineNumber));
+                    java.util.List<File> lineImages = lineImagesMap.get(lineNumber);
+                    if (lineImages == null) {
+                        lineImages = new java.util.ArrayList<>(); // Create empty list if no images found
+                    }
+                    System.out.println("Creating LineImagePanel for Line " + lineNumber + " with " + lineImages.size() + " image(s)");
+                    LineImagePanel linePanel = new LineImagePanel(lineNumber, arabicText, lineImages);
                     linesPanel.add(linePanel);
                     linesPanel.add(Box.createVerticalStrut(10)); // Spacing between lines
                 }
@@ -8375,72 +8501,101 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
         }
 
         private void loadExistingImages() {
+            lineImagesMap.clear(); // Clear any existing entries
+            
             File folder = new File(config.imagesPerLineFolder);
             if (!folder.exists() || !folder.isDirectory()) {
+                System.out.println("Images per line folder not found: " + config.imagesPerLineFolder);
                 return;
             }
 
             File[] allFiles = folder.listFiles();
-            if (allFiles == null) return;
-
-            // Parse existing images
-            for (File file : allFiles) {
-                if (!isSupportedImageFile(file)) continue;
-
-                String fileName = file.getName().toLowerCase();
-                // Extract line number from filename (image1.jpg or image1-1.jpg)
-                if (fileName.startsWith("image")) {
-                    try {
-                        String numberPart = fileName.substring(5); // After "image"
-                        int dotIndex = numberPart.lastIndexOf('.');
-                        if (dotIndex > 0) {
-                            numberPart = numberPart.substring(0, dotIndex);
-                        }
-
-                        int lineNumber;
-                        if (numberPart.contains("-")) {
-                            lineNumber = Integer.parseInt(numberPart.substring(0, numberPart.indexOf('-')));
-                        } else {
-                            lineNumber = Integer.parseInt(numberPart);
-                        }
-
-                        lineImagesMap.computeIfAbsent(lineNumber, k -> new java.util.ArrayList<>()).add(file);
-                    } catch (NumberFormatException e) {
-                        // Ignore malformed filenames
-                    }
-                }
+            if (allFiles == null) {
+                System.out.println("No files found in folder: " + config.imagesPerLineFolder);
+                return;
             }
 
-            // Sort images for each line
-            // Sort images for each line by the numeric index in filename
+            System.out.println("Scanning folder: " + config.imagesPerLineFolder + " (found " + allFiles.length + " files)");
+
+            // Parse existing images
+            int imageCount = 0;
+            for (File file : allFiles) {
+                System.out.println("  Checking file: " + file.getName());
+                
+                if (!isSupportedImageFile(file)) {
+                    System.out.println("    -> Not a supported image file");
+                    continue;
+                }
+
+                String fileName = file.getName().toLowerCase();
+                System.out.println("    -> Lowercase name: " + fileName);
+                
+                // Extract line number from filename using first digit
+                // Supports both formats: image1.jpg -> 1, or just 1.webp -> 1
+                int lineNumber = arabicSync.extractLineNumberFromImageName(fileName);
+                System.out.println("    -> Extracted line number: " + lineNumber);
+                if (lineNumber > 0) {
+                    // Check for duplicates before adding
+                    java.util.List<File> existingFiles = lineImagesMap.get(lineNumber);
+                    if (existingFiles != null) {
+                        int imageNumber = arabicSync.extractFullNumberFromImageName(fileName);
+                        boolean isDuplicate = false;
+                        for (File existingFile : existingFiles) {
+                            int existingNumber = arabicSync.extractFullNumberFromImageName(existingFile.getName().toLowerCase());
+                            if (existingNumber == imageNumber) {
+                                isDuplicate = true;
+                                break;
+                            }
+                        }
+                        if (isDuplicate) {
+                            System.out.println("    -> ✗ Skipped duplicate: " + file.getName());
+                            continue;
+                        }
+                    }
+                    
+                    lineImagesMap.computeIfAbsent(lineNumber, k -> new java.util.ArrayList<>()).add(file);
+                    imageCount++;
+                    System.out.println("    -> ✓ Assigned " + file.getName() + " to Line " + lineNumber);
+                } else {
+                    System.out.println("    -> ✗ Skipped " + file.getName() + " (invalid line number: " + lineNumber + ")");
+                }
+            }
+            
+            System.out.println("Total images loaded: " + imageCount + " for " + lineImagesMap.size() + " line(s)");
+
+            // Sort images for each line by the full number (1, 11, 12, 2, 21, etc.)
             for (java.util.List<File> images : lineImagesMap.values()) {
                 images.sort((f1, f2) -> {
-                    String name1 = f1.getName();
-                    String name2 = f2.getName();
+                    String name1 = f1.getName().toLowerCase();
+                    String name2 = f2.getName().toLowerCase();
 
-                    // Extract the index: image5.jpg = 0, image5-1.jpg = 1, image5-2.jpg = 2
-                    int index1 = extractImageIndex(name1);
-                    int index2 = extractImageIndex(name2);
+                    // Extract the full number for sorting
+                    int num1 = arabicSync.extractFullNumberFromImageName(name1);
+                    int num2 = arabicSync.extractFullNumberFromImageName(name2);
 
-                    return Integer.compare(index1, index2);
+                    return Integer.compare(num1, num2);
                 });
             }
         }
 
         private int extractImageIndex(String filename) {
-            // Extract index from: image5.jpg (returns 0) or image5-2.jpg (returns 2)
+            // Extract index from: image1.jpg (returns 1), image11.jpg (returns 11), image82.jpg (returns 82)
+            // This is used for sorting images within a line
             try {
                 String name = filename.toLowerCase();
+                if (!name.startsWith("image")) {
+                    return 0;
+                }
+                
                 String numberPart = name.substring(5); // After "image"
                 numberPart = numberPart.substring(0, numberPart.lastIndexOf('.')); // Before extension
 
+                // Remove any dash and suffix (e.g., "1-1" -> "1")
                 if (numberPart.contains("-")) {
-                    // image5-2.jpg → return 2
-                    return Integer.parseInt(numberPart.substring(numberPart.indexOf('-') + 1));
-                } else {
-                    // image5.jpg → return 0
-                    return 0;
+                    numberPart = numberPart.substring(0, numberPart.indexOf('-'));
                 }
+                
+                return Integer.parseInt(numberPart);
             } catch (Exception e) {
                 return 0;
             }
@@ -8473,9 +8628,13 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
                     String finalFileName;
                     if (i == 0) {
-                        finalFileName = "image" + lineNumber + extension;
+                        // First image: just the line number (e.g., "1.jpg", "2.webp")
+                        finalFileName = lineNumber + extension;
                     } else {
-                        finalFileName = "image" + lineNumber + "-" + i + extension;
+                        // Subsequent images: line number * 10 + index (e.g., "11.jpg", "12.webp" for line 1)
+                        // This ensures first digit matches line number
+                        int imageNumber = (lineNumber * 10) + i;
+                        finalFileName = imageNumber + extension;
                     }
 
                     String tempFileName = "temp_" + System.currentTimeMillis() + "_" + lineNumber + "_" + i + extension;
@@ -8586,6 +8745,24 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
             private String arabicText;
             private JPanel imagesContainer;
             private java.util.List<ImageInfo> images = new java.util.ArrayList<>();
+            
+            /**
+             * Check if an image with the same number already exists
+             * @param fileName the filename to check
+             * @return true if a duplicate exists, false otherwise
+             */
+            private boolean hasImageWithNumber(String fileName) {
+                int newImageNumber = arabicSync.extractFullNumberFromImageName(fileName.toLowerCase());
+                if (newImageNumber <= 0) return false;
+                
+                for (ImageInfo existing : images) {
+                    int existingNumber = arabicSync.extractFullNumberFromImageName(existing.originalFile.getName().toLowerCase());
+                    if (existingNumber == newImageNumber) {
+                        return true;
+                    }
+                }
+                return false;
+            }
 
             // Helper class to store image info
             private class ImageInfo {
@@ -8603,18 +8780,40 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                 this.arabicText = arabicText;
 
                 // Load existing images from the images_per_line folder
-                if (existingImages != null) {
+                if (existingImages != null && !existingImages.isEmpty()) {
+                    System.out.println("LineImagePanel for Line " + lineNumber + ": Loading " + existingImages.size() + " image(s)");
                     for (File file : existingImages) {
+                        // Check for duplicates before adding
+                        if (hasImageWithNumber(file.getName())) {
+                            System.out.println("  -> Skipped duplicate image: " + file.getName());
+                            continue;
+                        }
+                        
                         try {
                             BufferedImage img = ImageIO.read(file);
                             if (img != null) {
-                                images.add(new ImageInfo(file, img));
+                                // Create thumbnail for display
+                                BufferedImage thumbnail = createThumbnail(img, THUMBNAIL_IMAGE_SIZE);
+                                if (thumbnail == null) {
+                                    thumbnail = img; // Fallback to original if thumbnail creation fails
+                                }
+                                images.add(new ImageInfo(file, thumbnail));
+                                System.out.println("  -> Loaded image: " + file.getName());
                             }
                         } catch (IOException e) {
-                            System.err.println("Error loading image: " + file.getName());
+                            System.err.println("Error loading image: " + file.getName() + " - " + e.getMessage());
                         }
                     }
+                    // Sort images by their full number (1, 11, 12, 2, 21, etc.)
+                    images.sort((img1, img2) -> {
+                        int num1 = extractImageIndex(img1.originalFile.getName());
+                        int num2 = extractImageIndex(img2.originalFile.getName());
+                        return Integer.compare(num1, num2);
+                    });
                     updateImagesMap();
+                    System.out.println("LineImagePanel for Line " + lineNumber + ": " + images.size() + " image(s) ready to display");
+                } else {
+                    System.out.println("LineImagePanel for Line " + lineNumber + ": No existing images provided");
                 }
 
                 setLayout(new BorderLayout(10, 10));
@@ -8668,9 +8867,15 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                 setupDragAndDrop(imagesContainer);
 
                 // Display existing images with index
+                System.out.println("LineImagePanel for Line " + lineNumber + ": Displaying " + images.size() + " image(s)");
                 for (int i = 0; i < images.size(); i++) {
                     addImageThumbnailDisplay(images.get(i), i);
+                    System.out.println("  -> Added thumbnail " + (i + 1) + ": " + images.get(i).originalFile.getName());
                 }
+                
+                // Force repaint to ensure images are visible
+                imagesContainer.revalidate();
+                imagesContainer.repaint();
 
                 JScrollPane scrollPane = new JScrollPane(imagesContainer);
                 scrollPane.setPreferredSize(new Dimension(IMAGES_SCROLL_WIDTH, IMAGES_SCROLL_HEIGHT));
@@ -8771,12 +8976,23 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                     File[] selectedFiles = fileChooser.getSelectedFiles();
                     if (selectedFiles != null && selectedFiles.length > 0) {
                         int addedCount = 0;
+                        int skippedCount = 0;
                         for (File file : selectedFiles) {
                             if (isSupportedImageFile(file)) {
+                                // Check for duplicates before adding
+                                if (hasImageWithNumber(file.getName())) {
+                                    skippedCount++;
+                                    continue;
+                                }
+                                
                                 try {
                                     BufferedImage img = ImageIO.read(file);
                                     if (img != null) {
-                                        ImageInfo imgInfo = new ImageInfo(file, img);
+                                        BufferedImage thumbnail = createThumbnail(img, THUMBNAIL_IMAGE_SIZE);
+                                        if (thumbnail == null) {
+                                            thumbnail = img;
+                                        }
+                                        ImageInfo imgInfo = new ImageInfo(file, thumbnail);
                                         images.add(imgInfo);
                                         addImageThumbnailDisplay(imgInfo, images.size() - 1);
                                         addedCount++;
@@ -8787,15 +9003,27 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                             }
                         }
 
-                        if (addedCount > 0) {
-                            updateImagesMap();
-                            JOptionPane.showMessageDialog(browseDialog,
-                                    addedCount + " image(s) added successfully!",
-                                    "Success", JOptionPane.INFORMATION_MESSAGE);
-                            browseDialog.dispose();
+                        String message;
+                        if (addedCount > 0 && skippedCount > 0) {
+                            message = addedCount + " image(s) added successfully!\n" + skippedCount + " duplicate(s) skipped.";
+                        } else if (addedCount > 0) {
+                            message = addedCount + " image(s) added successfully!";
+                        } else if (skippedCount > 0) {
+                            message = "All selected images are duplicates and were skipped.";
                         } else {
-                            JOptionPane.showMessageDialog(browseDialog,
-                                    "No valid images were added!",
+                            message = "No valid images were added!";
+                        }
+                        
+                        if (addedCount > 0 || skippedCount > 0) {
+                            updateImagesMap();
+                            JOptionPane.showMessageDialog(browseDialog, message,
+                                    skippedCount > 0 ? "Info" : "Success", 
+                                    skippedCount > 0 ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.INFORMATION_MESSAGE);
+                            if (addedCount > 0) {
+                                browseDialog.dispose();
+                            }
+                        } else {
+                            JOptionPane.showMessageDialog(browseDialog, message,
                                     "Warning", JOptionPane.WARNING_MESSAGE);
                         }
                     } else {
@@ -8843,10 +9071,19 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
                             for (File file : files) {
                                 if (isSupportedImageFile(file)) {
+                                    // Check for duplicates before adding
+                                    if (hasImageWithNumber(file.getName())) {
+                                        continue; // Skip duplicate
+                                    }
+                                    
                                     try {
                                         BufferedImage img = ImageIO.read(file);
                                         if (img != null) {
-                                            ImageInfo imgInfo = new ImageInfo(file, img);
+                                            BufferedImage thumbnail = createThumbnail(img, THUMBNAIL_IMAGE_SIZE);
+                                            if (thumbnail == null) {
+                                                thumbnail = img;
+                                            }
+                                            ImageInfo imgInfo = new ImageInfo(file, thumbnail);
                                             images.add(imgInfo);
                                             addImageThumbnailDisplay(imgInfo, images.size() - 1);
                                             updateImagesMap();
@@ -8954,13 +9191,13 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                 tooltip.append("<b>").append(imgInfo.originalFile.getName()).append("</b>");
                 if (imgInfo.thumbnail != null) {
                     tooltip.append("<br>Size: ").append(imgInfo.thumbnail.getWidth())
-                           .append(" x ").append(imgInfo.thumbnail.getHeight());
+                            .append(" x ").append(imgInfo.thumbnail.getHeight());
                 }
                 long fileSize = imgInfo.originalFile.length();
                 if (fileSize > 0) {
                     String sizeStr = fileSize > 1024 * 1024
-                        ? String.format("%.1f MB", fileSize / (1024.0 * 1024.0))
-                        : String.format("%.1f KB", fileSize / 1024.0);
+                            ? String.format("%.1f MB", fileSize / (1024.0 * 1024.0))
+                            : String.format("%.1f KB", fileSize / 1024.0);
                     tooltip.append("<br>File: ").append(sizeStr);
                 }
                 tooltip.append("</html>");
@@ -9024,6 +9261,15 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                                 targetIndex = images.size();
                             }
 
+                            // Check for duplicate before adding
+                            if (hasImageWithNumber(droppedImage.originalFile.getName())) {
+                                // Don't remove from source if it's a duplicate
+                                JOptionPane.showMessageDialog(LineImagePanel.this,
+                                        "An image with the same number already exists in this line!",
+                                        "Duplicate Image", JOptionPane.WARNING_MESSAGE);
+                                return false;
+                            }
+                            
                             // Remove from source panel
                             sourcePanel.removeImage(droppedImage);
 
@@ -9476,28 +9722,17 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
                     for (File file : files) {
                         String name = file.getName();
-                        if (name.startsWith("image" + lineNumber + ".") ||
-                                name.startsWith("image" + lineNumber + "-")) {
+                        int extractedLineNumber = arabicSync.extractLineNumberFromImageName(name);
+                        if (extractedLineNumber == lineNumber) {
                             imageNames.add(name);
                         }
                     }
 
-                    // Sort them properly
+                    // Sort them properly by full number
                     imageNames.sort((n1, n2) -> {
-                        boolean hasDash1 = n1.contains("-");
-                        boolean hasDash2 = n2.contains("-");
-
-                        if (!hasDash1 && hasDash2) return -1;
-                        if (hasDash1 && !hasDash2) return 1;
-                        if (!hasDash1 && !hasDash2) return n1.compareTo(n2);
-
-                        try {
-                            String num1 = n1.replaceAll(".*-(\\d+).*", "$1");
-                            String num2 = n2.replaceAll(".*-(\\d+).*", "$1");
-                            return Integer.compare(Integer.parseInt(num1), Integer.parseInt(num2));
-                        } catch (Exception e) {
-                            return n1.compareTo(n2);
-                        }
+                        int num1 = arabicSync.extractFullNumberFromImageName(n1);
+                        int num2 = arabicSync.extractFullNumberFromImageName(n2);
+                        return Integer.compare(num1, num2);
                     });
 
                     currentLineImageFiles = imageNames;
@@ -9586,17 +9821,17 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
             controlsPanel.add(typeLabel);
 
             effectTypeCombo = new JComboBox<>(new String[]{
-                "Text Caption",
-                "Zoom",
-                "Blinking Dot",
-                "Arrow Pointer",
-                "Circle Highlight",
-                "Spotlight",
-                "Star Burst",
-                "Ripple Wave",
-                "Focus Frame",
-                "Underline Box",
-                "Glow Pulse"
+                    "Text Caption",
+                    "Zoom",
+                    "Blinking Dot",
+                    "Arrow Pointer",
+                    "Circle Highlight",
+                    "Spotlight",
+                    "Star Burst",
+                    "Ripple Wave",
+                    "Focus Frame",
+                    "Underline Box",
+                    "Glow Pulse"
             });
             effectTypeCombo.setMaximumSize(new Dimension(300, 30));
             effectTypeCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -9930,7 +10165,7 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                     // Check if click is within effect bounds (use a reasonable hit area)
                     int hitSize = 40; // Hit area size
                     if (panelX >= effectPanelX - hitSize && panelX <= effectPanelX + hitSize &&
-                        panelY >= effectPanelY - hitSize && panelY <= effectPanelY + hitSize) {
+                            panelY >= effectPanelY - hitSize && panelY <= effectPanelY + hitSize) {
                         return effect;
                     }
                 }
@@ -10127,11 +10362,11 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
             for (File file : allFiles) {
                 String fileName = file.getName().toLowerCase();
+                // Supports both formats: "image1.jpg" (old) or "1.jpg", "11.jpg" (new)
                 for (String ext : extensions) {
-                    String basePattern = "image" + lineNumber;
-                    if (fileName.startsWith(basePattern) && fileName.endsWith(ext)) {
-                        String afterBase = fileName.substring(basePattern.length());
-                        if (afterBase.equals(ext) || afterBase.matches("^-\\d+.*" + ext + "$")) {
+                    if (fileName.endsWith(ext)) {
+                        int extractedLineNumber = extractLineNumberFromImageName(fileName);
+                        if (extractedLineNumber == lineNumber) {
                             matchingFiles.add(file);
                             break;
                         }
@@ -10235,18 +10470,34 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
             return new java.util.ArrayList<>();
         }
 
+        // Extract image number from filename for matching
+        // Match by full number ONLY for exact matching (e.g., "11.webp" only matches "11.webp", not "1.webp")
+        int imageFullNumber = arabicSync.extractFullNumberFromImageName(imageFileName);
+        
         try (BufferedReader reader = new BufferedReader(new FileReader(effectsFile))) {
             java.util.List<EffectEntry> effects = new java.util.ArrayList<>();
             String line;
             boolean inCorrectImage = false;
+            int currentLineNum = -1;
+            String currentImageName = null;
 
             while ((line = reader.readLine()) != null) {
                 if (line.startsWith("LINE:")) {
-                    int currentLine = Integer.parseInt(line.substring(5));
-                    inCorrectImage = (currentLine == lineNumber);
+                    currentLineNum = Integer.parseInt(line.substring(5));
+                    inCorrectImage = (currentLineNum == lineNumber);
                 } else if (line.startsWith("IMAGE:") && inCorrectImage) {
-                    String currentImage = line.substring(6);
-                    inCorrectImage = currentImage.equals(imageFileName);
+                    currentImageName = line.substring(6);
+                    // Extract numbers from saved image name
+                    int savedFullNumber = arabicSync.extractFullNumberFromImageName(currentImageName);
+                    // Match by full number ONLY for exact matching
+                    // This ensures "11.webp" only matches "11.webp", not "1.webp"
+                    boolean matches = (savedFullNumber == imageFullNumber);
+                    if (matches) {
+                        System.out.println("MATCHED: Line " + lineNumber + ", Looking for: " + imageFileName + 
+                                " (fullNumber=" + imageFullNumber + "), Found: " + currentImageName + 
+                                " (fullNumber=" + savedFullNumber + ")");
+                    }
+                    inCorrectImage = matches;
                 } else if (line.startsWith("EFFECT:") && inCorrectImage) {
                     String[] parts = line.substring(7).split(",");
                     if (parts.length >= 4) {
@@ -10265,6 +10516,7 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
                         return effects; // Found effects for this specific image
                     }
                     inCorrectImage = false;
+                    currentImageName = null;
                 }
             }
 
@@ -10357,13 +10609,133 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
      * @param timeInLine Current time position within this line
      * @param maxZoom Maximum zoom level (e.g., 1.5 for 150%)
      */
-    private void drawImageWithZoomAnimation(Graphics2D g2d, BufferedImage image,
-                                            int width, int height,
-                                            int zoomTargetX, int zoomTargetY,
-                                            int originalImageWidth, int originalImageHeight,
-                                            double lineDuration, double timeInLine,
-                                            double maxZoom) {
-        if (image == null) return;
+    /**
+     * Apply zoom transformation directly to Graphics2D when drawing a fitted image
+     */
+    private void applyZoomToFittedImage(Graphics2D g2d, BufferedImage fittedImage, 
+                                       int width, int height,
+                                       BufferedImage originalImage, EffectEntry zoomEffect,
+                                       FormattedLineArabicSync currentQuoteLine, double currentTime, double lineDuration) {
+        double timeInLine = currentTime - currentQuoteLine.startTime;
+        double maxZoom = 1.0 + (zoomEffect.size / 100.0); // size 80 = 1.8x zoom
+
+        // Safety check: ensure lineDuration is valid to avoid division by zero
+        if (lineDuration <= 0) {
+            lineDuration = 3.0; // Default to 3 seconds
+        }
+
+        // Calculate zoom factor: zoom in first half, zoom out second half
+        double progress = timeInLine / lineDuration;
+        progress = Math.max(0, Math.min(1, progress)); // Clamp to 0-1
+        
+        double zoomFactor;
+        if (progress <= 0.5) {
+            // First half: zoom IN from 1.0 to maxZoom
+            zoomFactor = 1.0 + (progress * 2 * (maxZoom - 1.0));
+        } else {
+            // Second half: zoom OUT from maxZoom back to 1.0
+            zoomFactor = maxZoom - ((progress - 0.5) * 2 * (maxZoom - 1.0));
+        }
+        
+        // Debug output (only print occasionally to avoid spam)
+        if (Math.random() < 0.01) { // Print 1% of the time
+            System.out.println("ZOOM: progress=" + String.format("%.2f", progress) + 
+                    ", zoomFactor=" + String.format("%.2f", zoomFactor) + 
+                    ", maxZoom=" + String.format("%.2f", maxZoom) +
+                    ", target=(" + zoomEffect.x + "," + zoomEffect.y + ")");
+        }
+
+        // Calculate where the zoom target is in the fitted image
+        int marginHorizontal = 40;
+        int marginVertical = 200;
+        int availableWidth = width - (2 * marginHorizontal);
+        int availableHeight = height - (2 * marginVertical);
+        
+        int originalWidth = originalImage.getWidth();
+        int originalHeight = originalImage.getHeight();
+        double originalAspect = (double) originalWidth / originalHeight;
+        boolean isPortrait = (originalHeight > originalWidth);
+        
+        int scaledWidth, scaledHeight;
+        int offsetX, offsetY;
+        
+        if (isPortrait) {
+            double portraitScale = 0.6;
+            scaledHeight = (int) (availableHeight * portraitScale);
+            scaledWidth = (int) (scaledHeight * originalAspect);
+            offsetX = marginHorizontal + ((availableWidth - scaledWidth) / 2);
+            offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
+        } else {
+            scaledWidth = availableWidth;
+            scaledHeight = (int) (availableWidth / originalAspect);
+            offsetX = marginHorizontal;
+            offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
+        }
+        
+        // Convert zoom target from original image coords to fitted image coords
+        double scaleX = (double) scaledWidth / originalWidth;
+        double scaleY = (double) scaledHeight / originalHeight;
+        int zoomTargetX_fitted = offsetX + (int)(zoomEffect.x * scaleX);
+        int zoomTargetY_fitted = offsetY + (int)(zoomEffect.y * scaleY);
+        
+        // First draw the blurred background (without zoom)
+        BufferedImage blurred = applyGaussianBlur(originalImage, 30);
+        g2d.drawImage(blurred, 0, 0, width, height, null);
+        
+        // Darken the background
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+        g2d.setColor(Color.BLACK);
+        g2d.fillRect(0, 0, width, height);
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+        
+        // Now draw the zoomed image portion
+        Graphics2D g2dZoom = (Graphics2D) g2d.create();
+        g2dZoom.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2dZoom.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2dZoom.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        // Calculate the scaled image size with zoom
+        int zoomedScaledWidth = (int)(scaledWidth * zoomFactor);
+        int zoomedScaledHeight = (int)(scaledHeight * zoomFactor);
+        
+        // Calculate offset to keep zoom target point in the same position
+        // The target point should stay at zoomTargetX_fitted, zoomTargetY_fitted
+        // After zooming, where will the target be?
+        double targetRatioX = (double)(zoomTargetX_fitted - offsetX) / scaledWidth;
+        double targetRatioY = (double)(zoomTargetY_fitted - offsetY) / scaledHeight;
+        
+        // Where the target will be in the zoomed image
+        double zoomedTargetX = offsetX + (targetRatioX * zoomedScaledWidth);
+        double zoomedTargetY = offsetY + (targetRatioY * zoomedScaledHeight);
+        
+        // Offset needed to keep target in same position
+        int zoomOffsetX = offsetX - (int)(zoomedTargetX - zoomTargetX_fitted);
+        int zoomOffsetY = offsetY - (int)(zoomedTargetY - zoomTargetY_fitted);
+        
+        // Clip to image area only (not the whole frame) to prevent overflow
+        g2dZoom.setClip(offsetX, offsetY, scaledWidth, scaledHeight);
+        
+        // Draw the zoomed original image
+        g2dZoom.drawImage(originalImage, zoomOffsetX, zoomOffsetY, zoomedScaledWidth, zoomedScaledHeight, null);
+        g2dZoom.dispose();
+    }
+
+    /**
+     * Apply zoom animation to an image and return the zoomed image
+     * Zooms IN to target point then OUT
+     * @param image The original image
+     * @param zoomTargetX Target X in original image coordinates
+     * @param zoomTargetY Target Y in original image coordinates
+     * @param lineDuration Duration of the line/image display in seconds
+     * @param timeInLine Current time position within this line
+     * @param maxZoom Maximum zoom level (e.g., 1.5 for 150%)
+     * @return The zoomed image
+     */
+    private BufferedImage applyZoomToImage(BufferedImage image,
+                                          int zoomTargetX, int zoomTargetY,
+                                          double lineDuration, double timeInLine,
+                                          double maxZoom) {
+        if (image == null) return image;
 
         // Calculate animation progress (0 to 1)
         double progress = timeInLine / lineDuration;
@@ -10379,39 +10751,54 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
             zoomFactor = maxZoom - ((progress - 0.5) * 2 * (maxZoom - 1.0));
         }
 
-        // Convert zoom target from original image coords to current image coords
-        double scaleX = (double) image.getWidth() / originalImageWidth;
-        double scaleY = (double) image.getHeight() / originalImageHeight;
-        int targetX = (int) (zoomTargetX * scaleX);
-        int targetY = (int) (zoomTargetY * scaleY);
+        // If no zoom, return original
+        if (zoomFactor == 1.0) {
+            return image;
+        }
+
+        int originalWidth = image.getWidth();
+        int originalHeight = image.getHeight();
 
         // Calculate the scaled size
-        int scaledWidth = (int) (image.getWidth() * zoomFactor);
-        int scaledHeight = (int) (image.getHeight() * zoomFactor);
+        int scaledWidth = (int) (originalWidth * zoomFactor);
+        int scaledHeight = (int) (originalHeight * zoomFactor);
 
         // Calculate offset to keep zoom target centered
-        // The target point should stay at the same screen position as we zoom
-        double targetScreenX = (double) targetX / image.getWidth() * width;
-        double targetScreenY = (double) targetY / image.getHeight() * height;
+        // The target point should stay at the same position in the image as we zoom
+        double targetRatioX = (double) zoomTargetX / originalWidth;
+        double targetRatioY = (double) zoomTargetY / originalHeight;
 
         // Where the target will be after scaling
-        double scaledTargetX = (double) targetX / image.getWidth() * scaledWidth;
-        double scaledTargetY = (double) targetY / image.getHeight() * scaledHeight;
+        double scaledTargetX = targetRatioX * scaledWidth;
+        double scaledTargetY = targetRatioY * scaledHeight;
 
-        // Offset needed to keep target in same position
-        int offsetX = (int) (targetScreenX - scaledTargetX);
-        int offsetY = (int) (targetScreenY - scaledTargetY);
+        // Offset needed to keep target in same position (center the target)
+        int offsetX = (int) (zoomTargetX - scaledTargetX);
+        int offsetY = (int) (zoomTargetY - scaledTargetY);
 
-        // Draw the scaled image
-        Graphics2D g2dZoom = (Graphics2D) g2d.create();
+        // Create new image with zoomed size (make it larger to accommodate zoom)
+        int resultWidth = Math.max(scaledWidth, originalWidth);
+        int resultHeight = Math.max(scaledHeight, originalHeight);
+        
+        // Adjust offsets to center the zoomed image
+        offsetX += (resultWidth - scaledWidth) / 2;
+        offsetY += (resultHeight - scaledHeight) / 2;
+
+        BufferedImage zoomedImage = new BufferedImage(resultWidth, resultHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2dZoom = zoomedImage.createGraphics();
         g2dZoom.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g2dZoom.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2dZoom.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Clip to frame bounds to prevent drawing outside
-        g2dZoom.setClip(0, 0, width, height);
+        // Fill background with black
+        g2dZoom.setColor(Color.BLACK);
+        g2dZoom.fillRect(0, 0, resultWidth, resultHeight);
 
+        // Draw the scaled image
         g2dZoom.drawImage(image, offsetX, offsetY, scaledWidth, scaledHeight, null);
         g2dZoom.dispose();
+
+        return zoomedImage;
     }
 
     /**
@@ -10599,8 +10986,8 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
         // Fill with gradient
         GradientPaint gradient = new GradientPaint(
-            x, animY, new Color(255, 200, 0),
-            x, animY + arrowHeight, new Color(255, 100, 0)
+                x, animY, new Color(255, 200, 0),
+                x, animY + arrowHeight, new Color(255, 100, 0)
         );
         g2d.setPaint(gradient);
         g2d.fillPolygon(xPoints, yPoints, 7);
@@ -10672,9 +11059,9 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
         // Clear the spotlight area with radial gradient
         maskG2d.setComposite(AlphaComposite.Clear);
         RadialGradientPaint clearGradient = new RadialGradientPaint(
-            x, y, spotRadius,
-            new float[]{0.0f, 0.7f, 1.0f},
-            new Color[]{new Color(0, 0, 0, 255), new Color(0, 0, 0, 200), new Color(0, 0, 0, 0)}
+                x, y, spotRadius,
+                new float[]{0.0f, 0.7f, 1.0f},
+                new Color[]{new Color(0, 0, 0, 255), new Color(0, 0, 0, 200), new Color(0, 0, 0, 0)}
         );
         maskG2d.setPaint(clearGradient);
         maskG2d.fillOval(x - spotRadius, y - spotRadius, spotRadius * 2, spotRadius * 2);
@@ -10730,13 +11117,13 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
         // Fill with gradient
         RadialGradientPaint starGradient = new RadialGradientPaint(
-            x, y, outerRadius,
-            new float[]{0.0f, 0.5f, 1.0f},
-            new Color[]{
-                new Color(255, 255, 200),
-                new Color(255, 215, 0),
-                new Color(255, 150, 0)
-            }
+                x, y, outerRadius,
+                new float[]{0.0f, 0.5f, 1.0f},
+                new Color[]{
+                        new Color(255, 255, 200),
+                        new Color(255, 215, 0),
+                        new Color(255, 150, 0)
+                }
         );
         g2d.setPaint(starGradient);
         g2d.fill(star);
@@ -10876,8 +11263,8 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
         // Main box
         GradientPaint boxGradient = new GradientPaint(
-            left, top, new Color(255, 180, 0, 200),
-            left, top + boxHeight, new Color(255, 100, 0, 200)
+                left, top, new Color(255, 180, 0, 200),
+                left, top + boxHeight, new Color(255, 100, 0, 200)
         );
         g2d.setPaint(boxGradient);
         g2d.setStroke(new BasicStroke(4, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
@@ -10902,9 +11289,9 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
         // Multiple glow layers with different colors
         Color[] glowColors = {
-            new Color(255, 100, 150), // Pink
-            new Color(150, 100, 255), // Purple
-            new Color(100, 200, 255)  // Cyan
+                new Color(255, 100, 150), // Pink
+                new Color(150, 100, 255), // Purple
+                new Color(100, 200, 255)  // Cyan
         };
 
         for (int layer = 0; layer < glowColors.length; layer++) {
@@ -10914,13 +11301,13 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
 
             Color baseColor = glowColors[layer];
             RadialGradientPaint glowGradient = new RadialGradientPaint(
-                x, y, layerRadius,
-                new float[]{0.0f, 0.5f, 1.0f},
-                new Color[]{
-                    new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), (int)(layerPulse * 100)),
-                    new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), (int)(layerPulse * 50)),
-                    new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), 0)
-                }
+                    x, y, layerRadius,
+                    new float[]{0.0f, 0.5f, 1.0f},
+                    new Color[]{
+                            new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), (int)(layerPulse * 100)),
+                            new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), (int)(layerPulse * 50)),
+                            new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), 0)
+                    }
             );
             g2d.setPaint(glowGradient);
             g2d.fillOval(x - layerRadius, y - layerRadius, layerRadius * 2, layerRadius * 2);
@@ -10929,13 +11316,13 @@ private void drawWaveText(Graphics2D g2d, String text, int startX, int baseY,
         // Center bright spot
         int centerSize = 15 + (int)(fastPulse * 10);
         RadialGradientPaint centerGradient = new RadialGradientPaint(
-            x, y, centerSize,
-            new float[]{0.0f, 0.5f, 1.0f},
-            new Color[]{
-                new Color(255, 255, 255, 255),
-                new Color(255, 200, 255, 200),
-                new Color(255, 150, 255, 0)
-            }
+                x, y, centerSize,
+                new float[]{0.0f, 0.5f, 1.0f},
+                new Color[]{
+                        new Color(255, 255, 255, 255),
+                        new Color(255, 200, 255, 200),
+                        new Color(255, 150, 255, 0)
+                }
         );
         g2d.setPaint(centerGradient);
         g2d.fillOval(x - centerSize, y - centerSize, centerSize * 2, centerSize * 2);
