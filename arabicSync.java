@@ -120,6 +120,7 @@ public class arabicSync {
 
         // Images per line mode settings
         int imagesPerLineFirstLineY = 100; // Y position for first line text (0 = top, higher = lower)
+        int imageSizePercent = 60; // Image size percentage (30-100%)
 
         // First line text effects settings
         int firstLineFontSize = 65; // Font size for first line (20-120)
@@ -525,6 +526,29 @@ public class arabicSync {
             firstLineEffectsBtn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
             firstLineEffectsBtn.addActionListener(e -> openFirstLineEffectsDialog());
             panel.add(firstLineEffectsBtn, gbc);
+
+            // Image Size Slider (for images per line mode)
+            gbc.gridx = 0; gbc.gridy = 4;
+            panel.add(new JLabel("Image Size:"), gbc);
+            gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+            JSlider imageSizeSlider = new JSlider(JSlider.HORIZONTAL, 30, 100, config.imageSizePercent);
+            imageSizeSlider.setMajorTickSpacing(10);
+            imageSizeSlider.setMinorTickSpacing(5);
+            imageSizeSlider.setPaintTicks(true);
+            imageSizeSlider.setPaintLabels(true);
+            JLabel imageSizeValueLabel = new JLabel(String.valueOf(config.imageSizePercent) + "%");
+            imageSizeSlider.addChangeListener(e -> {
+                config.imageSizePercent = imageSizeSlider.getValue();
+                imageSizeValueLabel.setText(config.imageSizePercent + "%");
+            });
+            panel.add(imageSizeSlider, gbc);
+            gbc.gridx = 2; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+            panel.add(imageSizeValueLabel, gbc);
+            gbc.gridx = 3;
+            JLabel imageSizeHint = new JLabel("(Small=30%, Medium=60%, Large=100%)");
+            imageSizeHint.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 10));
+            imageSizeHint.setForeground(Color.GRAY);
+            panel.add(imageSizeHint, gbc);
 
             return panel;
         }
@@ -7932,12 +7956,14 @@ public class arabicSync {
         //System.out.println("DEBUG: Image " + originalWidth + "x" + originalHeight +
         //" | Is portrait: " + isPortrait);
 
-        if (isPortrait) {
-            // Portrait/tall image - scale down more
-            //System.out.println("DEBUG: Portrait image - scaling down");
-            double portraitScale = 0.6;  // Scale to 50%
+        // Use configurable scale from slider (30-100%)
+        double imageScale = config.imageSizePercent / 100.0;
 
-            scaledHeight = (int) (availableHeight * portraitScale);
+        if (isPortrait) {
+            // Portrait/tall image - scale based on user setting
+            //System.out.println("DEBUG: Portrait image - scaling down");
+
+            scaledHeight = (int) (availableHeight * imageScale);
             scaledWidth = (int) (scaledHeight * originalAspect);
 
             //System.out.println("DEBUG: Scaled to " + scaledWidth + "x" + scaledHeight);
@@ -7946,11 +7972,11 @@ public class arabicSync {
             offsetX = marginHorizontal + ((availableWidth - scaledWidth) / 2);
             offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
         } else {
-            // Landscape/wide image - normal sizing
+            // Landscape/wide image - scale based on user setting
             //System.out.println("DEBUG: Landscape image - normal sizing");
-            scaledWidth = availableWidth;
-            scaledHeight = (int) (availableWidth / originalAspect);
-            offsetX = marginHorizontal;
+            scaledWidth = (int) (availableWidth * imageScale);
+            scaledHeight = (int) (scaledWidth / originalAspect);
+            offsetX = marginHorizontal + ((availableWidth - scaledWidth) / 2);
             offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
         }
 
