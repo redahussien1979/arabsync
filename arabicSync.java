@@ -32,6 +32,7 @@ public class arabicSync {
     private static final double FRAME_RATE = 10.0; // Change this value to control frame rate globally
 
     private WordTiming[] currentWordTimings;
+    private QuoteTimingInfoArabicSync[] currentQuoteTimings; // Display timing for image selection
     private FormattedTextDataArabicSync currentFormattedData;
     // Image cache to avoid repeated disk reads - speeds up video generation
     private java.util.Map<Integer, java.util.List<BufferedImage>> lineImageCache = new java.util.HashMap<>();
@@ -2702,6 +2703,7 @@ public class arabicSync {
 
             // Calculate quote timings based on Arabic audio
             QuoteTimingInfoArabicSync[] quoteTimings = calculateArabicQuoteTimings(formattedData, wordTimings, audioDuration);
+            this.currentQuoteTimings = quoteTimings; // Store for image selection
 
 
             //lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll
@@ -7294,8 +7296,8 @@ public class arabicSync {
         java.util.List<BufferedImage> lineImages = loadImagesForLine(lineNumber);
 
         if (!lineImages.isEmpty()) {
-            BufferedImage currentImage = selectImageForTime(lineImages, currentQuoteLine, currentTime);
-            BufferedImage nextImage = getNextImage(lineImages, currentQuoteLine, currentTime);
+            BufferedImage currentImage = selectImageForTime(lineImages, displayInfo.currentQuote, currentTime);
+            BufferedImage nextImage = getNextImage(lineImages, displayInfo.currentQuote, currentTime);
 
             if (currentImage != null) {
                 // Store original image for effects
@@ -7323,7 +7325,7 @@ public class arabicSync {
 
                 if (nextImage != null && lineImages.size() > 1) {
                     nextImage = fitWithBlurredBackground(nextImage, width, height);
-                    float transitionProgress = calculateTransitionAlpha(currentQuoteLine, currentTime, lineImages.size());
+                    float transitionProgress = calculateTransitionAlpha(displayInfo.currentQuote, currentTime, lineImages.size());
 
                     if (transitionProgress > 0) {
                         // Transition code - apply zoom to current image if it has zoom effect
@@ -7442,7 +7444,7 @@ public class arabicSync {
                     // IMPORTANT: Only draw effects if NOT in transition
                     boolean inTransition = false;
                     if (nextImage != null && lineImages.size() > 1) {
-                        float transitionProgress = calculateTransitionAlpha(currentQuoteLine, currentTime, lineImages.size());
+                        float transitionProgress = calculateTransitionAlpha(displayInfo.currentQuote, currentTime, lineImages.size());
                         inTransition = (transitionProgress > 0.0f); // In transition if progress > 0
                     }
 
@@ -7839,7 +7841,7 @@ public class arabicSync {
      * Get the filename of the currently displayed image (NOT during transitions)
      */
     private String getCurrentImageFileName(int lineNumber, java.util.List<BufferedImage> lineImages,
-                                           FormattedLineArabicSync currentLine, double currentTime) {
+                                           int quoteIndex, double currentTime) {
         // Find all image files for this line
         File folder = new File(config.imagesPerLineFolder);
         File[] files = folder.listFiles();
@@ -7856,7 +7858,7 @@ public class arabicSync {
             }
         }
 
-        // Sort them properly by full number
+        // Sort them properly by image index
         imageNames.sort((n1, n2) -> {
             int num1 = extractFullNumberFromImageName(n1);
             int num2 = extractFullNumberFromImageName(n2);
@@ -7870,20 +7872,13 @@ public class arabicSync {
             return imageNames.get(0);
         }
 
-        // Calculate which image is currently displayed
-        if (currentWordTimings == null || currentWordTimings.length == 0) {
+        // Calculate which image is currently displayed using DISPLAY timing
+        if (currentQuoteTimings == null || quoteIndex < 0 || quoteIndex >= currentQuoteTimings.length) {
             return imageNames.get(0);
         }
 
-        int startWordIdx = currentLine.wordStartIndex;
-        int endWordIdx = startWordIdx + currentLine.wordCount - 1;
-
-        if (startWordIdx >= currentWordTimings.length || endWordIdx >= currentWordTimings.length) {
-            return imageNames.get(0);
-        }
-
-        double lineStartTime = currentWordTimings[startWordIdx].startTime;
-        double lineEndTime = currentWordTimings[endWordIdx].endTime;
+        double lineStartTime = currentQuoteTimings[quoteIndex].startTime;
+        double lineEndTime = currentQuoteTimings[quoteIndex].endTime;
         double lineDuration = lineEndTime - lineStartTime;
 
         if (lineDuration <= 0) return imageNames.get(0);
@@ -8090,23 +8085,17 @@ public class arabicSync {
 
 
     private BufferedImage getNextImage(java.util.List<BufferedImage> lineImages,
-                                       FormattedLineArabicSync currentLine,
+                                       int quoteIndex,
                                        double currentTime) {
         if (lineImages.isEmpty() || lineImages.size() == 1) return null;
 
-        if (currentWordTimings == null || currentWordTimings.length == 0) {
+        // Use DISPLAY timing (currentQuoteTimings) instead of audio timing
+        if (currentQuoteTimings == null || quoteIndex < 0 || quoteIndex >= currentQuoteTimings.length) {
             return null;
         }
 
-        int startWordIdx = currentLine.wordStartIndex;
-        int endWordIdx = startWordIdx + currentLine.wordCount - 1;
-
-        if (startWordIdx >= currentWordTimings.length || endWordIdx >= currentWordTimings.length) {
-            return null;
-        }
-
-        double lineStartTime = currentWordTimings[startWordIdx].startTime;
-        double lineEndTime = currentWordTimings[endWordIdx].endTime;
+        double lineStartTime = currentQuoteTimings[quoteIndex].startTime;
+        double lineEndTime = currentQuoteTimings[quoteIndex].endTime;
         double lineDuration = lineEndTime - lineStartTime;
 
         if (lineDuration <= 0) return null;
@@ -8128,22 +8117,16 @@ public class arabicSync {
         return lineImages.get(nextImageIndex);
     }
 
-    private float calculateTransitionAlpha(FormattedLineArabicSync currentLine,
+    private float calculateTransitionAlpha(int quoteIndex,
                                            double currentTime,
                                            int totalImages) {
-        if (currentWordTimings == null || currentWordTimings.length == 0) {
+        // Use DISPLAY timing (currentQuoteTimings) instead of audio timing
+        if (currentQuoteTimings == null || quoteIndex < 0 || quoteIndex >= currentQuoteTimings.length) {
             return 0f;
         }
 
-        int startWordIdx = currentLine.wordStartIndex;
-        int endWordIdx = startWordIdx + currentLine.wordCount - 1;
-
-        if (startWordIdx >= currentWordTimings.length || endWordIdx >= currentWordTimings.length) {
-            return 0f;
-        }
-
-        double lineStartTime = currentWordTimings[startWordIdx].startTime;
-        double lineEndTime = currentWordTimings[endWordIdx].endTime;
+        double lineStartTime = currentQuoteTimings[quoteIndex].startTime;
+        double lineEndTime = currentQuoteTimings[quoteIndex].endTime;
         double lineDuration = lineEndTime - lineStartTime;
 
         if (lineDuration <= 0) return 0f;
@@ -8181,25 +8164,19 @@ public class arabicSync {
 
 
     private BufferedImage selectImageForTime(java.util.List<BufferedImage> lineImages,
-                                             FormattedLineArabicSync currentLine,
+                                             int quoteIndex,
                                              double currentTime) {
         if (lineImages.isEmpty()) return null;
         if (lineImages.size() == 1) return lineImages.get(0); // Only one image
 
-        // Calculate line duration
-        if (currentWordTimings == null || currentWordTimings.length == 0) {
+        // Use DISPLAY timing (currentQuoteTimings) instead of audio timing
+        // This ensures images cycle correctly based on when the line is visually displayed
+        if (currentQuoteTimings == null || quoteIndex < 0 || quoteIndex >= currentQuoteTimings.length) {
             return lineImages.get(0); // Fallback to first image
         }
 
-        int startWordIdx = currentLine.wordStartIndex;
-        int endWordIdx = startWordIdx + currentLine.wordCount - 1;
-
-        if (startWordIdx >= currentWordTimings.length || endWordIdx >= currentWordTimings.length) {
-            return lineImages.get(0);
-        }
-
-        double lineStartTime = currentWordTimings[startWordIdx].startTime;
-        double lineEndTime = currentWordTimings[endWordIdx].endTime;
+        double lineStartTime = currentQuoteTimings[quoteIndex].startTime;
+        double lineEndTime = currentQuoteTimings[quoteIndex].endTime;
         double lineDuration = lineEndTime - lineStartTime;
 
         if (lineDuration <= 0) return lineImages.get(0);
@@ -8217,7 +8194,8 @@ public class arabicSync {
 
         // Debug (only print occasionally to avoid spam)
         if (lineImages.size() > 1 && ((int)(currentTime * 10) % 30 == 0)) {
-            System.out.println("[IMAGE SELECT] progress=" + String.format("%.2f", progress) +
+            System.out.println("[IMAGE SELECT] Line " + (quoteIndex + 1) +
+                ": progress=" + String.format("%.2f", progress) +
                 ", imageIndex=" + imageIndex + "/" + lineImages.size() +
                 ", time=" + String.format("%.2f", currentTime) +
                 ", lineStart=" + String.format("%.2f", lineStartTime) +
