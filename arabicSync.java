@@ -125,6 +125,11 @@ public class arabicSync {
 
         // First line text effects settings
         int firstLineFontSize = 65; // Font size for first line (20-120)
+
+        // Lines 2+ text settings
+        int regularLineFontSize = 40; // Font size for lines 2+ (20-80)
+        int regularLineYPosition = 80; // Y position as percentage (50-95, where 80 = 80% from top)
+
         Color firstLineTextColor = new Color(255, 165, 0); // Default orange color
         int firstLineAnimationType = 0; // 0=none, 1=fade-in, 2=typewriter, 3=wave, 4=bounce, 5=glow-pulse
         boolean firstLineShakeEnabled = false; // Enable shake/vibrate effect
@@ -550,6 +555,52 @@ public class arabicSync {
             imageSizeHint.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 10));
             imageSizeHint.setForeground(Color.GRAY);
             panel.add(imageSizeHint, gbc);
+
+            // Lines 2+ Font Size Slider
+            gbc.gridx = 0; gbc.gridy = 5;
+            panel.add(new JLabel("Lines 2+ Font Size:"), gbc);
+            gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+            JSlider regularFontSlider = new JSlider(JSlider.HORIZONTAL, 20, 80, config.regularLineFontSize);
+            regularFontSlider.setMajorTickSpacing(15);
+            regularFontSlider.setMinorTickSpacing(5);
+            regularFontSlider.setPaintTicks(true);
+            regularFontSlider.setPaintLabels(true);
+            JLabel regularFontValueLabel = new JLabel(String.valueOf(config.regularLineFontSize) + " pt");
+            regularFontSlider.addChangeListener(e -> {
+                config.regularLineFontSize = regularFontSlider.getValue();
+                regularFontValueLabel.setText(config.regularLineFontSize + " pt");
+            });
+            panel.add(regularFontSlider, gbc);
+            gbc.gridx = 2; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+            panel.add(regularFontValueLabel, gbc);
+            gbc.gridx = 3;
+            JLabel regularFontHint = new JLabel("(Small=20, Medium=40, Large=80)");
+            regularFontHint.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 10));
+            regularFontHint.setForeground(Color.GRAY);
+            panel.add(regularFontHint, gbc);
+
+            // Lines 2+ Y Position Slider
+            gbc.gridx = 0; gbc.gridy = 6;
+            panel.add(new JLabel("Lines 2+ Y Position:"), gbc);
+            gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+            JSlider regularYSlider = new JSlider(JSlider.HORIZONTAL, 50, 95, config.regularLineYPosition);
+            regularYSlider.setMajorTickSpacing(10);
+            regularYSlider.setMinorTickSpacing(5);
+            regularYSlider.setPaintTicks(true);
+            regularYSlider.setPaintLabels(true);
+            JLabel regularYValueLabel = new JLabel(String.valueOf(config.regularLineYPosition) + "%");
+            regularYSlider.addChangeListener(e -> {
+                config.regularLineYPosition = regularYSlider.getValue();
+                regularYValueLabel.setText(config.regularLineYPosition + "%");
+            });
+            panel.add(regularYSlider, gbc);
+            gbc.gridx = 2; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+            panel.add(regularYValueLabel, gbc);
+            gbc.gridx = 3;
+            JLabel regularYHint = new JLabel("(Higher=50%, Middle=70%, Lower=95%)");
+            regularYHint.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 10));
+            regularYHint.setForeground(Color.GRAY);
+            panel.add(regularYHint, gbc);
 
             return panel;
         }
@@ -7562,14 +7613,14 @@ public class arabicSync {
                         currentTime, currentQuoteLine.startTime, currentQuoteLine.endTime);
             } else {
                 // Regular text code with transparent background
-                Font textFont = arabicFont.deriveFont(Font.BOLD, 40f);
+                Font textFont = arabicFont.deriveFont(Font.BOLD, (float) config.regularLineFontSize);
                 FontMetrics fm = g2d.getFontMetrics(textFont);
                 int textPadding = 140;
                 int textWidth = width - (2 * textPadding);
                 java.util.List<String> wrappedLines = wrapTextToLines(arabicText, fm, textWidth);
                 int lineHeight = (int)(fm.getHeight() * 1.2);
                 int totalTextHeight = wrappedLines.size() * lineHeight;
-                int textStartY = (int)(height * 0.8) - (totalTextHeight / 2);
+                int textStartY = (int)(height * (config.regularLineYPosition / 100.0)) - (totalTextHeight / 2);
 
                 // Calculate the maximum line width for background sizing
                 int maxLineWidth = 0;
