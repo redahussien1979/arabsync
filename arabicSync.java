@@ -8222,8 +8222,8 @@ public class arabicSync {
      * Extract the line number from an image filename
      * New format with underscore: 1_1.jpg -> 1, 10_2.webp -> 10, 12_1.png -> 12
      * Also supports old formats for backward compatibility:
-     *   - image1.jpg -> 1, image11.jpg -> 1 (first digit)
-     *   - 1.webp -> 1, 11.png -> 1 (first digit without underscore)
+     *   - image1.jpg -> 1, image10.jpg -> 10 (all leading digits)
+     *   - 1.webp -> 1, 10.png -> 10, 12.webp -> 12 (all leading digits)
      */
     private static int extractLineNumberFromImageName(String fileName) {
         String name = fileName.toLowerCase();
@@ -8259,13 +8259,25 @@ public class arabicSync {
             numberPart = numberPart.substring(0, numberPart.indexOf('-'));
         }
 
-        // Fallback: Extract first digit (old format compatibility)
+        // Fallback: Extract all leading digits (handles both old and new format)
         try {
             if (numberPart.isEmpty()) {
                 return -1;
             }
-            String firstDigit = numberPart.substring(0, 1);
-            return Integer.parseInt(firstDigit);
+            // Extract all leading digits (e.g., "10" from "10", "12" from "12")
+            StringBuilder digits = new StringBuilder();
+            for (int i = 0; i < numberPart.length(); i++) {
+                char c = numberPart.charAt(i);
+                if (Character.isDigit(c)) {
+                    digits.append(c);
+                } else {
+                    break;
+                }
+            }
+            if (digits.length() == 0) {
+                return -1;
+            }
+            return Integer.parseInt(digits.toString());
         } catch (Exception e) {
             return -1;
         }
