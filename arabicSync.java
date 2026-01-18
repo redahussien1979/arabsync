@@ -7561,19 +7561,46 @@ public class arabicSync {
                 drawFirstLineWithEffects(g2d, arabicText, arabicFont, width, height,
                         currentTime, currentQuoteLine.startTime, currentQuoteLine.endTime);
             } else {
-                // Regular text code...
+                // Regular text code with transparent background
                 Font textFont = arabicFont.deriveFont(Font.BOLD, 40f);
                 FontMetrics fm = g2d.getFontMetrics(textFont);
                 int textPadding = 140;
                 int textWidth = width - (2 * textPadding);
                 java.util.List<String> wrappedLines = wrapTextToLines(arabicText, fm, textWidth);
-                int totalTextHeight = wrappedLines.size() * (int)(fm.getHeight() * 1.2);
+                int lineHeight = (int)(fm.getHeight() * 1.2);
+                int totalTextHeight = wrappedLines.size() * lineHeight;
                 int textStartY = (int)(height * 0.8) - (totalTextHeight / 2);
 
+                // Calculate the maximum line width for background sizing
+                int maxLineWidth = 0;
+                for (String line : wrappedLines) {
+                    int lineW = fm.stringWidth(line);
+                    if (lineW > maxLineWidth) maxLineWidth = lineW;
+                }
+
+                // Draw transparent background behind text
+                int bgPaddingH = 30;  // Horizontal padding
+                int bgPaddingV = 20;  // Vertical padding
+                int bgWidth = maxLineWidth + (bgPaddingH * 2);
+                int bgHeight = totalTextHeight + (bgPaddingV * 2);
+                int bgX = (width - bgWidth) / 2;
+                int bgY = textStartY - bgPaddingV;
+                int cornerRadius = 20;
+
+                // Semi-transparent dark background
+                g2d.setColor(new Color(0, 0, 0, 160));  // Black with ~63% opacity
+                g2d.fillRoundRect(bgX, bgY, bgWidth, bgHeight, cornerRadius, cornerRadius);
+
+                // Optional: subtle border for polish
+                g2d.setColor(new Color(255, 255, 255, 40));  // Very subtle white border
+                g2d.setStroke(new java.awt.BasicStroke(1.5f));
+                g2d.drawRoundRect(bgX, bgY, bgWidth, bgHeight, cornerRadius, cornerRadius);
+
+                // Draw text on top of background
                 for (int lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
                     String line = wrappedLines.get(lineIdx);
-                    int lineWidth = fm.stringWidth(line);
-                    int centerX = (width - lineWidth) / 2;
+                    int lineW = fm.stringWidth(line);
+                    int centerX = (width - lineW) / 2;
                     int lineY = textStartY + (int)(lineIdx * fm.getHeight() * 1.1) + fm.getAscent();
 
                     g2d.setFont(textFont);
