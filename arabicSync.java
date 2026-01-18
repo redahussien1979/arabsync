@@ -121,6 +121,7 @@ public class arabicSync {
 
         // Images per line mode settings
         int imagesPerLineFirstLineY = 100; // Y position for first line text (0 = top, higher = lower)
+        int imageSizePercent = 60; // Image size percentage (30-100%)
 
         // First line text effects settings
         int firstLineFontSize = 65; // Font size for first line (20-120)
@@ -526,6 +527,29 @@ public class arabicSync {
             firstLineEffectsBtn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
             firstLineEffectsBtn.addActionListener(e -> openFirstLineEffectsDialog());
             panel.add(firstLineEffectsBtn, gbc);
+
+            // Image Size Slider (for images per line mode)
+            gbc.gridx = 0; gbc.gridy = 4;
+            panel.add(new JLabel("Image Size:"), gbc);
+            gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+            JSlider imageSizeSlider = new JSlider(JSlider.HORIZONTAL, 30, 100, config.imageSizePercent);
+            imageSizeSlider.setMajorTickSpacing(10);
+            imageSizeSlider.setMinorTickSpacing(5);
+            imageSizeSlider.setPaintTicks(true);
+            imageSizeSlider.setPaintLabels(true);
+            JLabel imageSizeValueLabel = new JLabel(String.valueOf(config.imageSizePercent) + "%");
+            imageSizeSlider.addChangeListener(e -> {
+                config.imageSizePercent = imageSizeSlider.getValue();
+                imageSizeValueLabel.setText(config.imageSizePercent + "%");
+            });
+            panel.add(imageSizeSlider, gbc);
+            gbc.gridx = 2; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+            panel.add(imageSizeValueLabel, gbc);
+            gbc.gridx = 3;
+            JLabel imageSizeHint = new JLabel("(Small=30%, Medium=60%, Large=100%)");
+            imageSizeHint.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 10));
+            imageSizeHint.setForeground(Color.GRAY);
+            panel.add(imageSizeHint, gbc);
 
             return panel;
         }
@@ -7282,18 +7306,18 @@ public class arabicSync {
                 currentImage = fitWithBlurredBackground(currentImage, width, height);
 
                 // Check for zoom effect on the currently selected image
-                String currentImageFileName = getCurrentImageFileName(lineNumber, lineImages, displayInfo.currentQuote, currentTime);
-                System.out.println("DEBUG ZOOM: Line " + lineNumber + ", CurrentImageFileName: " + currentImageFileName + 
+                String currentImageFileName = getCurrentImageFileName(lineNumber, lineImages, currentQuoteLine, currentTime);
+                System.out.println("DEBUG ZOOM: Line " + lineNumber + ", CurrentImageFileName: " + currentImageFileName +
                         ", CurrentTime: " + currentTime);
                 java.util.List<EffectEntry> effects = (currentImageFileName != null) ?
                         loadEffectsForImage(lineNumber, currentImageFileName) : new java.util.ArrayList<>();
-                
+
                 System.out.println("DEBUG ZOOM: Loaded " + effects.size() + " effects for " + currentImageFileName);
                 EffectEntry zoomEffect = null;
                 for (EffectEntry effect : effects) {
                     if ("zoom".equals(effect.type)) {
                         zoomEffect = effect;
-                        System.out.println("DEBUG ZOOM: Found zoom effect for " + currentImageFileName + 
+                        System.out.println("DEBUG ZOOM: Found zoom effect for " + currentImageFileName +
                                 " at (" + effect.x + ", " + effect.y + "), size=" + effect.size);
                         break;
                     }
@@ -7307,7 +7331,7 @@ public class arabicSync {
                         // Transition code - apply zoom to current image if it has zoom effect
                         float currentScale = 1.0f + (transitionProgress * 0.3f);
                         float currentAlpha = 1.0f - transitionProgress;
-                        
+
                         // Render current image (with zoom if applicable) to temporary image
                         BufferedImage currentImageToDraw = currentImage;
                         if (zoomEffect != null && displayInfo.isActive) {
@@ -7330,12 +7354,12 @@ public class arabicSync {
                             Graphics2D g2dZoomed = zoomedImage.createGraphics();
                             g2dZoomed.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                             g2dZoomed.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-                            applyZoomToFittedImage(g2dZoomed, currentImage, width, height, 
+                            applyZoomToFittedImage(g2dZoomed, currentImage, width, height,
                                     originalImageForEffects, zoomEffect, currentQuoteLine, currentTime, lineDuration);
                             g2dZoomed.dispose();
                             currentImageToDraw = zoomedImage;
                         }
-                        
+
                         // Draw current image (with zoom if applicable) with transition
                         Graphics2D g2dTemp = (Graphics2D) g2d.create();
                         g2dTemp.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
@@ -7379,7 +7403,7 @@ public class arabicSync {
                                 }
                             }
                             // Apply zoom to current image (only the selected image gets zoom)
-                            applyZoomToFittedImage(g2d, currentImage, width, height, 
+                            applyZoomToFittedImage(g2d, currentImage, width, height,
                                     originalImageForEffects, zoomEffect, currentQuoteLine, currentTime, lineDuration);
                         } else {
                             g2d.drawImage(currentImage, 0, 0, null);
@@ -7405,7 +7429,7 @@ public class arabicSync {
                             }
                         }
                         // Apply zoom to fitted image (only the selected image gets zoom)
-                        applyZoomToFittedImage(g2d, currentImage, width, height, 
+                        applyZoomToFittedImage(g2d, currentImage, width, height,
                                 originalImageForEffects, zoomEffect, currentQuoteLine, currentTime, lineDuration);
                     } else {
                         g2d.drawImage(currentImage, 0, 0, null);
@@ -7927,12 +7951,14 @@ public class arabicSync {
         //System.out.println("DEBUG: Image " + originalWidth + "x" + originalHeight +
         //" | Is portrait: " + isPortrait);
 
-        if (isPortrait) {
-            // Portrait/tall image - scale down more
-            //System.out.println("DEBUG: Portrait image - scaling down");
-            double portraitScale = 0.6;  // Scale to 50%
+        // Use configurable scale from slider (30-100%)
+        double imageScale = config.imageSizePercent / 100.0;
 
-            scaledHeight = (int) (availableHeight * portraitScale);
+        if (isPortrait) {
+            // Portrait/tall image - scale based on user setting
+            //System.out.println("DEBUG: Portrait image - scaling down");
+
+            scaledHeight = (int) (availableHeight * imageScale);
             scaledWidth = (int) (scaledHeight * originalAspect);
 
             //System.out.println("DEBUG: Scaled to " + scaledWidth + "x" + scaledHeight);
@@ -7941,11 +7967,11 @@ public class arabicSync {
             offsetX = marginHorizontal + ((availableWidth - scaledWidth) / 2);
             offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
         } else {
-            // Landscape/wide image - normal sizing
+            // Landscape/wide image - scale based on user setting
             //System.out.println("DEBUG: Landscape image - normal sizing");
-            scaledWidth = availableWidth;
-            scaledHeight = (int) (availableWidth / originalAspect);
-            offsetX = marginHorizontal;
+            scaledWidth = (int) (availableWidth * imageScale);
+            scaledHeight = (int) (scaledWidth / originalAspect);
+            offsetX = marginHorizontal + ((availableWidth - scaledWidth) / 2);
             offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
         }
 
@@ -8516,7 +8542,7 @@ public class arabicSync {
 
         private void loadExistingImages() {
             lineImagesMap.clear(); // Clear any existing entries
-            
+
             File folder = new File(config.imagesPerLineFolder);
             if (!folder.exists() || !folder.isDirectory()) {
                 System.out.println("Images per line folder not found: " + config.imagesPerLineFolder);
@@ -8535,7 +8561,7 @@ public class arabicSync {
             int imageCount = 0;
             for (File file : allFiles) {
                 System.out.println("  Checking file: " + file.getName());
-                
+
                 if (!isSupportedImageFile(file)) {
                     System.out.println("    -> Not a supported image file");
                     continue;
@@ -8543,7 +8569,7 @@ public class arabicSync {
 
                 String fileName = file.getName().toLowerCase();
                 System.out.println("    -> Lowercase name: " + fileName);
-                
+
                 // Extract line number from filename using first digit
                 // Supports both formats: image1.jpg -> 1, or just 1.webp -> 1
                 int lineNumber = arabicSync.extractLineNumberFromImageName(fileName);
@@ -8566,7 +8592,7 @@ public class arabicSync {
                             continue;
                         }
                     }
-                    
+
                     lineImagesMap.computeIfAbsent(lineNumber, k -> new java.util.ArrayList<>()).add(file);
                     imageCount++;
                     System.out.println("    -> ✓ Assigned " + file.getName() + " to Line " + lineNumber);
@@ -8574,7 +8600,7 @@ public class arabicSync {
                     System.out.println("    -> ✗ Skipped " + file.getName() + " (invalid line number: " + lineNumber + ")");
                 }
             }
-            
+
             System.out.println("Total images loaded: " + imageCount + " for " + lineImagesMap.size() + " line(s)");
 
             // Sort images for each line by the full number (1, 11, 12, 2, 21, etc.)
@@ -8784,7 +8810,7 @@ public class arabicSync {
             private String arabicText;
             private JPanel imagesContainer;
             private java.util.List<ImageInfo> images = new java.util.ArrayList<>();
-            
+
             /**
              * Check if an image with the same number already exists
              * @param fileName the filename to check
@@ -8793,7 +8819,7 @@ public class arabicSync {
             private boolean hasImageWithNumber(String fileName) {
                 int newImageNumber = arabicSync.extractFullNumberFromImageName(fileName.toLowerCase());
                 if (newImageNumber <= 0) return false;
-                
+
                 for (ImageInfo existing : images) {
                     int existingNumber = arabicSync.extractFullNumberFromImageName(existing.originalFile.getName().toLowerCase());
                     if (existingNumber == newImageNumber) {
@@ -8827,7 +8853,7 @@ public class arabicSync {
                             System.out.println("  -> Skipped duplicate image: " + file.getName());
                             continue;
                         }
-                        
+
                         try {
                             BufferedImage img = ImageIO.read(file);
                             if (img != null) {
@@ -8911,7 +8937,7 @@ public class arabicSync {
                     addImageThumbnailDisplay(images.get(i), i);
                     System.out.println("  -> Added thumbnail " + (i + 1) + ": " + images.get(i).originalFile.getName());
                 }
-                
+
                 // Force repaint to ensure images are visible
                 imagesContainer.revalidate();
                 imagesContainer.repaint();
@@ -9023,7 +9049,7 @@ public class arabicSync {
                                     skippedCount++;
                                     continue;
                                 }
-                                
+
                                 try {
                                     BufferedImage img = ImageIO.read(file);
                                     if (img != null) {
@@ -9052,11 +9078,11 @@ public class arabicSync {
                         } else {
                             message = "No valid images were added!";
                         }
-                        
+
                         if (addedCount > 0 || skippedCount > 0) {
                             updateImagesMap();
                             JOptionPane.showMessageDialog(browseDialog, message,
-                                    skippedCount > 0 ? "Info" : "Success", 
+                                    skippedCount > 0 ? "Info" : "Success",
                                     skippedCount > 0 ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.INFORMATION_MESSAGE);
                             if (addedCount > 0) {
                                 browseDialog.dispose();
@@ -9114,7 +9140,7 @@ public class arabicSync {
                                     if (hasImageWithNumber(file.getName())) {
                                         continue; // Skip duplicate
                                     }
-                                    
+
                                     try {
                                         BufferedImage img = ImageIO.read(file);
                                         if (img != null) {
@@ -9308,7 +9334,7 @@ public class arabicSync {
                                         "Duplicate Image", JOptionPane.WARNING_MESSAGE);
                                 return false;
                             }
-                            
+
                             // Remove from source panel
                             sourcePanel.removeImage(droppedImage);
 
@@ -10512,7 +10538,7 @@ public class arabicSync {
         // Extract image number from filename for matching
         // Match by full number ONLY for exact matching (e.g., "11.webp" only matches "11.webp", not "1.webp")
         int imageFullNumber = arabicSync.extractFullNumberFromImageName(imageFileName);
-        
+
         try (BufferedReader reader = new BufferedReader(new FileReader(effectsFile))) {
             java.util.List<EffectEntry> effects = new java.util.ArrayList<>();
             String line;
@@ -10532,8 +10558,8 @@ public class arabicSync {
                     // This ensures "11.webp" only matches "11.webp", not "1.webp"
                     boolean matches = (savedFullNumber == imageFullNumber);
                     if (matches) {
-                        System.out.println("MATCHED: Line " + lineNumber + ", Looking for: " + imageFileName + 
-                                " (fullNumber=" + imageFullNumber + "), Found: " + currentImageName + 
+                        System.out.println("MATCHED: Line " + lineNumber + ", Looking for: " + imageFileName +
+                                " (fullNumber=" + imageFullNumber + "), Found: " + currentImageName +
                                 " (fullNumber=" + savedFullNumber + ")");
                     }
                     inCorrectImage = matches;
@@ -10651,10 +10677,10 @@ public class arabicSync {
     /**
      * Apply zoom transformation directly to Graphics2D when drawing a fitted image
      */
-    private void applyZoomToFittedImage(Graphics2D g2d, BufferedImage fittedImage, 
-                                       int width, int height,
-                                       BufferedImage originalImage, EffectEntry zoomEffect,
-                                       FormattedLineArabicSync currentQuoteLine, double currentTime, double lineDuration) {
+    private void applyZoomToFittedImage(Graphics2D g2d, BufferedImage fittedImage,
+                                        int width, int height,
+                                        BufferedImage originalImage, EffectEntry zoomEffect,
+                                        FormattedLineArabicSync currentQuoteLine, double currentTime, double lineDuration) {
         double timeInLine = currentTime - currentQuoteLine.startTime;
         double maxZoom = 1.0 + (zoomEffect.size / 100.0); // size 80 = 1.8x zoom
 
@@ -10666,7 +10692,7 @@ public class arabicSync {
         // Calculate zoom factor: zoom in first half, zoom out second half
         double progress = timeInLine / lineDuration;
         progress = Math.max(0, Math.min(1, progress)); // Clamp to 0-1
-        
+
         double zoomFactor;
         if (progress <= 0.5) {
             // First half: zoom IN from 1.0 to maxZoom
@@ -10675,11 +10701,11 @@ public class arabicSync {
             // Second half: zoom OUT from maxZoom back to 1.0
             zoomFactor = maxZoom - ((progress - 0.5) * 2 * (maxZoom - 1.0));
         }
-        
+
         // Debug output (only print occasionally to avoid spam)
         if (Math.random() < 0.01) { // Print 1% of the time
-            System.out.println("ZOOM: progress=" + String.format("%.2f", progress) + 
-                    ", zoomFactor=" + String.format("%.2f", zoomFactor) + 
+            System.out.println("ZOOM: progress=" + String.format("%.2f", progress) +
+                    ", zoomFactor=" + String.format("%.2f", zoomFactor) +
                     ", maxZoom=" + String.format("%.2f", maxZoom) +
                     ", target=(" + zoomEffect.x + "," + zoomEffect.y + ")");
         }
@@ -10689,15 +10715,15 @@ public class arabicSync {
         int marginVertical = 200;
         int availableWidth = width - (2 * marginHorizontal);
         int availableHeight = height - (2 * marginVertical);
-        
+
         int originalWidth = originalImage.getWidth();
         int originalHeight = originalImage.getHeight();
         double originalAspect = (double) originalWidth / originalHeight;
         boolean isPortrait = (originalHeight > originalWidth);
-        
+
         int scaledWidth, scaledHeight;
         int offsetX, offsetY;
-        
+
         if (isPortrait) {
             double portraitScale = 0.6;
             scaledHeight = (int) (availableHeight * portraitScale);
@@ -10710,50 +10736,50 @@ public class arabicSync {
             offsetX = marginHorizontal;
             offsetY = marginVertical + ((availableHeight - scaledHeight) / 2);
         }
-        
+
         // Convert zoom target from original image coords to fitted image coords
         double scaleX = (double) scaledWidth / originalWidth;
         double scaleY = (double) scaledHeight / originalHeight;
         int zoomTargetX_fitted = offsetX + (int)(zoomEffect.x * scaleX);
         int zoomTargetY_fitted = offsetY + (int)(zoomEffect.y * scaleY);
-        
+
         // First draw the blurred background (without zoom)
         BufferedImage blurred = applyGaussianBlur(originalImage, 30);
         g2d.drawImage(blurred, 0, 0, width, height, null);
-        
+
         // Darken the background
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
         g2d.setColor(Color.BLACK);
         g2d.fillRect(0, 0, width, height);
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-        
+
         // Now draw the zoomed image portion
         Graphics2D g2dZoom = (Graphics2D) g2d.create();
         g2dZoom.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g2dZoom.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g2dZoom.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        
+
         // Calculate the scaled image size with zoom
         int zoomedScaledWidth = (int)(scaledWidth * zoomFactor);
         int zoomedScaledHeight = (int)(scaledHeight * zoomFactor);
-        
+
         // Calculate offset to keep zoom target point in the same position
         // The target point should stay at zoomTargetX_fitted, zoomTargetY_fitted
         // After zooming, where will the target be?
         double targetRatioX = (double)(zoomTargetX_fitted - offsetX) / scaledWidth;
         double targetRatioY = (double)(zoomTargetY_fitted - offsetY) / scaledHeight;
-        
+
         // Where the target will be in the zoomed image
         double zoomedTargetX = offsetX + (targetRatioX * zoomedScaledWidth);
         double zoomedTargetY = offsetY + (targetRatioY * zoomedScaledHeight);
-        
+
         // Offset needed to keep target in same position
         int zoomOffsetX = offsetX - (int)(zoomedTargetX - zoomTargetX_fitted);
         int zoomOffsetY = offsetY - (int)(zoomedTargetY - zoomTargetY_fitted);
-        
+
         // Clip to image area only (not the whole frame) to prevent overflow
         g2dZoom.setClip(offsetX, offsetY, scaledWidth, scaledHeight);
-        
+
         // Draw the zoomed original image
         g2dZoom.drawImage(originalImage, zoomOffsetX, zoomOffsetY, zoomedScaledWidth, zoomedScaledHeight, null);
         g2dZoom.dispose();
@@ -10771,9 +10797,9 @@ public class arabicSync {
      * @return The zoomed image
      */
     private BufferedImage applyZoomToImage(BufferedImage image,
-                                          int zoomTargetX, int zoomTargetY,
-                                          double lineDuration, double timeInLine,
-                                          double maxZoom) {
+                                           int zoomTargetX, int zoomTargetY,
+                                           double lineDuration, double timeInLine,
+                                           double maxZoom) {
         if (image == null) return image;
 
         // Calculate animation progress (0 to 1)
@@ -10818,7 +10844,7 @@ public class arabicSync {
         // Create new image with zoomed size (make it larger to accommodate zoom)
         int resultWidth = Math.max(scaledWidth, originalWidth);
         int resultHeight = Math.max(scaledHeight, originalHeight);
-        
+
         // Adjust offsets to center the zoomed image
         offsetX += (resultWidth - scaledWidth) / 2;
         offsetY += (resultHeight - scaledHeight) / 2;
