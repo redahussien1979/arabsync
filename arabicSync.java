@@ -8215,6 +8215,15 @@ public class arabicSync {
         int imageIndex = (int)(progress * lineImages.size());
         imageIndex = Math.min(imageIndex, lineImages.size() - 1); // Prevent overflow
 
+        // Debug (only print occasionally to avoid spam)
+        if (lineImages.size() > 1 && ((int)(currentTime * 10) % 30 == 0)) {
+            System.out.println("[IMAGE SELECT] progress=" + String.format("%.2f", progress) +
+                ", imageIndex=" + imageIndex + "/" + lineImages.size() +
+                ", time=" + String.format("%.2f", currentTime) +
+                ", lineStart=" + String.format("%.2f", lineStartTime) +
+                ", lineDur=" + String.format("%.2f", lineDuration));
+        }
+
         return lineImages.get(imageIndex);
     }
 
@@ -8339,16 +8348,14 @@ public class arabicSync {
 
         if (allFiles == null) return images;
 
-        // Pattern: image1.jpg, image11.jpg, image12.jpg for line 1 (first digit is 1)
-        //          image2.jpg, image21.jpg, image22.jpg for line 2 (first digit is 2)
-        //          image82.jpg for line 8 (first digit is 8)
+        // Pattern: lineNumber_imageIndex (e.g., 1_1.jpg, 10_2.webp)
+        // Also supports old formats for backward compatibility
         java.util.List<File> matchingFiles = new java.util.ArrayList<>();
 
         for (File file : allFiles) {
             String fileName = file.getName().toLowerCase();
 
-            // Check if file matches line number pattern based on first digit
-            // Supports both formats: "image1.jpg" (old) or "1.jpg", "11.jpg" (new)
+            // Check if file matches line number pattern
             for (String ext : extensions) {
                 if (fileName.endsWith(ext)) {
                     int extractedLineNumber = extractLineNumberFromImageName(fileName);
@@ -8360,17 +8367,25 @@ public class arabicSync {
             }
         }
 
-        // Sort files by the full number: image1.jpg, image11.jpg, image12.jpg, image2.jpg, image21.jpg, etc.
+        // Sort files by image index (e.g., 10_1 before 10_2 before 10_3)
         matchingFiles.sort((f1, f2) -> {
             String name1 = f1.getName().toLowerCase();
             String name2 = f2.getName().toLowerCase();
 
-            // Extract the full number from image name (e.g., "image11.jpg" -> 11, "image1.jpg" -> 1)
             int num1 = extractFullNumberFromImageName(name1);
             int num2 = extractFullNumberFromImageName(name2);
 
             return Integer.compare(num1, num2);
         });
+
+        // Debug: Show sorted files for line 10+
+        if (lineNumber >= 10) {
+            System.out.println("[VIDEO] Loading images for line " + lineNumber + ":");
+            for (File f : matchingFiles) {
+                int idx = extractFullNumberFromImageName(f.getName().toLowerCase());
+                System.out.println("  -> " + f.getName() + " (sort index: " + idx + ")");
+            }
+        }
 
         // Load images
         for (File file : matchingFiles) {
@@ -8378,15 +8393,14 @@ public class arabicSync {
                 BufferedImage img = ImageIO.read(file);
                 if (img != null) {
                     images.add(img);
-                    //  System.out.println("✓ Loaded: " + file.getName() + " for line " + lineNumber);
                 }
             } catch (Exception e) {
                 System.out.println("✗ Error loading image: " + file.getName());
             }
         }
 
-        if (!images.isEmpty()) {
-            //   System.out.println("  Total " + images.size() + " image(s) for line " + lineNumber);
+        if (lineNumber >= 10) {
+            System.out.println("[VIDEO] Total " + images.size() + " image(s) loaded for line " + lineNumber);
         }
 
         // Cache the loaded images for faster access next time
