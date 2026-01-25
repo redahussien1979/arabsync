@@ -2534,6 +2534,18 @@ public class arabicSync {
 
     public void createVideoWithExactFormattingJigsawArabicAudioSync(String originalText, String audioFileName, String outputVideo) {
         try {
+            // DEBUG: Print single image text settings at video generation start
+            System.out.println("=== SINGLE IMAGE TEXT SETTINGS ===");
+            System.out.println("  backgroundMode: " + config.backgroundMode);
+            System.out.println("  TextSize: " + config.singleImageTextSize);
+            System.out.println("  TextColor: " + config.singleImageTextColor);
+            System.out.println("  X Position: " + config.singleImageTextXPercent + "%");
+            System.out.println("  Y Position: " + config.singleImageTextYPercent + "%");
+            System.out.println("  Outline: " + config.singleImageOutlineEnabled + " Color: " + config.singleImageOutlineColor);
+            System.out.println("  Glow: " + config.singleImageGlowEnabled + " Color: " + config.singleImageGlowColor);
+            System.out.println("  Shadow: " + config.singleImageShadowEnabled + " Offset: " + config.singleImageShadowOffset);
+            System.out.println("================================");
+
             File audioFile;
 
 // Check if batch mode is enabled - use exact path
@@ -6056,8 +6068,14 @@ public class arabicSync {
 
 
         // NORMAL MODE: Continue with original text layout
-        // Check if we're in single image mode with custom text settings
-        boolean useSingleImageTextSettings = (config.backgroundMode == 3);
+        // Check if we're in single image mode (3) or solid color mode (4) with custom text settings
+        boolean useSingleImageTextSettings = (config.backgroundMode == 3 || config.backgroundMode == 4);
+
+        // DEBUG: Print once per second to show which mode is active
+        if (currentTime % 1.0 < 0.05) {
+            System.out.println("drawArabicAudioSyncText: useSingleImageTextSettings=" + useSingleImageTextSettings +
+                " (backgroundMode=" + config.backgroundMode + ")");
+        }
 
         // Apply custom font size for single image mode
         if (useSingleImageTextSettings) {
