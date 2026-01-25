@@ -160,6 +160,18 @@ public class arabicSync {
 
         boolean enableBatchMode = false;  // ADD THIS
         String batchInputFolder = "batch_input";  // ADD THIS
+
+        // Single Image Mode Text Customization Settings
+        int singleImageTextSize = 70; // Font size for text in single image mode (20-150)
+        Color singleImageTextColor = new Color(255, 215, 0); // Gold color default
+        int singleImageTextXPercent = 50; // X position as percentage (0-100, 50=center)
+        int singleImageTextYPercent = 50; // Y position as percentage (0-100, 50=center)
+        boolean singleImageOutlineEnabled = true;
+        Color singleImageOutlineColor = Color.BLACK;
+        boolean singleImageGlowEnabled = true;
+        Color singleImageGlowColor = new Color(255, 140, 0); // Orange glow
+        boolean singleImageShadowEnabled = true;
+        int singleImageShadowOffset = 4;
     }
 
 
@@ -1155,6 +1167,15 @@ public class arabicSync {
             fallingPiecesCheck = new JCheckBox("Falling Pieces Effect", true);
             panel.add(fallingPiecesCheck, gbc);
 
+            // === SINGLE IMAGE TEXT SETTINGS BUTTON ===
+            gbc.gridx = 4;
+            gbc.gridy = 9;
+            JButton singleImageTextBtn = new JButton("Text Settings + Preview");
+            singleImageTextBtn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+            singleImageTextBtn.setForeground(new Color(0, 100, 180));
+            singleImageTextBtn.addActionListener(e -> openSingleImageTextSettingsDialog());
+            panel.add(singleImageTextBtn, gbc);
+
             // === BATCH MODE SECTION ===
             gbc.gridx = 0;
             gbc.gridy = 10;
@@ -1551,6 +1572,471 @@ public class arabicSync {
 
             JScrollPane scrollPane = new JScrollPane(mainPanel);
             scrollPane.setBorder(null);
+
+            dialog.add(scrollPane, BorderLayout.CENTER);
+            dialog.add(buttonPanel, BorderLayout.SOUTH);
+
+            dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowClosing(java.awt.event.WindowEvent e) {
+                    previewTimer.stop();
+                }
+            });
+
+            dialog.setVisible(true);
+        }
+
+        private void openSingleImageTextSettingsDialog() {
+            JDialog dialog = new JDialog(this, "Single Image Text Settings + Preview", true);
+            dialog.setSize(1000, 800);
+            dialog.setLocationRelativeTo(this);
+            dialog.setLayout(new BorderLayout(10, 10));
+
+            // Store reference to loaded image for preview
+            final BufferedImage[] previewImage = {null};
+            final String[] sampleArabicText = {"نص تجريبي للمعاينة"};
+            final String[] sampleEnglishText = {"Sample Preview Text"};
+
+            // Try to load Arabic text from file
+            try {
+                java.util.List<String> lines = java.nio.file.Files.readAllLines(
+                    java.nio.file.Paths.get(config.arabicFilePath), java.nio.charset.StandardCharsets.UTF_8);
+                for (String line : lines) {
+                    line = line.trim();
+                    if (!line.isEmpty() && !line.startsWith("#")) {
+                        String[] parts = line.split("--");
+                        sampleArabicText[0] = parts[0].trim();
+                        if (parts.length > 1) {
+                            sampleEnglishText[0] = parts[1].trim();
+                        }
+                        break;
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            // Try to load the specific background image or first image from folder
+            try {
+                if (!config.specificBackgroundImage.isEmpty()) {
+                    previewImage[0] = ImageIO.read(new File(config.specificBackgroundImage));
+                } else {
+                    File folder = new File(config.imageFolder1);
+                    if (folder.exists() && folder.isDirectory()) {
+                        File[] imageFiles = folder.listFiles((dir, name) -> {
+                            String lower = name.toLowerCase();
+                            return lower.endsWith(".jpg") || lower.endsWith(".jpeg") ||
+                                   lower.endsWith(".png") || lower.endsWith(".jfif");
+                        });
+                        if (imageFiles != null && imageFiles.length > 0) {
+                            previewImage[0] = ImageIO.read(imageFiles[0]);
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            JPanel mainPanel = new JPanel();
+            mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+            mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+            // === TEXT SIZE SECTION ===
+            JPanel sizePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            sizePanel.setBorder(BorderFactory.createTitledBorder("Text Size"));
+            JSlider textSizeSlider = new JSlider(JSlider.HORIZONTAL, 20, 150, config.singleImageTextSize);
+            textSizeSlider.setMajorTickSpacing(20);
+            textSizeSlider.setMinorTickSpacing(10);
+            textSizeSlider.setPaintTicks(true);
+            textSizeSlider.setPaintLabels(true);
+            textSizeSlider.setPreferredSize(new Dimension(400, 50));
+            JLabel textSizeLabel = new JLabel(config.singleImageTextSize + " pt");
+            textSizeSlider.addChangeListener(e -> {
+                config.singleImageTextSize = textSizeSlider.getValue();
+                textSizeLabel.setText(config.singleImageTextSize + " pt");
+            });
+            sizePanel.add(textSizeSlider);
+            sizePanel.add(textSizeLabel);
+            mainPanel.add(sizePanel);
+
+            // === COLOR SECTION ===
+            JPanel colorPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            colorPanel.setBorder(BorderFactory.createTitledBorder("Text Color"));
+            JButton textColorBtn = new JButton("Choose Text Color");
+            JPanel textColorPreview = new JPanel();
+            textColorPreview.setBackground(config.singleImageTextColor);
+            textColorPreview.setPreferredSize(new Dimension(60, 30));
+            textColorPreview.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+            textColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Choose Text Color", config.singleImageTextColor);
+                if (chosen != null) {
+                    config.singleImageTextColor = chosen;
+                    textColorPreview.setBackground(chosen);
+                }
+            });
+            colorPanel.add(textColorBtn);
+            colorPanel.add(textColorPreview);
+
+            // Outline options
+            JCheckBox outlineCheck = new JCheckBox("Enable Outline", config.singleImageOutlineEnabled);
+            JButton outlineColorBtn = new JButton("Outline Color");
+            JPanel outlineColorPreview = new JPanel();
+            outlineColorPreview.setBackground(config.singleImageOutlineColor);
+            outlineColorPreview.setPreferredSize(new Dimension(40, 25));
+            outlineColorPreview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            outlineCheck.addActionListener(e -> config.singleImageOutlineEnabled = outlineCheck.isSelected());
+            outlineColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Choose Outline Color", config.singleImageOutlineColor);
+                if (chosen != null) {
+                    config.singleImageOutlineColor = chosen;
+                    outlineColorPreview.setBackground(chosen);
+                }
+            });
+            colorPanel.add(outlineCheck);
+            colorPanel.add(outlineColorBtn);
+            colorPanel.add(outlineColorPreview);
+            mainPanel.add(colorPanel);
+
+            // === GLOW & SHADOW SECTION ===
+            JPanel effectsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            effectsPanel.setBorder(BorderFactory.createTitledBorder("Glow & Shadow Effects"));
+
+            JCheckBox glowCheck = new JCheckBox("Enable Glow", config.singleImageGlowEnabled);
+            glowCheck.addActionListener(e -> config.singleImageGlowEnabled = glowCheck.isSelected());
+            JButton glowColorBtn = new JButton("Glow Color");
+            JPanel glowColorPreview = new JPanel();
+            glowColorPreview.setBackground(config.singleImageGlowColor);
+            glowColorPreview.setPreferredSize(new Dimension(40, 25));
+            glowColorPreview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            glowColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Choose Glow Color", config.singleImageGlowColor);
+                if (chosen != null) {
+                    config.singleImageGlowColor = chosen;
+                    glowColorPreview.setBackground(chosen);
+                }
+            });
+
+            JCheckBox shadowCheck = new JCheckBox("Enable Shadow", config.singleImageShadowEnabled);
+            shadowCheck.addActionListener(e -> config.singleImageShadowEnabled = shadowCheck.isSelected());
+            JSpinner shadowOffsetSpinner = new JSpinner(new SpinnerNumberModel(config.singleImageShadowOffset, 1, 15, 1));
+            shadowOffsetSpinner.addChangeListener(e -> config.singleImageShadowOffset = (int) shadowOffsetSpinner.getValue());
+
+            effectsPanel.add(glowCheck);
+            effectsPanel.add(glowColorBtn);
+            effectsPanel.add(glowColorPreview);
+            effectsPanel.add(Box.createHorizontalStrut(20));
+            effectsPanel.add(shadowCheck);
+            effectsPanel.add(new JLabel("Offset:"));
+            effectsPanel.add(shadowOffsetSpinner);
+            mainPanel.add(effectsPanel);
+
+            // === POSITION SECTION ===
+            JPanel positionPanel = new JPanel(new GridBagLayout());
+            positionPanel.setBorder(BorderFactory.createTitledBorder("Text Position (Drag sliders or click on preview)"));
+            GridBagConstraints pgbc = new GridBagConstraints();
+            pgbc.insets = new Insets(5, 5, 5, 5);
+            pgbc.anchor = GridBagConstraints.WEST;
+
+            // X Position
+            pgbc.gridx = 0; pgbc.gridy = 0;
+            positionPanel.add(new JLabel("X Position:"), pgbc);
+            pgbc.gridx = 1; pgbc.fill = GridBagConstraints.HORIZONTAL; pgbc.weightx = 1.0;
+            JSlider xPosSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, config.singleImageTextXPercent);
+            xPosSlider.setMajorTickSpacing(25);
+            xPosSlider.setMinorTickSpacing(5);
+            xPosSlider.setPaintTicks(true);
+            xPosSlider.setPaintLabels(true);
+            xPosSlider.setPreferredSize(new Dimension(350, 50));
+            JLabel xPosLabel = new JLabel(config.singleImageTextXPercent + "% (Left=0, Center=50, Right=100)");
+            xPosSlider.addChangeListener(e -> {
+                config.singleImageTextXPercent = xPosSlider.getValue();
+                xPosLabel.setText(config.singleImageTextXPercent + "% (Left=0, Center=50, Right=100)");
+            });
+            positionPanel.add(xPosSlider, pgbc);
+            pgbc.gridx = 2; pgbc.fill = GridBagConstraints.NONE; pgbc.weightx = 0;
+            positionPanel.add(xPosLabel, pgbc);
+
+            // Y Position
+            pgbc.gridx = 0; pgbc.gridy = 1;
+            positionPanel.add(new JLabel("Y Position:"), pgbc);
+            pgbc.gridx = 1; pgbc.fill = GridBagConstraints.HORIZONTAL; pgbc.weightx = 1.0;
+            JSlider yPosSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, config.singleImageTextYPercent);
+            yPosSlider.setMajorTickSpacing(25);
+            yPosSlider.setMinorTickSpacing(5);
+            yPosSlider.setPaintTicks(true);
+            yPosSlider.setPaintLabels(true);
+            yPosSlider.setPreferredSize(new Dimension(350, 50));
+            JLabel yPosLabel = new JLabel(config.singleImageTextYPercent + "% (Top=0, Center=50, Bottom=100)");
+            yPosSlider.addChangeListener(e -> {
+                config.singleImageTextYPercent = yPosSlider.getValue();
+                yPosLabel.setText(config.singleImageTextYPercent + "% (Top=0, Center=50, Bottom=100)");
+            });
+            positionPanel.add(yPosSlider, pgbc);
+            pgbc.gridx = 2; pgbc.fill = GridBagConstraints.NONE; pgbc.weightx = 0;
+            positionPanel.add(yPosLabel, pgbc);
+
+            mainPanel.add(positionPanel);
+
+            // === LIVE PREVIEW PANEL ===
+            JPanel previewContainer = new JPanel(new BorderLayout());
+            previewContainer.setBorder(BorderFactory.createTitledBorder("Live Preview (Click to set text position)"));
+
+            JPanel previewPanel = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    Graphics2D g2d = (Graphics2D) g;
+                    g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                    g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+
+                    int panelWidth = getWidth();
+                    int panelHeight = getHeight();
+
+                    // Calculate aspect ratio for 1080x1920 video (9:16)
+                    double targetAspect = 1080.0 / 1920.0;
+                    int previewWidth, previewHeight;
+                    int offsetX = 0, offsetY = 0;
+
+                    if ((double) panelWidth / panelHeight > targetAspect) {
+                        previewHeight = panelHeight;
+                        previewWidth = (int) (panelHeight * targetAspect);
+                        offsetX = (panelWidth - previewWidth) / 2;
+                    } else {
+                        previewWidth = panelWidth;
+                        previewHeight = (int) (panelWidth / targetAspect);
+                        offsetY = (panelHeight - previewHeight) / 2;
+                    }
+
+                    // Draw background
+                    g2d.setColor(Color.DARK_GRAY);
+                    g2d.fillRect(0, 0, panelWidth, panelHeight);
+
+                    // Draw image or placeholder
+                    if (previewImage[0] != null) {
+                        g2d.drawImage(previewImage[0], offsetX, offsetY, previewWidth, previewHeight, null);
+                    } else {
+                        g2d.setColor(new Color(40, 40, 50));
+                        g2d.fillRect(offsetX, offsetY, previewWidth, previewHeight);
+                        g2d.setColor(Color.GRAY);
+                        g2d.setFont(new Font("Arial", Font.ITALIC, 14));
+                        String msg = "No image loaded - select Specific Background Image";
+                        FontMetrics fm = g2d.getFontMetrics();
+                        g2d.drawString(msg, offsetX + (previewWidth - fm.stringWidth(msg)) / 2, offsetY + previewHeight / 2);
+                    }
+
+                    // Draw border around preview area
+                    g2d.setColor(Color.YELLOW);
+                    g2d.setStroke(new BasicStroke(2));
+                    g2d.drawRect(offsetX, offsetY, previewWidth - 1, previewHeight - 1);
+
+                    // Calculate text position
+                    int textX = offsetX + (int) (previewWidth * config.singleImageTextXPercent / 100.0);
+                    int textY = offsetY + (int) (previewHeight * config.singleImageTextYPercent / 100.0);
+
+                    // Scale font size for preview (preview is smaller than actual 1920 height)
+                    float scaleFactor = previewHeight / 1920.0f;
+                    int scaledFontSize = Math.max(10, (int) (config.singleImageTextSize * scaleFactor * 1.5f));
+
+                    Font previewFont = new Font("Arial", Font.BOLD, scaledFontSize);
+                    g2d.setFont(previewFont);
+                    FontMetrics fm = g2d.getFontMetrics();
+
+                    String arabicText = sampleArabicText[0];
+                    String englishText = sampleEnglishText[0];
+
+                    // Calculate centered positions
+                    int arabicWidth = fm.stringWidth(arabicText);
+                    int englishWidth = fm.stringWidth(englishText);
+                    int arabicX = textX - arabicWidth / 2;
+                    int englishX = textX - englishWidth / 2;
+                    int arabicY = textY;
+                    int englishY = textY + fm.getHeight() + 5;
+
+                    // Draw glow effect
+                    if (config.singleImageGlowEnabled) {
+                        g2d.setColor(new Color(config.singleImageGlowColor.getRed(),
+                                config.singleImageGlowColor.getGreen(),
+                                config.singleImageGlowColor.getBlue(), 80));
+                        for (int i = 6; i > 0; i -= 2) {
+                            g2d.drawString(arabicText, arabicX - i, arabicY);
+                            g2d.drawString(arabicText, arabicX + i, arabicY);
+                            g2d.drawString(arabicText, arabicX, arabicY - i);
+                            g2d.drawString(arabicText, arabicX, arabicY + i);
+                        }
+                    }
+
+                    // Draw shadow
+                    if (config.singleImageShadowEnabled) {
+                        int shadowOff = Math.max(1, (int)(config.singleImageShadowOffset * scaleFactor));
+                        g2d.setColor(new Color(0, 0, 0, 150));
+                        g2d.drawString(arabicText, arabicX + shadowOff, arabicY + shadowOff);
+                        g2d.drawString(englishText, englishX + shadowOff, englishY + shadowOff);
+                    }
+
+                    // Draw outline
+                    if (config.singleImageOutlineEnabled) {
+                        g2d.setColor(config.singleImageOutlineColor);
+                        for (int ox = -2; ox <= 2; ox++) {
+                            for (int oy = -2; oy <= 2; oy++) {
+                                if (ox != 0 || oy != 0) {
+                                    g2d.drawString(arabicText, arabicX + ox, arabicY + oy);
+                                    g2d.drawString(englishText, englishX + ox, englishY + oy);
+                                }
+                            }
+                        }
+                    }
+
+                    // Draw main text
+                    g2d.setColor(config.singleImageTextColor);
+                    g2d.drawString(arabicText, arabicX, arabicY);
+
+                    // Draw English text slightly smaller
+                    Font englishFont = previewFont.deriveFont(previewFont.getSize() * 0.7f);
+                    g2d.setFont(englishFont);
+                    g2d.setColor(Color.WHITE);
+                    englishWidth = g2d.getFontMetrics().stringWidth(englishText);
+                    englishX = textX - englishWidth / 2;
+                    g2d.drawString(englishText, englishX, englishY);
+
+                    // Draw crosshair at text position
+                    g2d.setColor(new Color(255, 0, 0, 150));
+                    g2d.setStroke(new BasicStroke(1));
+                    g2d.drawLine(textX - 15, textY, textX + 15, textY);
+                    g2d.drawLine(textX, textY - 15, textX, textY + 15);
+
+                    // Store offset info for click handling
+                    putClientProperty("offsetX", offsetX);
+                    putClientProperty("offsetY", offsetY);
+                    putClientProperty("previewWidth", previewWidth);
+                    putClientProperty("previewHeight", previewHeight);
+                }
+            };
+
+            previewPanel.setPreferredSize(new Dimension(400, 500));
+            previewPanel.setBackground(Color.DARK_GRAY);
+
+            // Add mouse listener to set position by clicking
+            previewPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    Integer offsetX = (Integer) previewPanel.getClientProperty("offsetX");
+                    Integer offsetY = (Integer) previewPanel.getClientProperty("offsetY");
+                    Integer previewWidth = (Integer) previewPanel.getClientProperty("previewWidth");
+                    Integer previewHeight = (Integer) previewPanel.getClientProperty("previewHeight");
+
+                    if (offsetX != null && offsetY != null && previewWidth != null && previewHeight != null) {
+                        int clickX = e.getX() - offsetX;
+                        int clickY = e.getY() - offsetY;
+
+                        if (clickX >= 0 && clickX < previewWidth && clickY >= 0 && clickY < previewHeight) {
+                            int newXPercent = (int) (clickX * 100.0 / previewWidth);
+                            int newYPercent = (int) (clickY * 100.0 / previewHeight);
+
+                            config.singleImageTextXPercent = Math.max(0, Math.min(100, newXPercent));
+                            config.singleImageTextYPercent = Math.max(0, Math.min(100, newYPercent));
+
+                            xPosSlider.setValue(config.singleImageTextXPercent);
+                            yPosSlider.setValue(config.singleImageTextYPercent);
+                        }
+                    }
+                }
+            });
+
+            // Add mouse drag support
+            previewPanel.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+                @Override
+                public void mouseDragged(java.awt.event.MouseEvent e) {
+                    Integer offsetX = (Integer) previewPanel.getClientProperty("offsetX");
+                    Integer offsetY = (Integer) previewPanel.getClientProperty("offsetY");
+                    Integer previewWidth = (Integer) previewPanel.getClientProperty("previewWidth");
+                    Integer previewHeight = (Integer) previewPanel.getClientProperty("previewHeight");
+
+                    if (offsetX != null && offsetY != null && previewWidth != null && previewHeight != null) {
+                        int clickX = e.getX() - offsetX;
+                        int clickY = e.getY() - offsetY;
+
+                        int newXPercent = (int) (clickX * 100.0 / previewWidth);
+                        int newYPercent = (int) (clickY * 100.0 / previewHeight);
+
+                        config.singleImageTextXPercent = Math.max(0, Math.min(100, newXPercent));
+                        config.singleImageTextYPercent = Math.max(0, Math.min(100, newYPercent));
+
+                        xPosSlider.setValue(config.singleImageTextXPercent);
+                        yPosSlider.setValue(config.singleImageTextYPercent);
+                    }
+                }
+            });
+
+            previewContainer.add(previewPanel, BorderLayout.CENTER);
+
+            // Add image selection button
+            JPanel imageSelectPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JButton selectImageBtn = new JButton("Select Preview Image");
+            selectImageBtn.addActionListener(e -> {
+                ThumbnailFileChooser chooser = new ThumbnailFileChooser();
+                chooser.setCurrentDirectory(new File(config.imageFolder1.isEmpty() ? "." : config.imageFolder1));
+                chooser.setDialogTitle("Select Image for Preview");
+                chooser.setFileFilter(new FileNameExtensionFilter("Image Files", "jpg", "jpeg", "png", "jfif", "bmp"));
+                if (chooser.showOpenDialog(dialog) == JFileChooser.APPROVE_OPTION) {
+                    try {
+                        previewImage[0] = ImageIO.read(chooser.getSelectedFile());
+                        previewPanel.repaint();
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(dialog, "Error loading image: " + ex.getMessage());
+                    }
+                }
+            });
+            imageSelectPanel.add(selectImageBtn);
+
+            JLabel imageHint = new JLabel("(Click/drag on preview to position text)");
+            imageHint.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 11));
+            imageHint.setForeground(Color.GRAY);
+            imageSelectPanel.add(imageHint);
+            previewContainer.add(imageSelectPanel, BorderLayout.NORTH);
+
+            mainPanel.add(previewContainer);
+
+            // Timer for live preview updates
+            javax.swing.Timer previewTimer = new javax.swing.Timer(50, e -> previewPanel.repaint());
+            previewTimer.start();
+
+            // === BUTTONS ===
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            JButton resetBtn = new JButton("Reset to Defaults");
+            resetBtn.addActionListener(e -> {
+                config.singleImageTextSize = 70;
+                config.singleImageTextColor = new Color(255, 215, 0);
+                config.singleImageTextXPercent = 50;
+                config.singleImageTextYPercent = 50;
+                config.singleImageOutlineEnabled = true;
+                config.singleImageOutlineColor = Color.BLACK;
+                config.singleImageGlowEnabled = true;
+                config.singleImageGlowColor = new Color(255, 140, 0);
+                config.singleImageShadowEnabled = true;
+                config.singleImageShadowOffset = 4;
+
+                // Update UI
+                textSizeSlider.setValue(70);
+                textColorPreview.setBackground(config.singleImageTextColor);
+                xPosSlider.setValue(50);
+                yPosSlider.setValue(50);
+                outlineCheck.setSelected(true);
+                outlineColorPreview.setBackground(Color.BLACK);
+                glowCheck.setSelected(true);
+                glowColorPreview.setBackground(new Color(255, 140, 0));
+                shadowCheck.setSelected(true);
+                shadowOffsetSpinner.setValue(4);
+            });
+
+            JButton closeBtn = new JButton("Close");
+            closeBtn.addActionListener(e -> {
+                previewTimer.stop();
+                dialog.dispose();
+            });
+
+            buttonPanel.add(resetBtn);
+            buttonPanel.add(closeBtn);
+
+            JScrollPane scrollPane = new JScrollPane(mainPanel);
+            scrollPane.setBorder(null);
+            scrollPane.getVerticalScrollBar().setUnitIncrement(16);
 
             dialog.add(scrollPane, BorderLayout.CENTER);
             dialog.add(buttonPanel, BorderLayout.SOUTH);
@@ -5476,6 +5962,15 @@ public class arabicSync {
 
 
         // NORMAL MODE: Continue with original text layout
+        // Check if we're in single image mode with custom text settings
+        boolean useSingleImageTextSettings = (config.backgroundMode == 3);
+
+        // Apply custom font size for single image mode
+        if (useSingleImageTextSettings) {
+            displayArabicFont = displayArabicFont.deriveFont((float) config.singleImageTextSize);
+            displayEnglishFont = displayEnglishFont.deriveFont((float) (config.singleImageTextSize * 0.6f));
+        }
+
         FontMetrics englishFm = g2d.getFontMetrics(displayEnglishFont);
         FontMetrics arabicFm = g2d.getFontMetrics(displayArabicFont);
 
@@ -5498,8 +5993,17 @@ public class arabicSync {
 
         int totalTextHeight = arabicTotalHeight + gapBetweenTexts + englishTotalHeight;
 
-        // Starting positions - center everything vertically
-        int startY = (height - totalTextHeight) / 2;
+        // Starting positions - use custom position for single image mode
+        int startY;
+        if (useSingleImageTextSettings) {
+            // Calculate Y position based on percentage (centered on the text block)
+            int yPos = (int) (height * config.singleImageTextYPercent / 100.0);
+            startY = yPos - totalTextHeight / 2;
+            // Clamp to valid range
+            startY = Math.max(arabicFm.getAscent(), Math.min(startY, height - totalTextHeight - 20));
+        } else {
+            startY = (height - totalTextHeight) / 2;
+        }
         int arabicStartY = startY + arabicFm.getAscent();
         int englishStartY = startY + arabicTotalHeight + gapBetweenTexts + englishFm.getAscent();
 
@@ -5531,8 +6035,18 @@ public class arabicSync {
         int bgWidth = maxActualWidth + (2 * horizontalPadding);
         int bgHeight = totalTextHeight + topPadding + bottomPadding;
 
-        // Center the background horizontally
-        int bgX = (width - bgWidth) / 2;
+        // Center the background horizontally (with custom X offset for single image mode)
+        int bgX;
+        int textXOffset = 0;
+        if (useSingleImageTextSettings) {
+            // Calculate X position based on percentage
+            int centerX = (int) (width * config.singleImageTextXPercent / 100.0);
+            bgX = centerX - bgWidth / 2;
+            bgX = Math.max(5, Math.min(bgX, width - bgWidth - 5)); // Clamp to screen
+            textXOffset = bgX - (width - bgWidth) / 2; // Calculate offset from center
+        } else {
+            bgX = (width - bgWidth) / 2;
+        }
 
         // Position background vertically to encompass all text
         int bgY = arabicStartY - arabicFm.getAscent() - topPadding;
@@ -5551,6 +6065,9 @@ public class arabicSync {
         int baseArabicIndex = currentLine.wordStartIndex;
         int processedWords = 0;
 
+        // Adjust margin for single image mode to account for X offset
+        int effectiveMargin = margin + textXOffset;
+
         for (int lineIdx = 0; lineIdx < arabicWrappedLines.size(); lineIdx++) {
             String arabicLine = arabicWrappedLines.get(lineIdx);
             int y = arabicStartY + (lineIdx * arabicLineHeight);
@@ -5558,8 +6075,14 @@ public class arabicSync {
             // Calculate absolute position for this line's first word
             int absoluteLineStartIndex = baseArabicIndex + processedWords;
 
-            drawArabicCenteredLineWithWordHighlight(g2d, arabicLine, absoluteLineStartIndex,
-                    displayInfo.isActive, margin, y, textWidth, displayArabicFont, arabicFm, currentTime);
+            // For single image mode, use custom drawing with configured colors
+            if (useSingleImageTextSettings) {
+                drawSingleImageArabicText(g2d, arabicLine, absoluteLineStartIndex,
+                        displayInfo.isActive, effectiveMargin, y, textWidth, displayArabicFont, arabicFm, currentTime);
+            } else {
+                drawArabicCenteredLineWithWordHighlight(g2d, arabicLine, absoluteLineStartIndex,
+                        displayInfo.isActive, margin, y, textWidth, displayArabicFont, arabicFm, currentTime);
+            }
 
             // Track processed words accurately
             String[] lineWords = arabicLine.split("\\s+");
@@ -5571,9 +6094,133 @@ public class arabicSync {
             String englishLine = englishWrappedLines.get(lineIdx);
             int y = englishStartY + (lineIdx * englishLineHeight);
 
-            // English text - static, white, centered
-            drawEnglishStaticCenteredLine(g2d, englishLine, margin, y, textWidth, displayEnglishFont, englishFm, currentTime);
+            // English text - static, white, centered (with offset for single image mode)
+            if (useSingleImageTextSettings) {
+                drawSingleImageEnglishText(g2d, englishLine, effectiveMargin, y, textWidth, displayEnglishFont, englishFm);
+            } else {
+                drawEnglishStaticCenteredLine(g2d, englishLine, margin, y, textWidth, displayEnglishFont, englishFm, currentTime);
+            }
         }
+    }
+
+    // Custom text drawing for single image mode with user-configured colors and effects
+    private void drawSingleImageArabicText(Graphics2D g2d, String line, int lineStartWordIndex,
+                                           boolean isQuoteActive, int x, int y, int lineWidth,
+                                           Font font, FontMetrics fm, double currentTime) {
+        String[] words = line.split("\\s+");
+        String fullLine = String.join(" ", words);
+        int totalLineWidth = fm.stringWidth(fullLine);
+        int startX = x + (lineWidth - totalLineWidth) / 2;
+
+        // Get current spoken word index for highlighting
+        int currentGlobalWordIndex = getCurrentArabicSpokenWordIndex(currentTime);
+
+        g2d.setFont(font);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+        // Calculate word positions (RTL)
+        int[] wordPositions = new int[words.length];
+        int[] wordWidths = new int[words.length];
+        int tempX = startX;
+        for (int i = words.length - 1; i >= 0; i--) {
+            wordWidths[i] = fm.stringWidth(words[i]);
+            wordPositions[i] = tempX;
+            tempX += wordWidths[i];
+            if (i > 0) tempX += fm.stringWidth(" ");
+        }
+
+        // Draw each word
+        for (int i = 0; i < words.length; i++) {
+            String word = words[i];
+            int globalWordIndex = lineStartWordIndex + i;
+            boolean isCurrentWord = isQuoteActive && (globalWordIndex == currentGlobalWordIndex);
+            int wordX = wordPositions[i];
+            int wordY = y;
+
+            // Apply shake effect for current word
+            if (isCurrentWord) {
+                int[] shakeOffset = calculateShakeOffset(currentTime, 4);
+                wordX += shakeOffset[0];
+                wordY += shakeOffset[1];
+            }
+
+            // Draw glow effect (using configured color)
+            if (config.singleImageGlowEnabled) {
+                Color glowColor = config.singleImageGlowColor;
+                int alpha = isCurrentWord ? 150 : 80;
+                g2d.setColor(new Color(glowColor.getRed(), glowColor.getGreen(), glowColor.getBlue(), alpha));
+                for (int offset = 1; offset <= (isCurrentWord ? 5 : 3); offset++) {
+                    g2d.drawString(word, wordX - offset, wordY);
+                    g2d.drawString(word, wordX + offset, wordY);
+                    g2d.drawString(word, wordX, wordY - offset);
+                    g2d.drawString(word, wordX, wordY + offset);
+                }
+            }
+
+            // Draw shadow (using configured settings)
+            if (config.singleImageShadowEnabled) {
+                g2d.setColor(new Color(0, 0, 0, 150));
+                g2d.drawString(word, wordX + config.singleImageShadowOffset, wordY + config.singleImageShadowOffset);
+            }
+
+            // Draw outline (using configured color)
+            if (config.singleImageOutlineEnabled) {
+                g2d.setColor(config.singleImageOutlineColor);
+                for (int ox = -2; ox <= 2; ox++) {
+                    for (int oy = -2; oy <= 2; oy++) {
+                        if (ox != 0 || oy != 0) {
+                            g2d.drawString(word, wordX + ox, wordY + oy);
+                        }
+                    }
+                }
+            }
+
+            // Draw main text (using configured color, brighter for current word)
+            Color textColor = config.singleImageTextColor;
+            if (isCurrentWord) {
+                // Make it brighter/whiter for current word
+                int r = Math.min(255, textColor.getRed() + 50);
+                int g = Math.min(255, textColor.getGreen() + 50);
+                int b = Math.min(255, textColor.getBlue() + 50);
+                g2d.setColor(new Color(r, g, b));
+            } else {
+                g2d.setColor(textColor);
+            }
+            g2d.drawString(word, wordX, wordY);
+        }
+    }
+
+    private void drawSingleImageEnglishText(Graphics2D g2d, String line, int x, int y, int lineWidth,
+                                            Font font, FontMetrics fm) {
+        int totalLineWidth = fm.stringWidth(line);
+        int startX = x + (lineWidth - totalLineWidth) / 2;
+
+        g2d.setFont(font);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+        // Draw shadow
+        if (config.singleImageShadowEnabled) {
+            g2d.setColor(new Color(0, 0, 0, 150));
+            g2d.drawString(line, startX + config.singleImageShadowOffset, y + config.singleImageShadowOffset);
+        }
+
+        // Draw outline
+        if (config.singleImageOutlineEnabled) {
+            g2d.setColor(config.singleImageOutlineColor);
+            for (int ox = -1; ox <= 1; ox++) {
+                for (int oy = -1; oy <= 1; oy++) {
+                    if (ox != 0 || oy != 0) {
+                        g2d.drawString(line, startX + ox, y + oy);
+                    }
+                }
+            }
+        }
+
+        // Draw main text in white
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(line, startX, y);
     }
 
 
