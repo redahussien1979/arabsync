@@ -1831,8 +1831,9 @@ public class arabicSync {
                     g2d.setClip(offsetX, offsetY, previewWidth, previewHeight);
 
                     // Scale font size for preview (preview is smaller than actual 1920 height)
+                    // Use exact scaling to match video output
                     float scaleFactor = previewHeight / 1920.0f;
-                    int scaledFontSize = Math.max(8, (int) (config.singleImageTextSize * scaleFactor * 1.2f));
+                    int scaledFontSize = Math.max(8, (int) (config.singleImageTextSize * scaleFactor));
 
                     Font previewFont = new Font("Arial", Font.BOLD, scaledFontSize);
                     g2d.setFont(previewFont);
@@ -1901,7 +1902,7 @@ public class arabicSync {
 
                         // Draw shadow
                         if (config.singleImageShadowEnabled) {
-                            int shadowOff = Math.max(1, (int)(config.singleImageShadowOffset * scaleFactor * 0.5));
+                            int shadowOff = Math.max(1, (int)(config.singleImageShadowOffset * scaleFactor));
                             g2d.setColor(new Color(0, 0, 0, 150));
                             g2d.drawString(line, lineX + shadowOff, currentY + shadowOff);
                         }
@@ -1935,7 +1936,7 @@ public class arabicSync {
 
                         // Draw shadow for English
                         if (config.singleImageShadowEnabled) {
-                            int shadowOff = Math.max(1, (int)(config.singleImageShadowOffset * scaleFactor * 0.5));
+                            int shadowOff = Math.max(1, (int)(config.singleImageShadowOffset * scaleFactor));
                             g2d.setColor(new Color(0, 0, 0, 150));
                             g2d.drawString(line, lineX + shadowOff, currentY + shadowOff);
                         }
