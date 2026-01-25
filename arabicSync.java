@@ -5595,6 +5595,9 @@ public class arabicSync {
 
 
         if (config.removeTextAndBackground) {
+            // Check if we should use custom text settings for single image mode
+            boolean useCustomSettings = (config.backgroundMode == 3 || config.backgroundMode == 4);
+
             // SPECIAL MODE: Show word groups synced with audio timing
             if (currentWordTimings != null && currentWordTimings.length > 0 && displayInfo.isActive) {
 
@@ -5609,27 +5612,6 @@ public class arabicSync {
                     int phraseStartWordIdx = currentQuoteLine.wordStartIndex;
                     String displayPhrase = null;
                     int displayPhraseStartIdx = -1;
-
-                    /*for (int phraseIdx = 0; phraseIdx < commaPhrases.length; phraseIdx++) {
-                        String phrase = commaPhrases[phraseIdx].trim();
-                        if (phrase.isEmpty()) continue;
-
-                        String[] phraseWords = phrase.split("\\s+");
-                        int phraseEndWordIdx = phraseStartWordIdx + phraseWords.length - 1;
-
-                        if (phraseStartWordIdx < currentWordTimings.length && phraseEndWordIdx < currentWordTimings.length) {
-                            double phraseStartTime = currentWordTimings[phraseStartWordIdx].startTime;
-                            double phraseEndTime = currentWordTimings[phraseEndWordIdx].endTime;
-
-                            if (currentTime >= phraseStartTime && currentTime <= phraseEndTime) {
-                                displayPhrase = phrase;
-                                displayPhraseStartIdx = phraseStartWordIdx;
-                                break;
-                            }
-                        }
-
-                        phraseStartWordIdx += phraseWords.length;
-                    }*/
 
                     for (int phraseIdx = 0; phraseIdx < commaPhrases.length; phraseIdx++) {
                         String phrase = commaPhrases[phraseIdx].trim();
@@ -5663,8 +5645,9 @@ public class arabicSync {
 
 
                     if (displayPhrase != null && !displayPhrase.isEmpty()) {
-                        // Use larger font for centered display
-                        Font centeredHighlightFont = displayArabicFont.deriveFont(Font.BOLD, 120f);
+                        // Use custom font size if in single image mode, otherwise default 120
+                        float fontSize = useCustomSettings ? (float) config.singleImageTextSize : 120f;
+                        Font centeredHighlightFont = displayArabicFont.deriveFont(Font.BOLD, fontSize);
                         FontMetrics fm = g2d.getFontMetrics(centeredHighlightFont);
 
                         // Wrap text if too wide
@@ -5672,7 +5655,23 @@ public class arabicSync {
                         java.util.List<String> wrappedLines = wrapTextToLines(displayPhrase, fm, maxWidth);
 
                         int totalHeight = wrappedLines.size() * (int) (fm.getHeight() * 1.1);
-                        int startY = (height - totalHeight) / 2;
+
+                        // Use custom Y position if in single image mode
+                        int startY;
+                        if (useCustomSettings) {
+                            int yPos = (int) (height * config.singleImageTextYPercent / 100.0);
+                            startY = yPos - totalHeight / 2;
+                            startY = Math.max(fm.getAscent(), Math.min(startY, height - totalHeight - 20));
+                        } else {
+                            startY = (height - totalHeight) / 2;
+                        }
+
+                        // Calculate X offset for custom position
+                        int xOffset = 0;
+                        if (useCustomSettings) {
+                            int customCenterX = (int) (width * config.singleImageTextXPercent / 100.0);
+                            xOffset = customCenterX - width / 2;
+                        }
 
                         // Find which word in the phrase is currently being spoken
                         String[] phraseWords = displayPhrase.split("\\s+");
@@ -5703,7 +5702,7 @@ public class arabicSync {
 
 
                             int totalLineWidth = fm.stringWidth(line);
-                            int lineStartX = (width - totalLineWidth) / 2;
+                            int lineStartX = (width - totalLineWidth) / 2 + xOffset; // Apply custom X offset
 
                             int[] shakeOffset = calculateShakeOffset(currentTime, 4);
                             int shakeLineX = lineStartX + shakeOffset[0];
@@ -5734,13 +5733,8 @@ public class arabicSync {
                         for (int lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
                             String line = wrappedLines.get(lineIdx);
                             int wordWidth = fm.stringWidth(line);
-                            int centerX = (width - wordWidth) / 2;
+                            int centerX = (width - wordWidth) / 2 + xOffset; // Apply custom X offset
                             int centerY = startY + (int) (lineIdx * fm.getHeight() * 1.1) + fm.getAscent();
-
-
-
-
-
 
                             // Apply shake effect
                             int[] shakeOffset = calculateShakeOffset(currentTime, 4);
@@ -5751,39 +5745,74 @@ public class arabicSync {
                             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                             g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-                            // Draw large outer glow
-                            g2d.setColor(new Color(0, 0, 0, 180));
-                            for (int offset = 8; offset <= 12; offset++) {
-                                g2d.drawString(line, shakeX - offset, shakeY + offset);
-                                g2d.drawString(line, shakeX + offset, shakeY + offset);
-                            }
-
-                            // Draw medium glow layers
-                            Color[] glowColors = {
-                                    new Color(255, 140, 0, 160),
-                                    new Color(255, 165, 0, 140),
-                                    new Color(255, 215, 0, 120),
-                                    new Color(255, 255, 0, 100),
-                                    new Color(255, 255, 200, 80)
-                            };
-
-                            for (int layer = 0; layer < glowColors.length; layer++) {
-                                g2d.setColor(glowColors[layer]);
-                                int glowSize = 6 - layer;
-                                for (int offset = 1; offset <= glowSize; offset++) {
-                                    g2d.drawString(line, shakeX - offset, shakeY);
-                                    g2d.drawString(line, shakeX + offset, shakeY);
-                                    g2d.drawString(line, shakeX, shakeY - offset);
-                                    g2d.drawString(line, shakeX, shakeY + offset);
-                                    g2d.drawString(line, shakeX - offset, shakeY - offset);
-                                    g2d.drawString(line, shakeX + offset, shakeY - offset);
+                            // Draw shadow (use custom settings if available)
+                            if (useCustomSettings && config.singleImageShadowEnabled) {
+                                g2d.setColor(new Color(0, 0, 0, 150));
+                                g2d.drawString(line, shakeX + config.singleImageShadowOffset, shakeY + config.singleImageShadowOffset);
+                            } else {
+                                // Original shadow
+                                g2d.setColor(new Color(0, 0, 0, 180));
+                                for (int offset = 8; offset <= 12; offset++) {
                                     g2d.drawString(line, shakeX - offset, shakeY + offset);
                                     g2d.drawString(line, shakeX + offset, shakeY + offset);
                                 }
                             }
 
-                            // Draw main text
-                            g2d.setColor(new Color(0, 0, 0, 255));
+                            // Draw outline (use custom settings if available)
+                            if (useCustomSettings && config.singleImageOutlineEnabled) {
+                                g2d.setColor(config.singleImageOutlineColor);
+                                for (int ox = -2; ox <= 2; ox++) {
+                                    for (int oy = -2; oy <= 2; oy++) {
+                                        if (ox != 0 || oy != 0) {
+                                            g2d.drawString(line, shakeX + ox, shakeY + oy);
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Draw glow layers (use custom color if available)
+                            if (useCustomSettings && config.singleImageGlowEnabled) {
+                                Color glowBase = config.singleImageGlowColor;
+                                for (int offset = 1; offset <= 5; offset++) {
+                                    int alpha = Math.max(30, 150 - offset * 25);
+                                    g2d.setColor(new Color(glowBase.getRed(), glowBase.getGreen(), glowBase.getBlue(), alpha));
+                                    g2d.drawString(line, shakeX - offset, shakeY);
+                                    g2d.drawString(line, shakeX + offset, shakeY);
+                                    g2d.drawString(line, shakeX, shakeY - offset);
+                                    g2d.drawString(line, shakeX, shakeY + offset);
+                                }
+                            } else if (!useCustomSettings) {
+                                // Original glow colors
+                                Color[] glowColors = {
+                                        new Color(255, 140, 0, 160),
+                                        new Color(255, 165, 0, 140),
+                                        new Color(255, 215, 0, 120),
+                                        new Color(255, 255, 0, 100),
+                                        new Color(255, 255, 200, 80)
+                                };
+
+                                for (int layer = 0; layer < glowColors.length; layer++) {
+                                    g2d.setColor(glowColors[layer]);
+                                    int glowSize = 6 - layer;
+                                    for (int offset = 1; offset <= glowSize; offset++) {
+                                        g2d.drawString(line, shakeX - offset, shakeY);
+                                        g2d.drawString(line, shakeX + offset, shakeY);
+                                        g2d.drawString(line, shakeX, shakeY - offset);
+                                        g2d.drawString(line, shakeX, shakeY + offset);
+                                        g2d.drawString(line, shakeX - offset, shakeY - offset);
+                                        g2d.drawString(line, shakeX + offset, shakeY - offset);
+                                        g2d.drawString(line, shakeX - offset, shakeY + offset);
+                                        g2d.drawString(line, shakeX + offset, shakeY + offset);
+                                    }
+                                }
+                            }
+
+                            // Draw main text (use custom color if available)
+                            if (useCustomSettings) {
+                                g2d.setColor(config.singleImageTextColor);
+                            } else {
+                                g2d.setColor(new Color(0, 0, 0, 255));
+                            }
                             g2d.drawString(line, shakeX, shakeY);
                         }
 
@@ -5810,11 +5839,19 @@ public class arabicSync {
                     }
 
                     if (!validPhrases.isEmpty()) {
-                        // Use larger font for centered display
-                        // Adjust font size based on number of stripes
-                        float fontSize = 70f;
-                        if (validPhrases.size() > 6) {
-                            fontSize = 55f; // 10 pixels smaller for more than 10 stripes
+                        // Use custom font size if in single image mode
+                        float fontSize;
+                        if (useCustomSettings) {
+                            fontSize = (float) config.singleImageTextSize;
+                            // Adjust for many stripes
+                            if (validPhrases.size() > 6) {
+                                fontSize = Math.max(40f, fontSize - 15f);
+                            }
+                        } else {
+                            fontSize = 70f;
+                            if (validPhrases.size() > 6) {
+                                fontSize = 55f;
+                            }
                         }
                         Font centeredHighlightFont = displayArabicFont.deriveFont(Font.BOLD, fontSize);
                         FontMetrics fm = g2d.getFontMetrics(centeredHighlightFont);
@@ -5833,8 +5870,23 @@ public class arabicSync {
                             totalStripesHeight += phraseHeight + stripeSpacing;
                         }
 
-                        // Start Y position to center all stripes vertically
-                        int startY = (height - totalStripesHeight) / 2;
+                        // Start Y position - use custom position if in single image mode
+                        int startY;
+                        if (useCustomSettings) {
+                            int yPos = (int) (height * config.singleImageTextYPercent / 100.0);
+                            startY = yPos - totalStripesHeight / 2;
+                            startY = Math.max(10, Math.min(startY, height - totalStripesHeight - 10));
+                        } else {
+                            startY = (height - totalStripesHeight) / 2;
+                        }
+
+                        // Calculate X offset for custom position
+                        int stripesXOffset = 0;
+                        if (useCustomSettings) {
+                            int customCenterX = (int) (width * config.singleImageTextXPercent / 100.0);
+                            stripesXOffset = customCenterX - width / 2;
+                        }
+
                         int currentY = startY;
 
                         // Find which phrase is currently being spoken for highlighting
@@ -5892,7 +5944,7 @@ public class arabicSync {
                             for (int lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
                                 String line = wrappedLines.get(lineIdx);
                                 int lineWidth = fm.stringWidth(line);
-                                int centerX = (width - lineWidth) / 2;
+                                int centerX = (width - lineWidth) / 2 + stripesXOffset; // Apply custom X offset
                                 int lineY = currentY + (int)(lineIdx * fm.getHeight() * 1.3) + fm.getAscent();
 
                                 // Apply shake effect to currently spoken stripe
@@ -5994,12 +6046,22 @@ public class arabicSync {
                         String currentWords = highlightedText.toString();
 
                         if (!currentWords.isEmpty()) {
-                            Font centeredHighlightFont = displayArabicFont.deriveFont(Font.BOLD, 90f);
+                            // Use custom font size if in single image mode
+                            float fontSize = useCustomSettings ? (float) config.singleImageTextSize : 90f;
+                            Font centeredHighlightFont = displayArabicFont.deriveFont(Font.BOLD, fontSize);
                             FontMetrics fm = g2d.getFontMetrics(centeredHighlightFont);
 
                             int wordWidth = fm.stringWidth(currentWords);
-                            int centerX = (width - wordWidth) / 2;
-                            int centerY = height / 2;
+
+                            // Use custom position if in single image mode
+                            int centerX, centerY;
+                            if (useCustomSettings) {
+                                centerX = (int) (width * config.singleImageTextXPercent / 100.0) - wordWidth / 2;
+                                centerY = (int) (height * config.singleImageTextYPercent / 100.0);
+                            } else {
+                                centerX = (width - wordWidth) / 2;
+                                centerY = height / 2;
+                            }
 
                             int[] shakeOffset = calculateShakeOffset(currentTime, 4);
                             int shakeX = centerX + shakeOffset[0];
@@ -6009,52 +6071,91 @@ public class arabicSync {
                             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                             g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-                            g2d.setColor(new Color(0, 0, 0, 180));
-                            for (int offset = 8; offset <= 12; offset++) {
-                                g2d.drawString(currentWords, shakeX - offset, shakeY + offset);
-                                g2d.drawString(currentWords, shakeX + offset, shakeY + offset);
-                            }
-
-                            Color[] glowColors = {
-                                    new Color(255, 140, 0, 160),
-                                    new Color(255, 165, 0, 140),
-                                    new Color(255, 215, 0, 120),
-                                    new Color(255, 255, 0, 100),
-                                    new Color(255, 255, 200, 80)
-                            };
-
-                            for (int layer = 0; layer < glowColors.length; layer++) {
-                                g2d.setColor(glowColors[layer]);
-                                int glowSize = 6 - layer;
-                                for (int offset = 1; offset <= glowSize; offset++) {
-                                    g2d.drawString(currentWords, shakeX - offset, shakeY);
-                                    g2d.drawString(currentWords, shakeX + offset, shakeY);
-                                    g2d.drawString(currentWords, shakeX, shakeY - offset);
-                                    g2d.drawString(currentWords, shakeX, shakeY + offset);
-                                    g2d.drawString(currentWords, shakeX - offset, shakeY - offset);
-                                    g2d.drawString(currentWords, shakeX + offset, shakeY - offset);
+                            // Draw shadow
+                            if (useCustomSettings && config.singleImageShadowEnabled) {
+                                g2d.setColor(new Color(0, 0, 0, 150));
+                                g2d.drawString(currentWords, shakeX + config.singleImageShadowOffset, shakeY + config.singleImageShadowOffset);
+                            } else {
+                                g2d.setColor(new Color(0, 0, 0, 180));
+                                for (int offset = 8; offset <= 12; offset++) {
                                     g2d.drawString(currentWords, shakeX - offset, shakeY + offset);
                                     g2d.drawString(currentWords, shakeX + offset, shakeY + offset);
                                 }
                             }
 
-                            GradientPaint gradient = new GradientPaint(
-                                    shakeX, shakeY - fm.getHeight() / 2, new Color(0, 0, 0, 255),
-                                    shakeX, shakeY + fm.getHeight() / 2, new Color(0, 0, 0, 255)
-                            );
-                            g2d.setPaint(gradient);
+                            // Draw outline
+                            if (useCustomSettings && config.singleImageOutlineEnabled) {
+                                g2d.setColor(config.singleImageOutlineColor);
+                                for (int ox = -2; ox <= 2; ox++) {
+                                    for (int oy = -2; oy <= 2; oy++) {
+                                        if (ox != 0 || oy != 0) {
+                                            g2d.drawString(currentWords, shakeX + ox, shakeY + oy);
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Draw glow
+                            if (useCustomSettings && config.singleImageGlowEnabled) {
+                                Color glowBase = config.singleImageGlowColor;
+                                for (int offset = 1; offset <= 5; offset++) {
+                                    int alpha = Math.max(30, 150 - offset * 25);
+                                    g2d.setColor(new Color(glowBase.getRed(), glowBase.getGreen(), glowBase.getBlue(), alpha));
+                                    g2d.drawString(currentWords, shakeX - offset, shakeY);
+                                    g2d.drawString(currentWords, shakeX + offset, shakeY);
+                                    g2d.drawString(currentWords, shakeX, shakeY - offset);
+                                    g2d.drawString(currentWords, shakeX, shakeY + offset);
+                                }
+                            } else if (!useCustomSettings) {
+                                Color[] glowColors = {
+                                        new Color(255, 140, 0, 160),
+                                        new Color(255, 165, 0, 140),
+                                        new Color(255, 215, 0, 120),
+                                        new Color(255, 255, 0, 100),
+                                        new Color(255, 255, 200, 80)
+                                };
+
+                                for (int layer = 0; layer < glowColors.length; layer++) {
+                                    g2d.setColor(glowColors[layer]);
+                                    int glowSize = 6 - layer;
+                                    for (int offset = 1; offset <= glowSize; offset++) {
+                                        g2d.drawString(currentWords, shakeX - offset, shakeY);
+                                        g2d.drawString(currentWords, shakeX + offset, shakeY);
+                                        g2d.drawString(currentWords, shakeX, shakeY - offset);
+                                        g2d.drawString(currentWords, shakeX, shakeY + offset);
+                                        g2d.drawString(currentWords, shakeX - offset, shakeY - offset);
+                                        g2d.drawString(currentWords, shakeX + offset, shakeY - offset);
+                                        g2d.drawString(currentWords, shakeX - offset, shakeY + offset);
+                                        g2d.drawString(currentWords, shakeX + offset, shakeY + offset);
+                                    }
+                                }
+                            }
+
+                            // Draw main text
+                            if (useCustomSettings) {
+                                g2d.setColor(config.singleImageTextColor);
+                            } else {
+                                GradientPaint gradient = new GradientPaint(
+                                        shakeX, shakeY - fm.getHeight() / 2, new Color(0, 0, 0, 255),
+                                        shakeX, shakeY + fm.getHeight() / 2, new Color(0, 0, 0, 255)
+                                );
+                                g2d.setPaint(gradient);
+                            }
                             g2d.drawString(currentWords, shakeX, shakeY);
 
-                            g2d.setColor(new Color(255, 255, 255, 200));
-                            Font highlightFont = centeredHighlightFont.deriveFont(centeredHighlightFont.getSize() - 5f);
-                            g2d.setFont(highlightFont);
+                            // Shine effect (only for non-custom mode)
+                            if (!useCustomSettings) {
+                                g2d.setColor(new Color(255, 255, 255, 200));
+                                Font highlightFont = centeredHighlightFont.deriveFont(centeredHighlightFont.getSize() - 5f);
+                                g2d.setFont(highlightFont);
 
-                            double shinePhase = (currentTime * 2.0) % 2.0;
-                            if (shinePhase < 1.0) {
-                                int shineOffset = (int) (shinePhase * wordWidth * 0.3);
-                                g2d.setClip(shakeX + shineOffset - 20, shakeY - fm.getHeight(), 40, fm.getHeight());
-                                g2d.drawString(currentWords, shakeX, shakeY - 2);
-                                g2d.setClip(null);
+                                double shinePhase = (currentTime * 2.0) % 2.0;
+                                if (shinePhase < 1.0) {
+                                    int shineOffsetVal = (int) (shinePhase * wordWidth * 0.3);
+                                    g2d.setClip(shakeX + shineOffsetVal - 20, shakeY - fm.getHeight(), 40, fm.getHeight());
+                                    g2d.drawString(currentWords, shakeX, shakeY - 2);
+                                    g2d.setClip(null);
+                                }
                             }
 
                             g2d.setFont(centeredHighlightFont);
