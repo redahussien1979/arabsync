@@ -1817,8 +1817,8 @@ public class arabicSync {
                         g2d.setColor(Color.GRAY);
                         g2d.setFont(new Font("Arial", Font.ITALIC, 14));
                         String msg = "No image loaded - select Specific Background Image";
-                        FontMetrics fm = g2d.getFontMetrics();
-                        g2d.drawString(msg, offsetX + (previewWidth - fm.stringWidth(msg)) / 2, offsetY + previewHeight / 2);
+                        FontMetrics fmMsg = g2d.getFontMetrics();
+                        g2d.drawString(msg, offsetX + (previewWidth - fmMsg.stringWidth(msg)) / 2, offsetY + previewHeight / 2);
                     }
 
                     // Draw border around preview area
@@ -1826,13 +1826,13 @@ public class arabicSync {
                     g2d.setStroke(new BasicStroke(2));
                     g2d.drawRect(offsetX, offsetY, previewWidth - 1, previewHeight - 1);
 
-                    // Calculate text position
-                    int textX = offsetX + (int) (previewWidth * config.singleImageTextXPercent / 100.0);
-                    int textY = offsetY + (int) (previewHeight * config.singleImageTextYPercent / 100.0);
+                    // Set clipping to preview area so text doesn't go outside
+                    Shape oldClip = g2d.getClip();
+                    g2d.setClip(offsetX, offsetY, previewWidth, previewHeight);
 
                     // Scale font size for preview (preview is smaller than actual 1920 height)
                     float scaleFactor = previewHeight / 1920.0f;
-                    int scaledFontSize = Math.max(10, (int) (config.singleImageTextSize * scaleFactor * 1.5f));
+                    int scaledFontSize = Math.max(8, (int) (config.singleImageTextSize * scaleFactor * 1.2f));
 
                     Font previewFont = new Font("Arial", Font.BOLD, scaledFontSize);
                     g2d.setFont(previewFont);
@@ -1841,71 +1841,165 @@ public class arabicSync {
                     String arabicText = sampleArabicText[0];
                     String englishText = sampleEnglishText[0];
 
-                    // Calculate centered positions
-                    int arabicWidth = fm.stringWidth(arabicText);
-                    int englishWidth = fm.stringWidth(englishText);
-                    int arabicX = textX - arabicWidth / 2;
-                    int englishX = textX - englishWidth / 2;
-                    int arabicY = textY;
-                    int englishY = textY + fm.getHeight() + 5;
+                    // Wrap text to fit within preview width (with margin)
+                    int textAreaWidth = previewWidth - 20; // 10px margin on each side
+                    java.util.List<String> arabicLines = wrapTextForPreview(arabicText, fm, textAreaWidth);
 
-                    // Draw glow effect
-                    if (config.singleImageGlowEnabled) {
-                        g2d.setColor(new Color(config.singleImageGlowColor.getRed(),
-                                config.singleImageGlowColor.getGreen(),
-                                config.singleImageGlowColor.getBlue(), 80));
-                        for (int i = 6; i > 0; i -= 2) {
-                            g2d.drawString(arabicText, arabicX - i, arabicY);
-                            g2d.drawString(arabicText, arabicX + i, arabicY);
-                            g2d.drawString(arabicText, arabicX, arabicY - i);
-                            g2d.drawString(arabicText, arabicX, arabicY + i);
+                    Font englishFont = previewFont.deriveFont(previewFont.getSize() * 0.6f);
+                    FontMetrics englishFm = g2d.getFontMetrics(englishFont);
+                    java.util.List<String> englishLines = wrapTextForPreview(englishText, englishFm, textAreaWidth);
+
+                    // Calculate total text block height
+                    int arabicBlockHeight = arabicLines.size() * (int)(fm.getHeight() * 1.1);
+                    int englishBlockHeight = englishLines.size() * (int)(englishFm.getHeight() * 1.1);
+                    int gap = 5;
+                    int totalHeight = arabicBlockHeight + gap + englishBlockHeight;
+
+                    // Calculate text position based on percentage
+                    int textCenterX = offsetX + (int) (previewWidth * config.singleImageTextXPercent / 100.0);
+                    int textCenterY = offsetY + (int) (previewHeight * config.singleImageTextYPercent / 100.0);
+
+                    // Adjust Y to be top of text block
+                    int textBlockStartY = textCenterY - totalHeight / 2;
+
+                    // Draw semi-transparent background for text
+                    int bgPadding = 8;
+                    int maxLineWidth = 0;
+                    for (String line : arabicLines) {
+                        maxLineWidth = Math.max(maxLineWidth, fm.stringWidth(line));
+                    }
+                    for (String line : englishLines) {
+                        maxLineWidth = Math.max(maxLineWidth, englishFm.stringWidth(line));
+                    }
+                    int bgX = textCenterX - maxLineWidth / 2 - bgPadding;
+                    int bgY = textBlockStartY - bgPadding;
+                    int bgWidth = maxLineWidth + bgPadding * 2;
+                    int bgHeight = totalHeight + bgPadding * 2;
+                    g2d.setColor(new Color(0, 0, 0, 80));
+                    g2d.fillRoundRect(bgX, bgY, bgWidth, bgHeight, 10, 10);
+
+                    // Draw Arabic text lines
+                    g2d.setFont(previewFont);
+                    int currentY = textBlockStartY + fm.getAscent();
+
+                    for (String line : arabicLines) {
+                        int lineWidth = fm.stringWidth(line);
+                        int lineX = textCenterX - lineWidth / 2;
+
+                        // Draw glow effect
+                        if (config.singleImageGlowEnabled) {
+                            g2d.setColor(new Color(config.singleImageGlowColor.getRed(),
+                                    config.singleImageGlowColor.getGreen(),
+                                    config.singleImageGlowColor.getBlue(), 60));
+                            for (int i = 3; i > 0; i--) {
+                                g2d.drawString(line, lineX - i, currentY);
+                                g2d.drawString(line, lineX + i, currentY);
+                                g2d.drawString(line, lineX, currentY - i);
+                                g2d.drawString(line, lineX, currentY + i);
+                            }
                         }
-                    }
 
-                    // Draw shadow
-                    if (config.singleImageShadowEnabled) {
-                        int shadowOff = Math.max(1, (int)(config.singleImageShadowOffset * scaleFactor));
-                        g2d.setColor(new Color(0, 0, 0, 150));
-                        g2d.drawString(arabicText, arabicX + shadowOff, arabicY + shadowOff);
-                        g2d.drawString(englishText, englishX + shadowOff, englishY + shadowOff);
-                    }
+                        // Draw shadow
+                        if (config.singleImageShadowEnabled) {
+                            int shadowOff = Math.max(1, (int)(config.singleImageShadowOffset * scaleFactor * 0.5));
+                            g2d.setColor(new Color(0, 0, 0, 150));
+                            g2d.drawString(line, lineX + shadowOff, currentY + shadowOff);
+                        }
 
-                    // Draw outline
-                    if (config.singleImageOutlineEnabled) {
-                        g2d.setColor(config.singleImageOutlineColor);
-                        for (int ox = -2; ox <= 2; ox++) {
-                            for (int oy = -2; oy <= 2; oy++) {
-                                if (ox != 0 || oy != 0) {
-                                    g2d.drawString(arabicText, arabicX + ox, arabicY + oy);
-                                    g2d.drawString(englishText, englishX + ox, englishY + oy);
+                        // Draw outline
+                        if (config.singleImageOutlineEnabled) {
+                            g2d.setColor(config.singleImageOutlineColor);
+                            for (int ox = -1; ox <= 1; ox++) {
+                                for (int oy = -1; oy <= 1; oy++) {
+                                    if (ox != 0 || oy != 0) {
+                                        g2d.drawString(line, lineX + ox, currentY + oy);
+                                    }
                                 }
                             }
                         }
+
+                        // Draw main text
+                        g2d.setColor(config.singleImageTextColor);
+                        g2d.drawString(line, lineX, currentY);
+
+                        currentY += (int)(fm.getHeight() * 1.1);
                     }
 
-                    // Draw main text
-                    g2d.setColor(config.singleImageTextColor);
-                    g2d.drawString(arabicText, arabicX, arabicY);
-
-                    // Draw English text slightly smaller
-                    Font englishFont = previewFont.deriveFont(previewFont.getSize() * 0.7f);
+                    // Draw English text lines
+                    currentY += gap;
                     g2d.setFont(englishFont);
-                    g2d.setColor(Color.WHITE);
-                    englishWidth = g2d.getFontMetrics().stringWidth(englishText);
-                    englishX = textX - englishWidth / 2;
-                    g2d.drawString(englishText, englishX, englishY);
 
-                    // Draw crosshair at text position
-                    g2d.setColor(new Color(255, 0, 0, 150));
+                    for (String line : englishLines) {
+                        int lineWidth = englishFm.stringWidth(line);
+                        int lineX = textCenterX - lineWidth / 2;
+
+                        // Draw shadow for English
+                        if (config.singleImageShadowEnabled) {
+                            int shadowOff = Math.max(1, (int)(config.singleImageShadowOffset * scaleFactor * 0.5));
+                            g2d.setColor(new Color(0, 0, 0, 150));
+                            g2d.drawString(line, lineX + shadowOff, currentY + shadowOff);
+                        }
+
+                        // Draw outline for English
+                        if (config.singleImageOutlineEnabled) {
+                            g2d.setColor(config.singleImageOutlineColor);
+                            g2d.drawString(line, lineX - 1, currentY);
+                            g2d.drawString(line, lineX + 1, currentY);
+                            g2d.drawString(line, lineX, currentY - 1);
+                            g2d.drawString(line, lineX, currentY + 1);
+                        }
+
+                        // Draw main English text
+                        g2d.setColor(Color.WHITE);
+                        g2d.drawString(line, lineX, currentY);
+
+                        currentY += (int)(englishFm.getHeight() * 1.1);
+                    }
+
+                    // Restore clip
+                    g2d.setClip(oldClip);
+
+                    // Draw crosshair at text center position
+                    g2d.setColor(new Color(255, 0, 0, 180));
                     g2d.setStroke(new BasicStroke(1));
-                    g2d.drawLine(textX - 15, textY, textX + 15, textY);
-                    g2d.drawLine(textX, textY - 15, textX, textY + 15);
+                    g2d.drawLine(textCenterX - 20, textCenterY, textCenterX + 20, textCenterY);
+                    g2d.drawLine(textCenterX, textCenterY - 20, textCenterX, textCenterY + 20);
+                    g2d.drawOval(textCenterX - 5, textCenterY - 5, 10, 10);
 
                     // Store offset info for click handling
                     putClientProperty("offsetX", offsetX);
                     putClientProperty("offsetY", offsetY);
                     putClientProperty("previewWidth", previewWidth);
                     putClientProperty("previewHeight", previewHeight);
+                }
+
+                // Helper method to wrap text for preview
+                private java.util.List<String> wrapTextForPreview(String text, FontMetrics fm, int maxWidth) {
+                    java.util.List<String> lines = new java.util.ArrayList<>();
+                    if (text == null || text.isEmpty()) {
+                        return lines;
+                    }
+
+                    String[] words = text.split("\\s+");
+                    StringBuilder currentLine = new StringBuilder();
+
+                    for (String word : words) {
+                        String testLine = currentLine.length() > 0 ? currentLine + " " + word : word;
+                        if (fm.stringWidth(testLine) <= maxWidth) {
+                            if (currentLine.length() > 0) currentLine.append(" ");
+                            currentLine.append(word);
+                        } else {
+                            if (currentLine.length() > 0) {
+                                lines.add(currentLine.toString());
+                            }
+                            currentLine = new StringBuilder(word);
+                        }
+                    }
+                    if (currentLine.length() > 0) {
+                        lines.add(currentLine.toString());
+                    }
+
+                    return lines;
                 }
             };
 
