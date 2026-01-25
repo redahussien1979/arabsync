@@ -172,6 +172,9 @@ public class arabicSync {
         Color singleImageGlowColor = new Color(255, 140, 0); // Orange glow
         boolean singleImageShadowEnabled = true;
         int singleImageShadowOffset = 4;
+
+        // Waveform option
+        boolean enableWaveform = true; // Show audio waveform visualization
     }
 
 
@@ -1054,10 +1057,17 @@ public class arabicSync {
             gbc.gridx = 0;
             gbc.gridy = 4;
             gbc.weightx = 0;
-            gbc.gridwidth = 5;
+            gbc.gridwidth = 2;
             JCheckBox removeTextBgCheckbox = new JCheckBox("Remove txt and bg");
             removeTextBgCheckbox.addActionListener(e -> config.removeTextAndBackground = removeTextBgCheckbox.isSelected());
             panel.add(removeTextBgCheckbox, gbc);
+
+            // Waveform Option
+            gbc.gridx = 2;
+            gbc.gridwidth = 2;
+            JCheckBox waveformCheckbox = new JCheckBox("Show Waveform", true);
+            waveformCheckbox.addActionListener(e -> config.enableWaveform = waveformCheckbox.isSelected());
+            panel.add(waveformCheckbox, gbc);
             gbc.gridwidth = 1;
 
 
@@ -2684,27 +2694,37 @@ public class arabicSync {
             } else {
                 waveformY = 250; // Normal mode with background
             }
-            // Complex filter with waveform and border
-            String filterComplex =
-                    // Scale and pad base video
-                    "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2[padded];" +
+            // Complex filter - with or without waveform based on config
+            String filterComplex;
+            if (config.enableWaveform) {
+                // Filter WITH waveform
+                filterComplex =
+                        // Scale and pad base video
+                        "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2[padded];" +
 
-                            // Create waveform background
-                            "color=black@0.1:s=410x70[bg];" +
+                                // Create waveform background
+                                "color=black@0.1:s=410x70[bg];" +
 
-                            // Generate audio waveform
-                            "[1:a]showwaves=s=400x60:mode=cline:colors=gold|white:scale=sqrt:draw=full[waves];" +
+                                // Generate audio waveform
+                                "[1:a]showwaves=s=400x60:mode=cline:colors=gold|white:scale=sqrt:draw=full[waves];" +
 
-                            // Overlay waveform on background
-                            "[bg][waves]overlay=5:5[wave];" +
+                                // Overlay waveform on background
+                                "[bg][waves]overlay=5:5[wave];" +
 
-                            // Combine padded video with waveform
-                            //  "[padded][wave]overlay=x=(W-w)/2:y=H*0.6[video_with_wave];" +
-                            // "[padded][wave]overlay=x=(W-w)/2:y=250[video_with_wave];" +
-                            "[padded][wave]overlay=x=(W-w)/2:y=" + waveformY + "[video_with_wave];" +
+                                // Combine padded video with waveform
+                                "[padded][wave]overlay=x=(W-w)/2:y=" + waveformY + "[video_with_wave];" +
 
-                            // Add yellow border
-                            "[video_with_wave]drawbox=x=70:y=70:w=iw-140:h=ih-140:color=yellow:t=1[v]";
+                                // Add yellow border
+                                "[video_with_wave]drawbox=x=70:y=70:w=iw-140:h=ih-140:color=yellow:t=1[v]";
+            } else {
+                // Filter WITHOUT waveform
+                filterComplex =
+                        // Scale and pad base video
+                        "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2[padded];" +
+
+                                // Add yellow border directly (no waveform)
+                                "[padded]drawbox=x=70:y=70:w=iw-140:h=ih-140:color=yellow:t=1[v]";
+            }
 
             ProcessBuilder pb = new ProcessBuilder(
                     "ffmpeg", "-y",
