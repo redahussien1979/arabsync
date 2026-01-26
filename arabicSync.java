@@ -223,6 +223,87 @@ public class arabicSync {
         int singleImageTextBgOpacity = 50; // Background opacity (0-100)
         int singleImageTextBgRadius = 10; // Background corner radius
         Color singleImageTextBgColor = new Color(0, 0, 0); // Background color
+
+        // === PROFESSIONAL IMAGE/BACKGROUND EFFECTS ===
+        // Cinematic Color Grading
+        int imageColorGradePreset = 0; // 0=None, 1=Teal&Orange, 2=Vintage, 3=Cold Blue, 4=Warm Sunset, 5=Noir, 6=Cyberpunk, 7=Forest, 8=Desert
+        int imageColorGradeIntensity = 50; // Color grade intensity (0-100%)
+
+        // Brightness, Contrast, Saturation
+        int imageBrightness = 0; // Brightness adjustment (-50 to +50)
+        int imageContrast = 0; // Contrast adjustment (-50 to +50)
+        int imageSaturation = 0; // Saturation adjustment (-50 to +50)
+        int imageHueShift = 0; // Hue rotation (-180 to +180 degrees)
+
+        // Color Temperature
+        int imageTemperature = 0; // Color temperature (-50=cool blue to +50=warm orange)
+
+        // Blur Effects
+        boolean imageBlurEnabled = false;
+        int imageBlurAmount = 0; // Blur amount (0-20)
+        int imageBlurType = 0; // 0=Gaussian, 1=Motion Horizontal, 2=Motion Vertical, 3=Radial/Zoom
+
+        // Film Grain
+        boolean imageGrainEnabled = false;
+        int imageGrainIntensity = 30; // Grain intensity (0-100)
+
+        // Chromatic Aberration (RGB Split)
+        boolean imageChromaticEnabled = false;
+        int imageChromaticOffset = 5; // RGB channel offset (1-20 pixels)
+
+        // Bloom/Glow Effect
+        boolean imageBloomEnabled = false;
+        int imageBloomIntensity = 30; // Bloom intensity (0-100)
+        int imageBloomThreshold = 70; // Brightness threshold for bloom (0-100)
+
+        // Sharpen
+        boolean imageSharpenEnabled = false;
+        int imageSharpenAmount = 50; // Sharpen amount (0-100)
+
+        // Vignette (custom settings)
+        int imageVignetteIntensity = 50; // Vignette darkness (0-100)
+        int imageVignetteSize = 50; // Vignette size (0=small/tight, 100=large/soft)
+        Color imageVignetteColor = new Color(0, 0, 0); // Vignette color (usually black)
+
+        // Sepia/Vintage Toning
+        boolean imageSepiaEnabled = false;
+        int imageSepiaIntensity = 50; // Sepia intensity (0-100)
+
+        // Split Toning
+        boolean imageSplitToneEnabled = false;
+        Color imageSplitToneHighlight = new Color(255, 230, 200); // Highlight tint color
+        Color imageSplitToneShadow = new Color(100, 120, 140); // Shadow tint color
+        int imageSplitToneBalance = 50; // Balance between highlights/shadows (0-100)
+
+        // Overlay Effects
+        boolean imageScanlinesEnabled = false;
+        int imageScanlinesIntensity = 30; // Scanlines opacity (0-100)
+        int imageScanlinesSpacing = 4; // Scanlines spacing (2-10 pixels)
+
+        // Duotone Effect
+        boolean imageDuotoneEnabled = false;
+        Color imageDuotoneColor1 = new Color(20, 20, 60); // Dark color
+        Color imageDuotoneColor2 = new Color(255, 200, 100); // Light color
+
+        // Mirror/Kaleidoscope
+        int imageMirrorMode = 0; // 0=None, 1=Horizontal, 2=Vertical, 3=Both, 4=Kaleidoscope
+
+        // Border/Frame
+        boolean imageBorderEnabled = false;
+        int imageBorderWidth = 20; // Border width (0-50 pixels)
+        Color imageBorderColor = new Color(255, 255, 255); // Border color
+        int imageBorderStyle = 0; // 0=Solid, 1=Gradient, 2=Glow
+
+        // Ken Burns Effect (Pan & Zoom)
+        boolean imageKenBurnsEnabled = false;
+        int imageKenBurnsZoomStart = 100; // Start zoom % (80-120)
+        int imageKenBurnsZoomEnd = 110; // End zoom % (80-120)
+        int imageKenBurnsPanX = 0; // Pan direction X (-100 to +100)
+        int imageKenBurnsPanY = 0; // Pan direction Y (-100 to +100)
+
+        // Glitch Effect
+        boolean imageGlitchEnabled = false;
+        int imageGlitchIntensity = 30; // Glitch intensity (0-100)
     }
 
 
@@ -2200,6 +2281,501 @@ public class arabicSync {
 
             controlTabs.addTab("Gradient & 3D", gradient3DPanel);
 
+            // ===== TAB 6: Image Color & Tone =====
+            JPanel imageColorPanel = new JPanel();
+            imageColorPanel.setLayout(new BoxLayout(imageColorPanel, BoxLayout.Y_AXIS));
+            imageColorPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+            // --- Color Grading Presets ---
+            JPanel colorGradePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            colorGradePanel.setBorder(BorderFactory.createTitledBorder("Cinematic Color Grading"));
+            colorGradePanel.add(new JLabel("Preset:"));
+            String[] colorGradePresets = {"None", "Teal & Orange", "Vintage Film", "Cold Blue", "Warm Sunset", "Film Noir", "Cyberpunk", "Forest Green", "Desert Gold"};
+            JComboBox<String> colorGradeCombo = new JComboBox<>(colorGradePresets);
+            colorGradeCombo.setSelectedIndex(config.imageColorGradePreset);
+            colorGradeCombo.addActionListener(e -> config.imageColorGradePreset = colorGradeCombo.getSelectedIndex());
+            colorGradePanel.add(colorGradeCombo);
+            colorGradePanel.add(Box.createHorizontalStrut(15));
+            colorGradePanel.add(new JLabel("Intensity:"));
+            JSlider colorGradeIntensitySlider = new JSlider(0, 100, config.imageColorGradeIntensity);
+            colorGradeIntensitySlider.setPreferredSize(new Dimension(120, 25));
+            JLabel colorGradeIntensityLabel = new JLabel(config.imageColorGradeIntensity + "%");
+            colorGradeIntensitySlider.addChangeListener(e -> {
+                config.imageColorGradeIntensity = colorGradeIntensitySlider.getValue();
+                colorGradeIntensityLabel.setText(config.imageColorGradeIntensity + "%");
+            });
+            colorGradePanel.add(colorGradeIntensitySlider);
+            colorGradePanel.add(colorGradeIntensityLabel);
+            imageColorPanel.add(colorGradePanel);
+
+            // --- Brightness, Contrast, Saturation ---
+            JPanel bcsPanel = new JPanel(new GridBagLayout());
+            bcsPanel.setBorder(BorderFactory.createTitledBorder("Brightness / Contrast / Saturation"));
+            GridBagConstraints bcsgbc = new GridBagConstraints();
+            bcsgbc.insets = new Insets(3, 5, 3, 5);
+            bcsgbc.anchor = GridBagConstraints.WEST;
+
+            // Brightness
+            bcsgbc.gridx = 0; bcsgbc.gridy = 0;
+            bcsPanel.add(new JLabel("Brightness:"), bcsgbc);
+            bcsgbc.gridx = 1; bcsgbc.weightx = 1.0; bcsgbc.fill = GridBagConstraints.HORIZONTAL;
+            JSlider brightnessSlider = new JSlider(-50, 50, config.imageBrightness);
+            brightnessSlider.setPreferredSize(new Dimension(200, 40));
+            brightnessSlider.setMajorTickSpacing(25);
+            brightnessSlider.setPaintTicks(true);
+            brightnessSlider.setPaintLabels(true);
+            JLabel brightnessLabel = new JLabel(config.imageBrightness + "");
+            brightnessLabel.setPreferredSize(new Dimension(35, 20));
+            brightnessSlider.addChangeListener(e -> {
+                config.imageBrightness = brightnessSlider.getValue();
+                brightnessLabel.setText(config.imageBrightness + "");
+            });
+            bcsPanel.add(brightnessSlider, bcsgbc);
+            bcsgbc.gridx = 2; bcsgbc.weightx = 0; bcsgbc.fill = GridBagConstraints.NONE;
+            bcsPanel.add(brightnessLabel, bcsgbc);
+
+            // Contrast
+            bcsgbc.gridx = 0; bcsgbc.gridy = 1;
+            bcsPanel.add(new JLabel("Contrast:"), bcsgbc);
+            bcsgbc.gridx = 1; bcsgbc.weightx = 1.0; bcsgbc.fill = GridBagConstraints.HORIZONTAL;
+            JSlider contrastSlider = new JSlider(-50, 50, config.imageContrast);
+            contrastSlider.setPreferredSize(new Dimension(200, 40));
+            contrastSlider.setMajorTickSpacing(25);
+            contrastSlider.setPaintTicks(true);
+            contrastSlider.setPaintLabels(true);
+            JLabel contrastLabel = new JLabel(config.imageContrast + "");
+            contrastLabel.setPreferredSize(new Dimension(35, 20));
+            contrastSlider.addChangeListener(e -> {
+                config.imageContrast = contrastSlider.getValue();
+                contrastLabel.setText(config.imageContrast + "");
+            });
+            bcsPanel.add(contrastSlider, bcsgbc);
+            bcsgbc.gridx = 2; bcsgbc.weightx = 0; bcsgbc.fill = GridBagConstraints.NONE;
+            bcsPanel.add(contrastLabel, bcsgbc);
+
+            // Saturation
+            bcsgbc.gridx = 0; bcsgbc.gridy = 2;
+            bcsPanel.add(new JLabel("Saturation:"), bcsgbc);
+            bcsgbc.gridx = 1; bcsgbc.weightx = 1.0; bcsgbc.fill = GridBagConstraints.HORIZONTAL;
+            JSlider saturationSlider = new JSlider(-50, 50, config.imageSaturation);
+            saturationSlider.setPreferredSize(new Dimension(200, 40));
+            saturationSlider.setMajorTickSpacing(25);
+            saturationSlider.setPaintTicks(true);
+            saturationSlider.setPaintLabels(true);
+            JLabel saturationLabel = new JLabel(config.imageSaturation + "");
+            saturationLabel.setPreferredSize(new Dimension(35, 20));
+            saturationSlider.addChangeListener(e -> {
+                config.imageSaturation = saturationSlider.getValue();
+                saturationLabel.setText(config.imageSaturation + "");
+            });
+            bcsPanel.add(saturationSlider, bcsgbc);
+            bcsgbc.gridx = 2; bcsgbc.weightx = 0; bcsgbc.fill = GridBagConstraints.NONE;
+            bcsPanel.add(saturationLabel, bcsgbc);
+            imageColorPanel.add(bcsPanel);
+
+            // --- Hue Shift & Temperature ---
+            JPanel hueTemperaturePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            hueTemperaturePanel.setBorder(BorderFactory.createTitledBorder("Hue & Temperature"));
+            hueTemperaturePanel.add(new JLabel("Hue Shift:"));
+            JSlider hueShiftSlider = new JSlider(-180, 180, config.imageHueShift);
+            hueShiftSlider.setPreferredSize(new Dimension(150, 40));
+            hueShiftSlider.setMajorTickSpacing(90);
+            hueShiftSlider.setPaintTicks(true);
+            hueShiftSlider.setPaintLabels(true);
+            JLabel hueShiftLabel = new JLabel(config.imageHueShift + "°");
+            hueShiftSlider.addChangeListener(e -> {
+                config.imageHueShift = hueShiftSlider.getValue();
+                hueShiftLabel.setText(config.imageHueShift + "°");
+            });
+            hueTemperaturePanel.add(hueShiftSlider);
+            hueTemperaturePanel.add(hueShiftLabel);
+
+            hueTemperaturePanel.add(Box.createHorizontalStrut(20));
+            hueTemperaturePanel.add(new JLabel("Temperature:"));
+            JSlider temperatureSlider = new JSlider(-50, 50, config.imageTemperature);
+            temperatureSlider.setPreferredSize(new Dimension(150, 40));
+            temperatureSlider.setMajorTickSpacing(25);
+            temperatureSlider.setPaintTicks(true);
+            temperatureSlider.setPaintLabels(true);
+            JLabel temperatureLabel = new JLabel(config.imageTemperature == 0 ? "Neutral" : (config.imageTemperature < 0 ? "Cool" : "Warm"));
+            temperatureSlider.addChangeListener(e -> {
+                config.imageTemperature = temperatureSlider.getValue();
+                temperatureLabel.setText(config.imageTemperature == 0 ? "Neutral" : (config.imageTemperature < 0 ? "Cool" : "Warm"));
+            });
+            hueTemperaturePanel.add(temperatureSlider);
+            hueTemperaturePanel.add(temperatureLabel);
+            imageColorPanel.add(hueTemperaturePanel);
+
+            // --- Sepia/Vintage ---
+            JPanel sepiaPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            sepiaPanel.setBorder(BorderFactory.createTitledBorder("Sepia / Vintage Tone"));
+            JCheckBox sepiaCheck = new JCheckBox("Enable Sepia", config.imageSepiaEnabled);
+            sepiaCheck.addActionListener(e -> config.imageSepiaEnabled = sepiaCheck.isSelected());
+            sepiaPanel.add(sepiaCheck);
+            sepiaPanel.add(new JLabel("Intensity:"));
+            JSlider sepiaIntensitySlider = new JSlider(0, 100, config.imageSepiaIntensity);
+            sepiaIntensitySlider.setPreferredSize(new Dimension(150, 25));
+            JLabel sepiaIntensityLabel = new JLabel(config.imageSepiaIntensity + "%");
+            sepiaIntensitySlider.addChangeListener(e -> {
+                config.imageSepiaIntensity = sepiaIntensitySlider.getValue();
+                sepiaIntensityLabel.setText(config.imageSepiaIntensity + "%");
+            });
+            sepiaPanel.add(sepiaIntensitySlider);
+            sepiaPanel.add(sepiaIntensityLabel);
+            imageColorPanel.add(sepiaPanel);
+
+            controlTabs.addTab("Image Color", imageColorPanel);
+
+            // ===== TAB 7: Image Effects & Filters =====
+            JPanel imageEffectsPanel = new JPanel();
+            imageEffectsPanel.setLayout(new BoxLayout(imageEffectsPanel, BoxLayout.Y_AXIS));
+            imageEffectsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+            // --- Blur Effects ---
+            JPanel blurPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            blurPanel.setBorder(BorderFactory.createTitledBorder("Blur Effects"));
+            JCheckBox blurCheck = new JCheckBox("Enable Blur", config.imageBlurEnabled);
+            blurCheck.addActionListener(e -> config.imageBlurEnabled = blurCheck.isSelected());
+            blurPanel.add(blurCheck);
+            blurPanel.add(new JLabel("Type:"));
+            String[] blurTypes = {"Gaussian", "Motion H", "Motion V", "Radial/Zoom"};
+            JComboBox<String> blurTypeCombo = new JComboBox<>(blurTypes);
+            blurTypeCombo.setSelectedIndex(config.imageBlurType);
+            blurTypeCombo.addActionListener(e -> config.imageBlurType = blurTypeCombo.getSelectedIndex());
+            blurPanel.add(blurTypeCombo);
+            blurPanel.add(new JLabel("Amount:"));
+            JSlider blurAmountSlider = new JSlider(0, 20, config.imageBlurAmount);
+            blurAmountSlider.setPreferredSize(new Dimension(100, 25));
+            JLabel blurAmountLabel = new JLabel(config.imageBlurAmount + "");
+            blurAmountSlider.addChangeListener(e -> {
+                config.imageBlurAmount = blurAmountSlider.getValue();
+                blurAmountLabel.setText(config.imageBlurAmount + "");
+            });
+            blurPanel.add(blurAmountSlider);
+            blurPanel.add(blurAmountLabel);
+            imageEffectsPanel.add(blurPanel);
+
+            // --- Sharpen ---
+            JPanel sharpenPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            sharpenPanel.setBorder(BorderFactory.createTitledBorder("Sharpen"));
+            JCheckBox sharpenCheck = new JCheckBox("Enable Sharpen", config.imageSharpenEnabled);
+            sharpenCheck.addActionListener(e -> config.imageSharpenEnabled = sharpenCheck.isSelected());
+            sharpenPanel.add(sharpenCheck);
+            sharpenPanel.add(new JLabel("Amount:"));
+            JSlider sharpenAmountSlider = new JSlider(0, 100, config.imageSharpenAmount);
+            sharpenAmountSlider.setPreferredSize(new Dimension(150, 25));
+            JLabel sharpenAmountLabel = new JLabel(config.imageSharpenAmount + "%");
+            sharpenAmountSlider.addChangeListener(e -> {
+                config.imageSharpenAmount = sharpenAmountSlider.getValue();
+                sharpenAmountLabel.setText(config.imageSharpenAmount + "%");
+            });
+            sharpenPanel.add(sharpenAmountSlider);
+            sharpenPanel.add(sharpenAmountLabel);
+            imageEffectsPanel.add(sharpenPanel);
+
+            // --- Film Grain ---
+            JPanel grainPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            grainPanel.setBorder(BorderFactory.createTitledBorder("Film Grain"));
+            JCheckBox grainCheck = new JCheckBox("Enable Grain", config.imageGrainEnabled);
+            grainCheck.addActionListener(e -> config.imageGrainEnabled = grainCheck.isSelected());
+            grainPanel.add(grainCheck);
+            grainPanel.add(new JLabel("Intensity:"));
+            JSlider grainIntensitySlider = new JSlider(0, 100, config.imageGrainIntensity);
+            grainIntensitySlider.setPreferredSize(new Dimension(150, 25));
+            JLabel grainIntensityLabel = new JLabel(config.imageGrainIntensity + "%");
+            grainIntensitySlider.addChangeListener(e -> {
+                config.imageGrainIntensity = grainIntensitySlider.getValue();
+                grainIntensityLabel.setText(config.imageGrainIntensity + "%");
+            });
+            grainPanel.add(grainIntensitySlider);
+            grainPanel.add(grainIntensityLabel);
+            imageEffectsPanel.add(grainPanel);
+
+            // --- Bloom/Glow ---
+            JPanel bloomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            bloomPanel.setBorder(BorderFactory.createTitledBorder("Bloom / Soft Glow"));
+            JCheckBox bloomCheck = new JCheckBox("Enable Bloom", config.imageBloomEnabled);
+            bloomCheck.addActionListener(e -> config.imageBloomEnabled = bloomCheck.isSelected());
+            bloomPanel.add(bloomCheck);
+            bloomPanel.add(new JLabel("Intensity:"));
+            JSlider bloomIntensitySlider = new JSlider(0, 100, config.imageBloomIntensity);
+            bloomIntensitySlider.setPreferredSize(new Dimension(100, 25));
+            JLabel bloomIntensityLabel = new JLabel(config.imageBloomIntensity + "%");
+            bloomIntensitySlider.addChangeListener(e -> {
+                config.imageBloomIntensity = bloomIntensitySlider.getValue();
+                bloomIntensityLabel.setText(config.imageBloomIntensity + "%");
+            });
+            bloomPanel.add(bloomIntensitySlider);
+            bloomPanel.add(bloomIntensityLabel);
+            bloomPanel.add(new JLabel("Threshold:"));
+            JSlider bloomThresholdSlider = new JSlider(0, 100, config.imageBloomThreshold);
+            bloomThresholdSlider.setPreferredSize(new Dimension(80, 25));
+            JLabel bloomThresholdLabel = new JLabel(config.imageBloomThreshold + "%");
+            bloomThresholdSlider.addChangeListener(e -> {
+                config.imageBloomThreshold = bloomThresholdSlider.getValue();
+                bloomThresholdLabel.setText(config.imageBloomThreshold + "%");
+            });
+            bloomPanel.add(bloomThresholdSlider);
+            bloomPanel.add(bloomThresholdLabel);
+            imageEffectsPanel.add(bloomPanel);
+
+            // --- Vignette ---
+            JPanel vignettePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            vignettePanel.setBorder(BorderFactory.createTitledBorder("Vignette"));
+            vignettePanel.add(new JLabel("Intensity:"));
+            JSlider vignetteIntensitySlider = new JSlider(0, 100, config.imageVignetteIntensity);
+            vignetteIntensitySlider.setPreferredSize(new Dimension(100, 25));
+            JLabel vignetteIntensityLabel = new JLabel(config.imageVignetteIntensity + "%");
+            vignetteIntensitySlider.addChangeListener(e -> {
+                config.imageVignetteIntensity = vignetteIntensitySlider.getValue();
+                vignetteIntensityLabel.setText(config.imageVignetteIntensity + "%");
+            });
+            vignettePanel.add(vignetteIntensitySlider);
+            vignettePanel.add(vignetteIntensityLabel);
+            vignettePanel.add(new JLabel("Size:"));
+            JSlider vignetteSizeSlider = new JSlider(0, 100, config.imageVignetteSize);
+            vignetteSizeSlider.setPreferredSize(new Dimension(100, 25));
+            JLabel vignetteSizeLabel = new JLabel(config.imageVignetteSize + "%");
+            vignetteSizeSlider.addChangeListener(e -> {
+                config.imageVignetteSize = vignetteSizeSlider.getValue();
+                vignetteSizeLabel.setText(config.imageVignetteSize + "%");
+            });
+            vignettePanel.add(vignetteSizeSlider);
+            vignettePanel.add(vignetteSizeLabel);
+            JButton vignetteColorBtn = new JButton("Color");
+            JPanel vignetteColorPreview = new JPanel();
+            vignetteColorPreview.setBackground(config.imageVignetteColor);
+            vignetteColorPreview.setPreferredSize(new Dimension(30, 22));
+            vignetteColorPreview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            vignetteColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Vignette Color", config.imageVignetteColor);
+                if (chosen != null) {
+                    config.imageVignetteColor = chosen;
+                    vignetteColorPreview.setBackground(chosen);
+                }
+            });
+            vignettePanel.add(vignetteColorBtn);
+            vignettePanel.add(vignetteColorPreview);
+            imageEffectsPanel.add(vignettePanel);
+
+            controlTabs.addTab("Image Effects", imageEffectsPanel);
+
+            // ===== TAB 8: Special FX =====
+            JPanel specialFxPanel = new JPanel();
+            specialFxPanel.setLayout(new BoxLayout(specialFxPanel, BoxLayout.Y_AXIS));
+            specialFxPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+            // --- Chromatic Aberration ---
+            JPanel chromaticPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            chromaticPanel.setBorder(BorderFactory.createTitledBorder("Chromatic Aberration (RGB Split)"));
+            JCheckBox chromaticCheck = new JCheckBox("Enable", config.imageChromaticEnabled);
+            chromaticCheck.addActionListener(e -> config.imageChromaticEnabled = chromaticCheck.isSelected());
+            chromaticPanel.add(chromaticCheck);
+            chromaticPanel.add(new JLabel("Offset:"));
+            JSlider chromaticOffsetSlider = new JSlider(1, 20, config.imageChromaticOffset);
+            chromaticOffsetSlider.setPreferredSize(new Dimension(150, 25));
+            JLabel chromaticOffsetLabel = new JLabel(config.imageChromaticOffset + "px");
+            chromaticOffsetSlider.addChangeListener(e -> {
+                config.imageChromaticOffset = chromaticOffsetSlider.getValue();
+                chromaticOffsetLabel.setText(config.imageChromaticOffset + "px");
+            });
+            chromaticPanel.add(chromaticOffsetSlider);
+            chromaticPanel.add(chromaticOffsetLabel);
+            specialFxPanel.add(chromaticPanel);
+
+            // --- Glitch Effect ---
+            JPanel glitchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            glitchPanel.setBorder(BorderFactory.createTitledBorder("Glitch Effect"));
+            JCheckBox glitchCheck = new JCheckBox("Enable Glitch", config.imageGlitchEnabled);
+            glitchCheck.addActionListener(e -> config.imageGlitchEnabled = glitchCheck.isSelected());
+            glitchPanel.add(glitchCheck);
+            glitchPanel.add(new JLabel("Intensity:"));
+            JSlider glitchIntensitySlider = new JSlider(0, 100, config.imageGlitchIntensity);
+            glitchIntensitySlider.setPreferredSize(new Dimension(150, 25));
+            JLabel glitchIntensityLabel = new JLabel(config.imageGlitchIntensity + "%");
+            glitchIntensitySlider.addChangeListener(e -> {
+                config.imageGlitchIntensity = glitchIntensitySlider.getValue();
+                glitchIntensityLabel.setText(config.imageGlitchIntensity + "%");
+            });
+            glitchPanel.add(glitchIntensitySlider);
+            glitchPanel.add(glitchIntensityLabel);
+            specialFxPanel.add(glitchPanel);
+
+            // --- Duotone ---
+            JPanel duotonePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            duotonePanel.setBorder(BorderFactory.createTitledBorder("Duotone Effect"));
+            JCheckBox duotoneCheck = new JCheckBox("Enable Duotone", config.imageDuotoneEnabled);
+            duotoneCheck.addActionListener(e -> config.imageDuotoneEnabled = duotoneCheck.isSelected());
+            duotonePanel.add(duotoneCheck);
+            JButton duotoneColor1Btn = new JButton("Dark Color");
+            JPanel duotoneColor1Preview = new JPanel();
+            duotoneColor1Preview.setBackground(config.imageDuotoneColor1);
+            duotoneColor1Preview.setPreferredSize(new Dimension(30, 22));
+            duotoneColor1Preview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            duotoneColor1Btn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Duotone Dark Color", config.imageDuotoneColor1);
+                if (chosen != null) {
+                    config.imageDuotoneColor1 = chosen;
+                    duotoneColor1Preview.setBackground(chosen);
+                }
+            });
+            duotonePanel.add(duotoneColor1Btn);
+            duotonePanel.add(duotoneColor1Preview);
+            JButton duotoneColor2Btn = new JButton("Light Color");
+            JPanel duotoneColor2Preview = new JPanel();
+            duotoneColor2Preview.setBackground(config.imageDuotoneColor2);
+            duotoneColor2Preview.setPreferredSize(new Dimension(30, 22));
+            duotoneColor2Preview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            duotoneColor2Btn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Duotone Light Color", config.imageDuotoneColor2);
+                if (chosen != null) {
+                    config.imageDuotoneColor2 = chosen;
+                    duotoneColor2Preview.setBackground(chosen);
+                }
+            });
+            duotonePanel.add(duotoneColor2Btn);
+            duotonePanel.add(duotoneColor2Preview);
+            specialFxPanel.add(duotonePanel);
+
+            // --- Scanlines ---
+            JPanel scanlinesPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            scanlinesPanel.setBorder(BorderFactory.createTitledBorder("Scanlines / CRT Effect"));
+            JCheckBox scanlinesCheck = new JCheckBox("Enable Scanlines", config.imageScanlinesEnabled);
+            scanlinesCheck.addActionListener(e -> config.imageScanlinesEnabled = scanlinesCheck.isSelected());
+            scanlinesPanel.add(scanlinesCheck);
+            scanlinesPanel.add(new JLabel("Intensity:"));
+            JSlider scanlinesIntensitySlider = new JSlider(0, 100, config.imageScanlinesIntensity);
+            scanlinesIntensitySlider.setPreferredSize(new Dimension(100, 25));
+            JLabel scanlinesIntensityLabel = new JLabel(config.imageScanlinesIntensity + "%");
+            scanlinesIntensitySlider.addChangeListener(e -> {
+                config.imageScanlinesIntensity = scanlinesIntensitySlider.getValue();
+                scanlinesIntensityLabel.setText(config.imageScanlinesIntensity + "%");
+            });
+            scanlinesPanel.add(scanlinesIntensitySlider);
+            scanlinesPanel.add(scanlinesIntensityLabel);
+            scanlinesPanel.add(new JLabel("Spacing:"));
+            JSpinner scanlinesSpacingSpinner = new JSpinner(new SpinnerNumberModel(config.imageScanlinesSpacing, 2, 10, 1));
+            scanlinesSpacingSpinner.addChangeListener(e -> config.imageScanlinesSpacing = (int) scanlinesSpacingSpinner.getValue());
+            scanlinesPanel.add(scanlinesSpacingSpinner);
+            specialFxPanel.add(scanlinesPanel);
+
+            // --- Mirror Mode ---
+            JPanel mirrorPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            mirrorPanel.setBorder(BorderFactory.createTitledBorder("Mirror / Kaleidoscope"));
+            mirrorPanel.add(new JLabel("Mode:"));
+            String[] mirrorModes = {"None", "Horizontal", "Vertical", "Both", "Kaleidoscope"};
+            JComboBox<String> mirrorCombo = new JComboBox<>(mirrorModes);
+            mirrorCombo.setSelectedIndex(config.imageMirrorMode);
+            mirrorCombo.addActionListener(e -> config.imageMirrorMode = mirrorCombo.getSelectedIndex());
+            mirrorPanel.add(mirrorCombo);
+            specialFxPanel.add(mirrorPanel);
+
+            // --- Split Toning ---
+            JPanel splitTonePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            splitTonePanel.setBorder(BorderFactory.createTitledBorder("Split Toning"));
+            JCheckBox splitToneCheck = new JCheckBox("Enable", config.imageSplitToneEnabled);
+            splitToneCheck.addActionListener(e -> config.imageSplitToneEnabled = splitToneCheck.isSelected());
+            splitTonePanel.add(splitToneCheck);
+            JButton highlightColorBtn = new JButton("Highlights");
+            JPanel highlightColorPreview = new JPanel();
+            highlightColorPreview.setBackground(config.imageSplitToneHighlight);
+            highlightColorPreview.setPreferredSize(new Dimension(30, 22));
+            highlightColorPreview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            highlightColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Highlight Tint", config.imageSplitToneHighlight);
+                if (chosen != null) {
+                    config.imageSplitToneHighlight = chosen;
+                    highlightColorPreview.setBackground(chosen);
+                }
+            });
+            splitTonePanel.add(highlightColorBtn);
+            splitTonePanel.add(highlightColorPreview);
+            JButton splitShadowColorBtn = new JButton("Shadows");
+            JPanel shadowToneColorPreview = new JPanel();
+            shadowToneColorPreview.setBackground(config.imageSplitToneShadow);
+            shadowToneColorPreview.setPreferredSize(new Dimension(30, 22));
+            shadowToneColorPreview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            splitShadowColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Shadow Tint", config.imageSplitToneShadow);
+                if (chosen != null) {
+                    config.imageSplitToneShadow = chosen;
+                    shadowToneColorPreview.setBackground(chosen);
+                }
+            });
+            splitTonePanel.add(splitShadowColorBtn);
+            splitTonePanel.add(shadowToneColorPreview);
+            splitTonePanel.add(new JLabel("Balance:"));
+            JSlider splitToneBalanceSlider = new JSlider(0, 100, config.imageSplitToneBalance);
+            splitToneBalanceSlider.setPreferredSize(new Dimension(80, 25));
+            splitToneBalanceSlider.addChangeListener(e -> config.imageSplitToneBalance = splitToneBalanceSlider.getValue());
+            splitTonePanel.add(splitToneBalanceSlider);
+            specialFxPanel.add(splitTonePanel);
+
+            // --- Border/Frame ---
+            JPanel borderPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            borderPanel.setBorder(BorderFactory.createTitledBorder("Border / Frame"));
+            JCheckBox borderCheck = new JCheckBox("Enable Border", config.imageBorderEnabled);
+            borderCheck.addActionListener(e -> config.imageBorderEnabled = borderCheck.isSelected());
+            borderPanel.add(borderCheck);
+            borderPanel.add(new JLabel("Width:"));
+            JSlider borderWidthSlider = new JSlider(0, 50, config.imageBorderWidth);
+            borderWidthSlider.setPreferredSize(new Dimension(80, 25));
+            JLabel borderWidthLabel = new JLabel(config.imageBorderWidth + "px");
+            borderWidthSlider.addChangeListener(e -> {
+                config.imageBorderWidth = borderWidthSlider.getValue();
+                borderWidthLabel.setText(config.imageBorderWidth + "px");
+            });
+            borderPanel.add(borderWidthSlider);
+            borderPanel.add(borderWidthLabel);
+            JButton borderColorBtn = new JButton("Color");
+            JPanel borderColorPreview = new JPanel();
+            borderColorPreview.setBackground(config.imageBorderColor);
+            borderColorPreview.setPreferredSize(new Dimension(30, 22));
+            borderColorPreview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            borderColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Border Color", config.imageBorderColor);
+                if (chosen != null) {
+                    config.imageBorderColor = chosen;
+                    borderColorPreview.setBackground(chosen);
+                }
+            });
+            borderPanel.add(borderColorBtn);
+            borderPanel.add(borderColorPreview);
+            String[] borderStyles = {"Solid", "Gradient", "Glow"};
+            JComboBox<String> borderStyleCombo = new JComboBox<>(borderStyles);
+            borderStyleCombo.setSelectedIndex(config.imageBorderStyle);
+            borderStyleCombo.addActionListener(e -> config.imageBorderStyle = borderStyleCombo.getSelectedIndex());
+            borderPanel.add(borderStyleCombo);
+            specialFxPanel.add(borderPanel);
+
+            // --- Ken Burns ---
+            JPanel kenBurnsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            kenBurnsPanel.setBorder(BorderFactory.createTitledBorder("Ken Burns (Pan & Zoom Animation)"));
+            JCheckBox kenBurnsCheck = new JCheckBox("Enable", config.imageKenBurnsEnabled);
+            kenBurnsCheck.addActionListener(e -> config.imageKenBurnsEnabled = kenBurnsCheck.isSelected());
+            kenBurnsPanel.add(kenBurnsCheck);
+            kenBurnsPanel.add(new JLabel("Zoom Start:"));
+            JSpinner zoomStartSpinner = new JSpinner(new SpinnerNumberModel(config.imageKenBurnsZoomStart, 80, 120, 5));
+            zoomStartSpinner.addChangeListener(e -> config.imageKenBurnsZoomStart = (int) zoomStartSpinner.getValue());
+            kenBurnsPanel.add(zoomStartSpinner);
+            kenBurnsPanel.add(new JLabel("End:"));
+            JSpinner zoomEndSpinner = new JSpinner(new SpinnerNumberModel(config.imageKenBurnsZoomEnd, 80, 120, 5));
+            zoomEndSpinner.addChangeListener(e -> config.imageKenBurnsZoomEnd = (int) zoomEndSpinner.getValue());
+            kenBurnsPanel.add(zoomEndSpinner);
+            kenBurnsPanel.add(new JLabel("Pan X:"));
+            JSlider panXSlider = new JSlider(-100, 100, config.imageKenBurnsPanX);
+            panXSlider.setPreferredSize(new Dimension(60, 25));
+            panXSlider.addChangeListener(e -> config.imageKenBurnsPanX = panXSlider.getValue());
+            kenBurnsPanel.add(panXSlider);
+            kenBurnsPanel.add(new JLabel("Y:"));
+            JSlider panYSlider = new JSlider(-100, 100, config.imageKenBurnsPanY);
+            panYSlider.setPreferredSize(new Dimension(60, 25));
+            panYSlider.addChangeListener(e -> config.imageKenBurnsPanY = panYSlider.getValue());
+            kenBurnsPanel.add(panYSlider);
+            specialFxPanel.add(kenBurnsPanel);
+
+            controlTabs.addTab("Special FX", specialFxPanel);
+
             // Wrap tabs in scroll pane
             JScrollPane tabScrollPane = new JScrollPane(controlTabs);
             tabScrollPane.setBorder(null);
@@ -2260,9 +2836,45 @@ public class arabicSync {
                     g2d.setColor(new Color(30, 30, 35));
                     g2d.fillRect(0, 0, panelWidth, panelHeight);
 
-                    // Draw image or placeholder
+                    // Draw image or placeholder with effects applied
                     if (previewImage[0] != null) {
-                        g2d.drawImage(previewImage[0], offsetX, offsetY, previewWidth, previewHeight, null);
+                        // Create a scaled copy for processing effects
+                        BufferedImage effectImg = new BufferedImage(previewWidth, previewHeight, BufferedImage.TYPE_INT_ARGB);
+                        Graphics2D eg = effectImg.createGraphics();
+                        eg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                        eg.drawImage(previewImage[0], 0, 0, previewWidth, previewHeight, null);
+                        eg.dispose();
+
+                        // Apply image effects to the preview
+                        double animTime = (System.currentTimeMillis() - startTime[0]) / 1000.0;
+                        effectImg = applyPreviewImageEffectsStatic(effectImg, animTime, config);
+
+                        // Apply Ken Burns effect (pan & zoom)
+                        if (config.imageKenBurnsEnabled) {
+                            double progress = (animTime % 5.0) / 5.0; // 5-second cycle
+                            double zoomStart = config.imageKenBurnsZoomStart / 100.0;
+                            double zoomEnd = config.imageKenBurnsZoomEnd / 100.0;
+                            double currentZoom = zoomStart + (zoomEnd - zoomStart) * progress;
+                            int panX = (int) (config.imageKenBurnsPanX * progress * previewWidth / 500.0);
+                            int panY = (int) (config.imageKenBurnsPanY * progress * previewHeight / 500.0);
+
+                            int newW = (int) (previewWidth * currentZoom);
+                            int newH = (int) (previewHeight * currentZoom);
+                            int srcX = (newW - previewWidth) / 2 - panX;
+                            int srcY = (newH - previewHeight) / 2 - panY;
+
+                            BufferedImage kenBurnsImg = new BufferedImage(previewWidth, previewHeight, BufferedImage.TYPE_INT_ARGB);
+                            Graphics2D kbg = kenBurnsImg.createGraphics();
+                            kbg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                            kbg.drawImage(effectImg, -srcX, -srcY, newW, newH, null);
+                            kbg.dispose();
+                            effectImg = kenBurnsImg;
+                        }
+
+                        g2d.drawImage(effectImg, offsetX, offsetY, null);
+
+                        // Apply overlay effects that need to be drawn on top
+                        applyPreviewOverlayEffectsStatic(g2d, offsetX, offsetY, previewWidth, previewHeight, animTime, config);
                     } else {
                         g2d.setColor(new Color(45, 45, 55));
                         g2d.fillRect(offsetX, offsetY, previewWidth, previewHeight);
@@ -6074,6 +6686,104 @@ public class arabicSync {
             processedImage = applyLensDistortion(processedImage, timeProgress);
         }
 
+        // === APPLY PROFESSIONAL IMAGE EFFECTS ===
+        // Apply Mirror Mode first
+        if (config.imageMirrorMode > 0) {
+            processedImage = applyMirrorEffect(processedImage, config.imageMirrorMode);
+        }
+
+        // Apply Brightness, Contrast, Saturation adjustments
+        if (config.imageBrightness != 0 || config.imageContrast != 0 || config.imageSaturation != 0) {
+            processedImage = applyBCSAdjustments(processedImage, config.imageBrightness, config.imageContrast, config.imageSaturation);
+        }
+
+        // Apply Hue Shift
+        if (config.imageHueShift != 0) {
+            processedImage = applyHueShift(processedImage, config.imageHueShift);
+        }
+
+        // Apply Temperature (warm/cool)
+        if (config.imageTemperature != 0) {
+            processedImage = applyTemperature(processedImage, config.imageTemperature);
+        }
+
+        // Apply Color Grading Preset
+        if (config.imageColorGradePreset > 0) {
+            processedImage = applyColorGradePreset(processedImage, config.imageColorGradePreset, config.imageColorGradeIntensity / 100.0);
+        }
+
+        // Apply Sepia
+        if (config.imageSepiaEnabled) {
+            processedImage = applySepiaEffect(processedImage, config.imageSepiaIntensity / 100.0);
+        }
+
+        // Apply Duotone
+        if (config.imageDuotoneEnabled) {
+            processedImage = applyDuotoneEffect(processedImage, config.imageDuotoneColor1, config.imageDuotoneColor2);
+        }
+
+        // Apply Split Toning
+        if (config.imageSplitToneEnabled) {
+            processedImage = applySplitToning(processedImage, config.imageSplitToneHighlight, config.imageSplitToneShadow, config.imageSplitToneBalance / 100.0);
+        }
+
+        // Apply Blur
+        if (config.imageBlurEnabled && config.imageBlurAmount > 0) {
+            processedImage = applyBlurEffect(processedImage, config.imageBlurType, config.imageBlurAmount);
+        }
+
+        // Apply Sharpen
+        if (config.imageSharpenEnabled && config.imageSharpenAmount > 0) {
+            processedImage = applySharpenEffect(processedImage, config.imageSharpenAmount / 100.0);
+        }
+
+        // Apply Bloom/Glow
+        if (config.imageBloomEnabled) {
+            processedImage = applyBloomEffect(processedImage, config.imageBloomIntensity / 100.0, config.imageBloomThreshold / 100.0);
+        }
+
+        // Apply Chromatic Aberration
+        if (config.imageChromaticEnabled) {
+            processedImage = applyChromaticAberration(processedImage, config.imageChromaticOffset);
+        }
+
+        // Apply Glitch Effect
+        if (config.imageGlitchEnabled) {
+            processedImage = applyGlitchEffect(processedImage, config.imageGlitchIntensity / 100.0, currentTime);
+        }
+
+        // Apply Film Grain
+        if (config.imageGrainEnabled) {
+            processedImage = applyFilmGrain(processedImage, config.imageGrainIntensity / 100.0);
+        }
+
+        // Apply Border
+        if (config.imageBorderEnabled && config.imageBorderWidth > 0) {
+            processedImage = applyBorderEffect(processedImage, config.imageBorderWidth, config.imageBorderColor, config.imageBorderStyle);
+        }
+
+        // Apply Ken Burns Effect (pan & zoom)
+        if (config.imageKenBurnsEnabled) {
+            double zoomStart = config.imageKenBurnsZoomStart / 100.0;
+            double zoomEnd = config.imageKenBurnsZoomEnd / 100.0;
+            double currentZoom = zoomStart + (zoomEnd - zoomStart) * timeProgress;
+            int panX = (int) (config.imageKenBurnsPanX * timeProgress * width / 500.0);
+            int panY = (int) (config.imageKenBurnsPanY * timeProgress * height / 500.0);
+
+            int newW = (int) (processedImage.getWidth() * currentZoom);
+            int newH = (int) (processedImage.getHeight() * currentZoom);
+            int srcX = (newW - processedImage.getWidth()) / 2 - panX;
+            int srcY = (newH - processedImage.getHeight()) / 2 - panY;
+
+            BufferedImage kenBurnsImg = new BufferedImage(processedImage.getWidth(), processedImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
+            Graphics2D kbg = kenBurnsImg.createGraphics();
+            kbg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            kbg.drawImage(processedImage, -srcX, -srcY, newW, newH, null);
+            kbg.dispose();
+            processedImage = kenBurnsImg;
+        }
+        // === END PROFESSIONAL IMAGE EFFECTS ===
+
         // Apply zoom transformation
         // Apply zoom transformation
         java.util.Random random = new java.util.Random(42);
@@ -6161,6 +6871,16 @@ public class arabicSync {
         // CONDITIONAL OVERLAY EFFECTS:
         if (config.enableVignette) {
             applyVignetteEffect(g2d, width, height, timeProgress);
+        }
+
+        // Apply custom vignette with configurable settings
+        if (config.imageVignetteIntensity > 0) {
+            applyCustomVignette(g2d, 0, 0, width, height, config.imageVignetteIntensity / 100.0, config.imageVignetteSize / 100.0, config.imageVignetteColor);
+        }
+
+        // Apply scanlines overlay
+        if (config.imageScanlinesEnabled) {
+            applyScanlines(g2d, 0, 0, width, height, config.imageScanlinesIntensity / 100.0, config.imageScanlinesSpacing);
         }
 
         if (config.enableParticles) {
@@ -7812,7 +8532,680 @@ public class arabicSync {
     }
 
 
-    //    private double calculateTimeProgress() {
+    // ============= PROFESSIONAL IMAGE EFFECTS FOR PREVIEW =============
+
+    /**
+     * Apply all configured image effects for the preview panel
+     */
+    private static BufferedImage applyPreviewImageEffectsStatic(BufferedImage image, double animTime, VideoConfig config) {
+        int w = image.getWidth();
+        int h = image.getHeight();
+
+        // Create working copy
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = result.createGraphics();
+        g.drawImage(image, 0, 0, null);
+        g.dispose();
+
+        // Apply Mirror Mode first
+        if (config.imageMirrorMode > 0) {
+            result = applyMirrorEffect(result, config.imageMirrorMode);
+        }
+
+        // Apply Brightness, Contrast, Saturation adjustments
+        if (config.imageBrightness != 0 || config.imageContrast != 0 || config.imageSaturation != 0) {
+            result = applyBCSAdjustments(result, config.imageBrightness, config.imageContrast, config.imageSaturation);
+        }
+
+        // Apply Hue Shift
+        if (config.imageHueShift != 0) {
+            result = applyHueShift(result, config.imageHueShift);
+        }
+
+        // Apply Temperature (warm/cool)
+        if (config.imageTemperature != 0) {
+            result = applyTemperature(result, config.imageTemperature);
+        }
+
+        // Apply Color Grading Preset
+        if (config.imageColorGradePreset > 0) {
+            result = applyColorGradePreset(result, config.imageColorGradePreset, config.imageColorGradeIntensity / 100.0);
+        }
+
+        // Apply Sepia
+        if (config.imageSepiaEnabled) {
+            result = applySepiaEffect(result, config.imageSepiaIntensity / 100.0);
+        }
+
+        // Apply Duotone
+        if (config.imageDuotoneEnabled) {
+            result = applyDuotoneEffect(result, config.imageDuotoneColor1, config.imageDuotoneColor2);
+        }
+
+        // Apply Split Toning
+        if (config.imageSplitToneEnabled) {
+            result = applySplitToning(result, config.imageSplitToneHighlight, config.imageSplitToneShadow, config.imageSplitToneBalance / 100.0);
+        }
+
+        // Apply Blur
+        if (config.imageBlurEnabled && config.imageBlurAmount > 0) {
+            result = applyBlurEffect(result, config.imageBlurType, config.imageBlurAmount);
+        }
+
+        // Apply Sharpen
+        if (config.imageSharpenEnabled && config.imageSharpenAmount > 0) {
+            result = applySharpenEffect(result, config.imageSharpenAmount / 100.0);
+        }
+
+        // Apply Bloom/Glow
+        if (config.imageBloomEnabled) {
+            result = applyBloomEffect(result, config.imageBloomIntensity / 100.0, config.imageBloomThreshold / 100.0);
+        }
+
+        // Apply Chromatic Aberration
+        if (config.imageChromaticEnabled) {
+            result = applyChromaticAberration(result, config.imageChromaticOffset);
+        }
+
+        // Apply Glitch Effect
+        if (config.imageGlitchEnabled) {
+            result = applyGlitchEffect(result, config.imageGlitchIntensity / 100.0, animTime);
+        }
+
+        // Apply Film Grain
+        if (config.imageGrainEnabled) {
+            result = applyFilmGrain(result, config.imageGrainIntensity / 100.0);
+        }
+
+        // Apply Border
+        if (config.imageBorderEnabled && config.imageBorderWidth > 0) {
+            result = applyBorderEffect(result, config.imageBorderWidth, config.imageBorderColor, config.imageBorderStyle);
+        }
+
+        return result;
+    }
+
+    /**
+     * Apply overlay effects (vignette, scanlines) that draw on top
+     */
+    private static void applyPreviewOverlayEffectsStatic(Graphics2D g2d, int offsetX, int offsetY, int width, int height, double animTime, VideoConfig config) {
+        // Apply Vignette
+        if (config.imageVignetteIntensity > 0) {
+            applyCustomVignetteStatic(g2d, offsetX, offsetY, width, height, config.imageVignetteIntensity / 100.0, config.imageVignetteSize / 100.0, config.imageVignetteColor);
+        }
+
+        // Apply Scanlines
+        if (config.imageScanlinesEnabled) {
+            applyScanlinesStatic(g2d, offsetX, offsetY, width, height, config.imageScanlinesIntensity / 100.0, config.imageScanlinesSpacing);
+        }
+    }
+
+    // --- Individual Effect Methods ---
+
+    private static BufferedImage applyBCSAdjustments(BufferedImage img, int brightness, int contrast, int saturation) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+
+        float brightFactor = 1.0f + (brightness / 100.0f);
+        float contrastFactor = 1.0f + (contrast / 50.0f);
+        float satFactor = 1.0f + (saturation / 50.0f);
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = img.getRGB(x, y);
+                int a = (rgb >> 24) & 0xff;
+                int r = (rgb >> 16) & 0xff;
+                int g = (rgb >> 8) & 0xff;
+                int b = rgb & 0xff;
+
+                // Apply brightness
+                r = (int) (r * brightFactor);
+                g = (int) (g * brightFactor);
+                b = (int) (b * brightFactor);
+
+                // Apply contrast (relative to 128)
+                r = (int) (((r - 128) * contrastFactor) + 128);
+                g = (int) (((g - 128) * contrastFactor) + 128);
+                b = (int) (((b - 128) * contrastFactor) + 128);
+
+                // Apply saturation via HSB
+                float[] hsb = Color.RGBtoHSB(clamp(r), clamp(g), clamp(b), null);
+                hsb[1] = Math.min(1.0f, hsb[1] * satFactor);
+                int newRgb = Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
+
+                result.setRGB(x, y, (a << 24) | (newRgb & 0x00ffffff));
+            }
+        }
+        return result;
+    }
+
+    private static BufferedImage applyHueShift(BufferedImage img, int degrees) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        float hueShift = degrees / 360.0f;
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = img.getRGB(x, y);
+                int a = (rgb >> 24) & 0xff;
+                int r = (rgb >> 16) & 0xff;
+                int g = (rgb >> 8) & 0xff;
+                int b = rgb & 0xff;
+
+                float[] hsb = Color.RGBtoHSB(r, g, b, null);
+                hsb[0] = (hsb[0] + hueShift + 1.0f) % 1.0f;
+                int newRgb = Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
+
+                result.setRGB(x, y, (a << 24) | (newRgb & 0x00ffffff));
+            }
+        }
+        return result;
+    }
+
+    private static BufferedImage applyTemperature(BufferedImage img, int temp) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        double factor = temp / 50.0; // -1 to +1
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = img.getRGB(x, y);
+                int a = (rgb >> 24) & 0xff;
+                int r = (rgb >> 16) & 0xff;
+                int g = (rgb >> 8) & 0xff;
+                int b = rgb & 0xff;
+
+                if (factor > 0) {
+                    // Warm: boost red/yellow, reduce blue
+                    r = (int) (r + factor * 30);
+                    g = (int) (g + factor * 15);
+                    b = (int) (b - factor * 20);
+                } else {
+                    // Cool: boost blue, reduce red
+                    r = (int) (r + factor * 20);
+                    b = (int) (b - factor * 30);
+                }
+
+                result.setRGB(x, y, (a << 24) | (clamp(r) << 16) | (clamp(g) << 8) | clamp(b));
+            }
+        }
+        return result;
+    }
+
+    private static BufferedImage applyColorGradePreset(BufferedImage img, int preset, double intensity) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+
+        // Define color grade parameters: [shadowR, shadowG, shadowB, highlightR, highlightG, highlightB, satMult, contrastMult]
+        double[][] presets = {
+            {0, 0, 0, 0, 0, 0, 1.0, 1.0}, // 0: None
+            {0, 60, 80, 80, 40, 0, 1.1, 1.1}, // 1: Teal & Orange
+            {40, 30, 10, 50, 40, 20, 0.9, 0.95}, // 2: Vintage Film
+            {0, 20, 60, 10, 30, 50, 0.95, 1.05}, // 3: Cold Blue
+            {40, 20, 0, 60, 40, 10, 1.15, 1.05}, // 4: Warm Sunset
+            {0, 0, 0, 20, 20, 20, 0.3, 1.3}, // 5: Film Noir
+            {60, 0, 60, 0, 80, 80, 1.3, 1.2}, // 6: Cyberpunk
+            {10, 30, 10, 30, 50, 20, 1.1, 1.0}, // 7: Forest Green
+            {40, 30, 10, 70, 50, 20, 1.1, 1.1} // 8: Desert Gold
+        };
+
+        double[] p = presets[Math.min(preset, presets.length - 1)];
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = img.getRGB(x, y);
+                int a = (rgb >> 24) & 0xff;
+                int r = (rgb >> 16) & 0xff;
+                int g = (rgb >> 8) & 0xff;
+                int b = rgb & 0xff;
+
+                double luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+
+                // Apply shadow and highlight tints based on luminance
+                double shadowWeight = 1.0 - luminance;
+                double highlightWeight = luminance;
+
+                double newR = r + (p[0] * shadowWeight + p[3] * highlightWeight) * intensity;
+                double newG = g + (p[1] * shadowWeight + p[4] * highlightWeight) * intensity;
+                double newB = b + (p[2] * shadowWeight + p[5] * highlightWeight) * intensity;
+
+                // Apply contrast
+                double contrastMult = 1.0 + (p[7] - 1.0) * intensity;
+                newR = ((newR - 128) * contrastMult) + 128;
+                newG = ((newG - 128) * contrastMult) + 128;
+                newB = ((newB - 128) * contrastMult) + 128;
+
+                // Apply saturation
+                float[] hsb = Color.RGBtoHSB(clamp((int)newR), clamp((int)newG), clamp((int)newB), null);
+                double satMult = 1.0 + (p[6] - 1.0) * intensity;
+                hsb[1] = (float) Math.min(1.0, hsb[1] * satMult);
+                int finalRgb = Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
+
+                result.setRGB(x, y, (a << 24) | (finalRgb & 0x00ffffff));
+            }
+        }
+        return result;
+    }
+
+    private static BufferedImage applySepiaEffect(BufferedImage img, double intensity) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = img.getRGB(x, y);
+                int a = (rgb >> 24) & 0xff;
+                int r = (rgb >> 16) & 0xff;
+                int g = (rgb >> 8) & 0xff;
+                int b = rgb & 0xff;
+
+                int sepiaR = (int) (0.393 * r + 0.769 * g + 0.189 * b);
+                int sepiaG = (int) (0.349 * r + 0.686 * g + 0.168 * b);
+                int sepiaB = (int) (0.272 * r + 0.534 * g + 0.131 * b);
+
+                int finalR = (int) (r + (sepiaR - r) * intensity);
+                int finalG = (int) (g + (sepiaG - g) * intensity);
+                int finalB = (int) (b + (sepiaB - b) * intensity);
+
+                result.setRGB(x, y, (a << 24) | (clamp(finalR) << 16) | (clamp(finalG) << 8) | clamp(finalB));
+            }
+        }
+        return result;
+    }
+
+    private static BufferedImage applyDuotoneEffect(BufferedImage img, Color dark, Color light) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = img.getRGB(x, y);
+                int a = (rgb >> 24) & 0xff;
+                int r = (rgb >> 16) & 0xff;
+                int g = (rgb >> 8) & 0xff;
+                int b = rgb & 0xff;
+
+                double luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+
+                int newR = (int) (dark.getRed() + (light.getRed() - dark.getRed()) * luminance);
+                int newG = (int) (dark.getGreen() + (light.getGreen() - dark.getGreen()) * luminance);
+                int newB = (int) (dark.getBlue() + (light.getBlue() - dark.getBlue()) * luminance);
+
+                result.setRGB(x, y, (a << 24) | (newR << 16) | (newG << 8) | newB);
+            }
+        }
+        return result;
+    }
+
+    private static BufferedImage applySplitToning(BufferedImage img, Color highlight, Color shadow, double balance) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = img.getRGB(x, y);
+                int a = (rgb >> 24) & 0xff;
+                int r = (rgb >> 16) & 0xff;
+                int g = (rgb >> 8) & 0xff;
+                int b = rgb & 0xff;
+
+                double luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+
+                // Adjust balance threshold
+                double threshold = balance;
+                double tintStrength = 0.3;
+
+                if (luminance > threshold) {
+                    // Apply highlight tint
+                    double strength = (luminance - threshold) / (1.0 - threshold) * tintStrength;
+                    r = (int) (r + (highlight.getRed() - r) * strength);
+                    g = (int) (g + (highlight.getGreen() - g) * strength);
+                    b = (int) (b + (highlight.getBlue() - b) * strength);
+                } else {
+                    // Apply shadow tint
+                    double strength = (threshold - luminance) / threshold * tintStrength;
+                    r = (int) (r + (shadow.getRed() - r) * strength);
+                    g = (int) (g + (shadow.getGreen() - g) * strength);
+                    b = (int) (b + (shadow.getBlue() - b) * strength);
+                }
+
+                result.setRGB(x, y, (a << 24) | (clamp(r) << 16) | (clamp(g) << 8) | clamp(b));
+            }
+        }
+        return result;
+    }
+
+    private static BufferedImage applyBlurEffect(BufferedImage img, int type, int amount) {
+        if (amount == 0) return img;
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+
+        int radius = Math.max(1, amount / 2);
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+                int count = 0;
+
+                for (int ky = -radius; ky <= radius; ky++) {
+                    for (int kx = -radius; kx <= radius; kx++) {
+                        int sampleX = x, sampleY = y;
+
+                        if (type == 0) { // Gaussian (box approximation)
+                            sampleX = x + kx;
+                            sampleY = y + ky;
+                        } else if (type == 1) { // Motion Horizontal
+                            sampleX = x + kx;
+                            sampleY = y;
+                        } else if (type == 2) { // Motion Vertical
+                            sampleX = x;
+                            sampleY = y + ky;
+                        } else if (type == 3) { // Radial/Zoom
+                            double angle = Math.atan2(y - h / 2, x - w / 2);
+                            double dist = (ky + radius) * 0.5;
+                            sampleX = x + (int) (Math.cos(angle) * dist);
+                            sampleY = y + (int) (Math.sin(angle) * dist);
+                        }
+
+                        if (sampleX >= 0 && sampleX < w && sampleY >= 0 && sampleY < h) {
+                            int rgb = img.getRGB(sampleX, sampleY);
+                            sumA += (rgb >> 24) & 0xff;
+                            sumR += (rgb >> 16) & 0xff;
+                            sumG += (rgb >> 8) & 0xff;
+                            sumB += rgb & 0xff;
+                            count++;
+                        }
+                    }
+                }
+
+                if (count > 0) {
+                    result.setRGB(x, y, ((sumA / count) << 24) | ((sumR / count) << 16) | ((sumG / count) << 8) | (sumB / count));
+                } else {
+                    result.setRGB(x, y, img.getRGB(x, y));
+                }
+            }
+        }
+        return result;
+    }
+
+    private static BufferedImage applySharpenEffect(BufferedImage img, double amount) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+
+        // Unsharp mask kernel
+        double center = 1.0 + 4.0 * amount;
+        double edge = -amount;
+
+        for (int y = 1; y < h - 1; y++) {
+            for (int x = 1; x < w - 1; x++) {
+                int rgbC = img.getRGB(x, y);
+                int rgbN = img.getRGB(x, y - 1);
+                int rgbS = img.getRGB(x, y + 1);
+                int rgbW = img.getRGB(x - 1, y);
+                int rgbE = img.getRGB(x + 1, y);
+
+                int a = (rgbC >> 24) & 0xff;
+                double r = ((rgbC >> 16) & 0xff) * center + ((rgbN >> 16) & 0xff) * edge + ((rgbS >> 16) & 0xff) * edge + ((rgbW >> 16) & 0xff) * edge + ((rgbE >> 16) & 0xff) * edge;
+                double g = ((rgbC >> 8) & 0xff) * center + ((rgbN >> 8) & 0xff) * edge + ((rgbS >> 8) & 0xff) * edge + ((rgbW >> 8) & 0xff) * edge + ((rgbE >> 8) & 0xff) * edge;
+                double b = (rgbC & 0xff) * center + (rgbN & 0xff) * edge + (rgbS & 0xff) * edge + (rgbW & 0xff) * edge + (rgbE & 0xff) * edge;
+
+                result.setRGB(x, y, (a << 24) | (clamp((int) r) << 16) | (clamp((int) g) << 8) | clamp((int) b));
+            }
+        }
+
+        // Copy edges
+        for (int x = 0; x < w; x++) {
+            result.setRGB(x, 0, img.getRGB(x, 0));
+            result.setRGB(x, h - 1, img.getRGB(x, h - 1));
+        }
+        for (int y = 0; y < h; y++) {
+            result.setRGB(0, y, img.getRGB(0, y));
+            result.setRGB(w - 1, y, img.getRGB(w - 1, y));
+        }
+
+        return result;
+    }
+
+    private static BufferedImage applyBloomEffect(BufferedImage img, double intensity, double threshold) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+
+        // Create brightness mask
+        BufferedImage brightMask = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        int thresholdValue = (int) (threshold * 255);
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = img.getRGB(x, y);
+                int r = (rgb >> 16) & 0xff;
+                int g = (rgb >> 8) & 0xff;
+                int b = rgb & 0xff;
+                int brightness = (r + g + b) / 3;
+
+                if (brightness > thresholdValue) {
+                    brightMask.setRGB(x, y, rgb);
+                } else {
+                    brightMask.setRGB(x, y, 0);
+                }
+            }
+        }
+
+        // Blur the bright mask
+        BufferedImage blurredMask = applyBlurEffect(brightMask, 0, 10);
+
+        // Composite
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = result.createGraphics();
+        g2d.drawImage(img, 0, 0, null);
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) intensity));
+        g2d.drawImage(blurredMask, 0, 0, null);
+        g2d.dispose();
+
+        return result;
+    }
+
+    private static BufferedImage applyChromaticAberration(BufferedImage img, int offset) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int a = (img.getRGB(x, y) >> 24) & 0xff;
+
+                // Sample red channel shifted left
+                int rX = Math.max(0, x - offset);
+                int r = (img.getRGB(rX, y) >> 16) & 0xff;
+
+                // Green channel centered
+                int g = (img.getRGB(x, y) >> 8) & 0xff;
+
+                // Blue channel shifted right
+                int bX = Math.min(w - 1, x + offset);
+                int b = img.getRGB(bX, y) & 0xff;
+
+                result.setRGB(x, y, (a << 24) | (r << 16) | (g << 8) | b);
+            }
+        }
+        return result;
+    }
+
+    private static BufferedImage applyGlitchEffect(BufferedImage img, double intensity, double time) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = result.createGraphics();
+        g.drawImage(img, 0, 0, null);
+
+        java.util.Random rand = new java.util.Random((long) (time * 10));
+
+        int numSlices = (int) (5 + intensity * 15);
+        for (int i = 0; i < numSlices; i++) {
+            if (rand.nextDouble() > 0.3) continue;
+
+            int sliceY = rand.nextInt(h);
+            int sliceH = rand.nextInt((int) (20 + intensity * 50)) + 5;
+            int offsetX = (int) ((rand.nextDouble() - 0.5) * 2 * intensity * 50);
+
+            if (sliceY + sliceH < h) {
+                BufferedImage slice = img.getSubimage(0, sliceY, w, sliceH);
+                g.drawImage(slice, offsetX, sliceY, null);
+
+                // RGB shift on slice
+                if (rand.nextDouble() > 0.5) {
+                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
+                    g.setColor(new Color(255, 0, 0, 80));
+                    g.fillRect(offsetX + 2, sliceY, w, sliceH);
+                    g.setColor(new Color(0, 255, 255, 80));
+                    g.fillRect(offsetX - 2, sliceY, w, sliceH);
+                    g.setComposite(AlphaComposite.SrcOver);
+                }
+            }
+        }
+        g.dispose();
+        return result;
+    }
+
+    private static BufferedImage applyFilmGrain(BufferedImage img, double intensity) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        java.util.Random rand = new java.util.Random();
+
+        int grainAmount = (int) (intensity * 50);
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = img.getRGB(x, y);
+                int a = (rgb >> 24) & 0xff;
+                int r = (rgb >> 16) & 0xff;
+                int g = (rgb >> 8) & 0xff;
+                int b = rgb & 0xff;
+
+                int grain = (rand.nextInt(grainAmount * 2 + 1) - grainAmount);
+                r = clamp(r + grain);
+                g = clamp(g + grain);
+                b = clamp(b + grain);
+
+                result.setRGB(x, y, (a << 24) | (r << 16) | (g << 8) | b);
+            }
+        }
+        return result;
+    }
+
+    private static BufferedImage applyMirrorEffect(BufferedImage img, int mode) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = result.createGraphics();
+
+        if (mode == 1) { // Horizontal mirror
+            g.drawImage(img, 0, 0, w / 2, h, 0, 0, w / 2, h, null);
+            g.drawImage(img, w, 0, w / 2, h, 0, 0, w / 2, h, null);
+        } else if (mode == 2) { // Vertical mirror
+            g.drawImage(img, 0, 0, w, h / 2, 0, 0, w, h / 2, null);
+            g.drawImage(img, 0, h, w, h / 2, 0, 0, w, h / 2, null);
+        } else if (mode == 3) { // Both
+            g.drawImage(img, 0, 0, w / 2, h / 2, 0, 0, w / 2, h / 2, null);
+            g.drawImage(img, w, 0, w / 2, h / 2, 0, 0, w / 2, h / 2, null);
+            g.drawImage(img, 0, h, w / 2, h / 2, 0, 0, w / 2, h / 2, null);
+            g.drawImage(img, w, h, w / 2, h / 2, 0, 0, w / 2, h / 2, null);
+        } else if (mode == 4) { // Kaleidoscope (4-way)
+            int qw = w / 2, qh = h / 2;
+            g.drawImage(img, 0, 0, qw, qh, 0, 0, qw, qh, null);
+            g.drawImage(img, w, 0, qw, qh, 0, 0, qw, qh, null);
+            g.drawImage(img, 0, h, qw, qh, 0, 0, qw, qh, null);
+            g.drawImage(img, w, h, qw, qh, 0, 0, qw, qh, null);
+        }
+        g.dispose();
+        return result;
+    }
+
+    private static BufferedImage applyBorderEffect(BufferedImage img, int width, Color color, int style) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = result.createGraphics();
+
+        // Scale down image to fit border
+        int innerW = w - width * 2;
+        int innerH = h - width * 2;
+        g.drawImage(img, width, width, innerW, innerH, null);
+
+        // Draw border
+        g.setStroke(new BasicStroke(width));
+        if (style == 0) { // Solid
+            g.setColor(color);
+            g.drawRect(width / 2, width / 2, w - width, h - width);
+        } else if (style == 1) { // Gradient
+            GradientPaint gradient = new GradientPaint(0, 0, color, w, h, color.darker().darker());
+            g.setPaint(gradient);
+            g.drawRect(width / 2, width / 2, w - width, h - width);
+        } else if (style == 2) { // Glow
+            for (int i = width; i > 0; i -= 2) {
+                int alpha = (int) (255 * (1.0 - (double) i / width));
+                g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha));
+                g.setStroke(new BasicStroke(2));
+                g.drawRect(i / 2, i / 2, w - i, h - i);
+            }
+        }
+        g.dispose();
+        return result;
+    }
+
+    private void applyCustomVignette(Graphics2D g2d, int x, int y, int w, int h, double intensity, double size, Color color) {
+        applyCustomVignetteStatic(g2d, x, y, w, h, intensity, size, color);
+    }
+
+    private static void applyCustomVignetteStatic(Graphics2D g2d, int x, int y, int w, int h, double intensity, double size, Color color) {
+        float radius = (float) (Math.max(w, h) * (0.5 + size * 0.5));
+        float[] fractions = {0.0f, 0.5f, 1.0f};
+        Color transparent = new Color(color.getRed(), color.getGreen(), color.getBlue(), 0);
+        Color semi = new Color(color.getRed(), color.getGreen(), color.getBlue(), (int) (150 * intensity));
+        Color full = new Color(color.getRed(), color.getGreen(), color.getBlue(), (int) (255 * intensity));
+        Color[] colors = {transparent, semi, full};
+
+        RadialGradientPaint vignette = new RadialGradientPaint(
+            new Point2D.Float(x + w / 2f, y + h / 2f), radius, fractions, colors);
+
+        Composite oldComp = g2d.getComposite();
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.8f));
+        g2d.setPaint(vignette);
+        g2d.fillRect(x, y, w, h);
+        g2d.setComposite(oldComp);
+    }
+
+    private void applyScanlines(Graphics2D g2d, int x, int y, int w, int h, double intensity, int spacing) {
+        applyScanlinesStatic(g2d, x, y, w, h, intensity, spacing);
+    }
+
+    private static void applyScanlinesStatic(Graphics2D g2d, int x, int y, int w, int h, double intensity, int spacing) {
+        Composite oldComp = g2d.getComposite();
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) intensity * 0.5f));
+        g2d.setColor(new Color(0, 0, 0));
+
+        for (int lineY = y; lineY < y + h; lineY += spacing) {
+            g2d.drawLine(x, lineY, x + w, lineY);
+        }
+        g2d.setComposite(oldComp);
+    }
+
+    private static int clamp(int value) {
+        return Math.max(0, Math.min(255, value));
+    }
+
+// ============= END PROFESSIONAL IMAGE EFFECTS =============
+
+//    private double calculateTimeProgress() {
 //        // You'll need to pass currentTime and totalDuration to this method
 //        // For now, using a simple calculation - modify as needed
 //        return (System.currentTimeMillis() % 10000) / 10000.0; // 10-second cycle
