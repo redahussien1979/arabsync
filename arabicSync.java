@@ -229,6 +229,28 @@ public class arabicSync {
         int singleImageTextBgRadius = 10; // Background corner radius
         Color singleImageTextBgColor = new Color(0, 0, 0); // Background color
 
+        // === WALL/PERSPECTIVE TEXT EFFECTS ===
+        // Perspective/Skew Effect - Text angled to match wall's depth
+        boolean singleImagePerspectiveEnabled = false;
+        int singleImagePerspectiveSkewX = 0; // Horizontal skew (-30 to +30 degrees)
+        int singleImagePerspectiveSkewY = 0; // Vertical skew (-30 to +30 degrees)
+        int singleImagePerspectiveDepth = 0; // Perspective depth effect (0-100, 0=no perspective)
+
+        // Grunge/Concrete Texture Overlay - Painted/aged look
+        boolean singleImageGrungeEnabled = false;
+        int singleImageGrungeIntensity = 50; // Texture intensity (0-100)
+        int singleImageGrungeType = 0; // 0=Concrete, 1=Brick, 2=Rough Stone, 3=Weathered, 4=Cracked
+        Color singleImageGrungeColor = new Color(80, 70, 60); // Tint color for grunge
+        boolean singleImageGrungeBlendWithText = true; // Apply texture to text itself
+
+        // Wall Graffiti/Stencil Typography Style
+        boolean singleImageStencilEnabled = false;
+        int singleImageStencilStyle = 0; // 0=Spray Paint, 1=Stencil Cut, 2=Brush Stroke, 3=Dripping Paint, 4=Chalk
+        int singleImageStencilRoughness = 50; // Edge roughness (0-100)
+        boolean singleImageStencilSprayOverspray = false; // Add spray paint overspray effect
+        int singleImageStencilDripAmount = 0; // Paint drip amount (0-100)
+        Color singleImageStencilSecondaryColor = new Color(0, 0, 0); // Secondary color for effects
+
         // === PROFESSIONAL IMAGE/BACKGROUND EFFECTS ===
         // Cinematic Color Grading
         int imageColorGradePreset = 0; // 0=None, 1=Teal&Orange, 2=Vintage, 3=Cold Blue, 4=Warm Sunset, 5=Noir, 6=Cyberpunk, 7=Forest, 8=Desert
@@ -2486,7 +2508,230 @@ public class arabicSync {
 
             controlTabs.addTab("Gradient & 3D", gradient3DPanel);
 
-            // ===== TAB 6: Image Color & Tone =====
+            // ===== TAB 6: Wall Effects (Perspective, Grunge, Stencil) =====
+            JPanel wallEffectsPanel = new JPanel();
+            wallEffectsPanel.setLayout(new BoxLayout(wallEffectsPanel, BoxLayout.Y_AXIS));
+            wallEffectsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+            // --- Perspective/Skew Section ---
+            JPanel perspectivePanel = new JPanel();
+            perspectivePanel.setLayout(new BoxLayout(perspectivePanel, BoxLayout.Y_AXIS));
+            perspectivePanel.setBorder(BorderFactory.createTitledBorder("Perspective / Skew (Wall Depth)"));
+
+            JPanel perspectiveEnablePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 3));
+            JCheckBox perspectiveCheck = new JCheckBox("Enable Perspective Effect", config.singleImagePerspectiveEnabled);
+            perspectiveCheck.addActionListener(e -> config.singleImagePerspectiveEnabled = perspectiveCheck.isSelected());
+            perspectiveEnablePanel.add(perspectiveCheck);
+            perspectivePanel.add(perspectiveEnablePanel);
+
+            JPanel perspectiveControlsPanel = new JPanel(new GridBagLayout());
+            GridBagConstraints pcgbc = new GridBagConstraints();
+            pcgbc.insets = new Insets(2, 5, 2, 5);
+            pcgbc.anchor = GridBagConstraints.WEST;
+
+            // Horizontal Skew
+            pcgbc.gridx = 0; pcgbc.gridy = 0;
+            perspectiveControlsPanel.add(new JLabel("Horizontal Skew:"), pcgbc);
+            pcgbc.gridx = 1; pcgbc.fill = GridBagConstraints.HORIZONTAL; pcgbc.weightx = 1.0;
+            JSlider skewXSlider = new JSlider(-30, 30, config.singleImagePerspectiveSkewX);
+            skewXSlider.setPreferredSize(new Dimension(180, 45));
+            skewXSlider.setMajorTickSpacing(15);
+            skewXSlider.setMinorTickSpacing(5);
+            skewXSlider.setPaintTicks(true);
+            skewXSlider.setPaintLabels(true);
+            JLabel skewXLabel = new JLabel(config.singleImagePerspectiveSkewX + "°");
+            skewXLabel.setPreferredSize(new Dimension(40, 20));
+            skewXSlider.addChangeListener(e -> {
+                config.singleImagePerspectiveSkewX = skewXSlider.getValue();
+                skewXLabel.setText(config.singleImagePerspectiveSkewX + "°");
+            });
+            perspectiveControlsPanel.add(skewXSlider, pcgbc);
+            pcgbc.gridx = 2; pcgbc.fill = GridBagConstraints.NONE; pcgbc.weightx = 0;
+            perspectiveControlsPanel.add(skewXLabel, pcgbc);
+
+            // Vertical Skew
+            pcgbc.gridx = 0; pcgbc.gridy = 1;
+            perspectiveControlsPanel.add(new JLabel("Vertical Skew:"), pcgbc);
+            pcgbc.gridx = 1; pcgbc.fill = GridBagConstraints.HORIZONTAL; pcgbc.weightx = 1.0;
+            JSlider skewYSlider = new JSlider(-30, 30, config.singleImagePerspectiveSkewY);
+            skewYSlider.setPreferredSize(new Dimension(180, 45));
+            skewYSlider.setMajorTickSpacing(15);
+            skewYSlider.setMinorTickSpacing(5);
+            skewYSlider.setPaintTicks(true);
+            skewYSlider.setPaintLabels(true);
+            JLabel skewYLabel = new JLabel(config.singleImagePerspectiveSkewY + "°");
+            skewYLabel.setPreferredSize(new Dimension(40, 20));
+            skewYSlider.addChangeListener(e -> {
+                config.singleImagePerspectiveSkewY = skewYSlider.getValue();
+                skewYLabel.setText(config.singleImagePerspectiveSkewY + "°");
+            });
+            perspectiveControlsPanel.add(skewYSlider, pcgbc);
+            pcgbc.gridx = 2; pcgbc.fill = GridBagConstraints.NONE; pcgbc.weightx = 0;
+            perspectiveControlsPanel.add(skewYLabel, pcgbc);
+
+            // Perspective Depth
+            pcgbc.gridx = 0; pcgbc.gridy = 2;
+            perspectiveControlsPanel.add(new JLabel("Depth Effect:"), pcgbc);
+            pcgbc.gridx = 1; pcgbc.fill = GridBagConstraints.HORIZONTAL; pcgbc.weightx = 1.0;
+            JSlider depthSlider = new JSlider(0, 100, config.singleImagePerspectiveDepth);
+            depthSlider.setPreferredSize(new Dimension(180, 45));
+            depthSlider.setMajorTickSpacing(25);
+            depthSlider.setPaintTicks(true);
+            depthSlider.setPaintLabels(true);
+            JLabel depthLabel = new JLabel(config.singleImagePerspectiveDepth + "%");
+            depthLabel.setPreferredSize(new Dimension(40, 20));
+            depthSlider.addChangeListener(e -> {
+                config.singleImagePerspectiveDepth = depthSlider.getValue();
+                depthLabel.setText(config.singleImagePerspectiveDepth + "%");
+            });
+            perspectiveControlsPanel.add(depthSlider, pcgbc);
+            pcgbc.gridx = 2; pcgbc.fill = GridBagConstraints.NONE; pcgbc.weightx = 0;
+            perspectiveControlsPanel.add(depthLabel, pcgbc);
+
+            perspectivePanel.add(perspectiveControlsPanel);
+
+            JPanel perspectiveResetPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 3));
+            JButton resetPerspectiveBtn = new JButton("Reset Perspective");
+            resetPerspectiveBtn.addActionListener(e -> {
+                skewXSlider.setValue(0);
+                skewYSlider.setValue(0);
+                depthSlider.setValue(0);
+            });
+            perspectiveResetPanel.add(resetPerspectiveBtn);
+            perspectivePanel.add(perspectiveResetPanel);
+            wallEffectsPanel.add(perspectivePanel);
+
+            // --- Grunge/Concrete Texture Section ---
+            JPanel grungePanel = new JPanel();
+            grungePanel.setLayout(new BoxLayout(grungePanel, BoxLayout.Y_AXIS));
+            grungePanel.setBorder(BorderFactory.createTitledBorder("Grunge / Concrete Texture (Painted/Aged Look)"));
+
+            JPanel grungeEnablePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 3));
+            JCheckBox grungeCheck = new JCheckBox("Enable Grunge Texture", config.singleImageGrungeEnabled);
+            grungeCheck.addActionListener(e -> config.singleImageGrungeEnabled = grungeCheck.isSelected());
+            grungeEnablePanel.add(grungeCheck);
+
+            grungeEnablePanel.add(Box.createHorizontalStrut(15));
+            grungeEnablePanel.add(new JLabel("Type:"));
+            String[] grungeTypes = {"Concrete", "Brick", "Rough Stone", "Weathered", "Cracked"};
+            JComboBox<String> grungeTypeCombo = new JComboBox<>(grungeTypes);
+            grungeTypeCombo.setSelectedIndex(config.singleImageGrungeType);
+            grungeTypeCombo.addActionListener(e -> config.singleImageGrungeType = grungeTypeCombo.getSelectedIndex());
+            grungeEnablePanel.add(grungeTypeCombo);
+            grungePanel.add(grungeEnablePanel);
+
+            JPanel grungeControlsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 3));
+            grungeControlsPanel.add(new JLabel("Intensity:"));
+            JSlider grungeIntensitySlider = new JSlider(0, 100, config.singleImageGrungeIntensity);
+            grungeIntensitySlider.setPreferredSize(new Dimension(150, 45));
+            grungeIntensitySlider.setMajorTickSpacing(25);
+            grungeIntensitySlider.setPaintTicks(true);
+            grungeIntensitySlider.setPaintLabels(true);
+            JLabel grungeIntensityLabel = new JLabel(config.singleImageGrungeIntensity + "%");
+            grungeIntensitySlider.addChangeListener(e -> {
+                config.singleImageGrungeIntensity = grungeIntensitySlider.getValue();
+                grungeIntensityLabel.setText(config.singleImageGrungeIntensity + "%");
+            });
+            grungeControlsPanel.add(grungeIntensitySlider);
+            grungeControlsPanel.add(grungeIntensityLabel);
+
+            grungeControlsPanel.add(Box.createHorizontalStrut(10));
+            JButton grungeColorBtn = new JButton("Tint Color");
+            JPanel grungeColorPreview = new JPanel();
+            grungeColorPreview.setBackground(config.singleImageGrungeColor);
+            grungeColorPreview.setPreferredSize(new Dimension(35, 22));
+            grungeColorPreview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            grungeColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Grunge Tint Color", config.singleImageGrungeColor);
+                if (chosen != null) {
+                    config.singleImageGrungeColor = chosen;
+                    grungeColorPreview.setBackground(chosen);
+                }
+            });
+            grungeControlsPanel.add(grungeColorBtn);
+            grungeControlsPanel.add(grungeColorPreview);
+            grungePanel.add(grungeControlsPanel);
+
+            JPanel grungeOptionsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 3));
+            JCheckBox grungeBlendCheck = new JCheckBox("Blend Texture With Text", config.singleImageGrungeBlendWithText);
+            grungeBlendCheck.addActionListener(e -> config.singleImageGrungeBlendWithText = grungeBlendCheck.isSelected());
+            grungeOptionsPanel.add(grungeBlendCheck);
+            grungePanel.add(grungeOptionsPanel);
+            wallEffectsPanel.add(grungePanel);
+
+            // --- Wall Graffiti/Stencil Style Section ---
+            JPanel stencilPanel = new JPanel();
+            stencilPanel.setLayout(new BoxLayout(stencilPanel, BoxLayout.Y_AXIS));
+            stencilPanel.setBorder(BorderFactory.createTitledBorder("Wall Graffiti / Stencil Typography"));
+
+            JPanel stencilEnablePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 3));
+            JCheckBox stencilCheck = new JCheckBox("Enable Stencil/Graffiti Style", config.singleImageStencilEnabled);
+            stencilCheck.addActionListener(e -> config.singleImageStencilEnabled = stencilCheck.isSelected());
+            stencilEnablePanel.add(stencilCheck);
+
+            stencilEnablePanel.add(Box.createHorizontalStrut(15));
+            stencilEnablePanel.add(new JLabel("Style:"));
+            String[] stencilStyles = {"Spray Paint", "Stencil Cut", "Brush Stroke", "Dripping Paint", "Chalk"};
+            JComboBox<String> stencilStyleCombo = new JComboBox<>(stencilStyles);
+            stencilStyleCombo.setSelectedIndex(config.singleImageStencilStyle);
+            stencilStyleCombo.addActionListener(e -> config.singleImageStencilStyle = stencilStyleCombo.getSelectedIndex());
+            stencilEnablePanel.add(stencilStyleCombo);
+            stencilPanel.add(stencilEnablePanel);
+
+            JPanel stencilControlsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 3));
+            stencilControlsPanel.add(new JLabel("Edge Roughness:"));
+            JSlider roughnessSlider = new JSlider(0, 100, config.singleImageStencilRoughness);
+            roughnessSlider.setPreferredSize(new Dimension(130, 45));
+            roughnessSlider.setMajorTickSpacing(25);
+            roughnessSlider.setPaintTicks(true);
+            roughnessSlider.setPaintLabels(true);
+            JLabel roughnessLabel = new JLabel(config.singleImageStencilRoughness + "%");
+            roughnessSlider.addChangeListener(e -> {
+                config.singleImageStencilRoughness = roughnessSlider.getValue();
+                roughnessLabel.setText(config.singleImageStencilRoughness + "%");
+            });
+            stencilControlsPanel.add(roughnessSlider);
+            stencilControlsPanel.add(roughnessLabel);
+
+            stencilControlsPanel.add(Box.createHorizontalStrut(10));
+            stencilControlsPanel.add(new JLabel("Drip:"));
+            JSlider dripSlider = new JSlider(0, 100, config.singleImageStencilDripAmount);
+            dripSlider.setPreferredSize(new Dimension(100, 25));
+            JLabel dripLabel = new JLabel(config.singleImageStencilDripAmount + "%");
+            dripSlider.addChangeListener(e -> {
+                config.singleImageStencilDripAmount = dripSlider.getValue();
+                dripLabel.setText(config.singleImageStencilDripAmount + "%");
+            });
+            stencilControlsPanel.add(dripSlider);
+            stencilControlsPanel.add(dripLabel);
+            stencilPanel.add(stencilControlsPanel);
+
+            JPanel stencilOptionsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 3));
+            JCheckBox oversprayCheck = new JCheckBox("Spray Overspray Effect", config.singleImageStencilSprayOverspray);
+            oversprayCheck.addActionListener(e -> config.singleImageStencilSprayOverspray = oversprayCheck.isSelected());
+            stencilOptionsPanel.add(oversprayCheck);
+
+            stencilOptionsPanel.add(Box.createHorizontalStrut(10));
+            JButton stencilSecondaryColorBtn = new JButton("Secondary Color");
+            JPanel stencilSecondaryColorPreview = new JPanel();
+            stencilSecondaryColorPreview.setBackground(config.singleImageStencilSecondaryColor);
+            stencilSecondaryColorPreview.setPreferredSize(new Dimension(35, 22));
+            stencilSecondaryColorPreview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            stencilSecondaryColorBtn.addActionListener(e -> {
+                Color chosen = JColorChooser.showDialog(dialog, "Secondary Stencil Color", config.singleImageStencilSecondaryColor);
+                if (chosen != null) {
+                    config.singleImageStencilSecondaryColor = chosen;
+                    stencilSecondaryColorPreview.setBackground(chosen);
+                }
+            });
+            stencilOptionsPanel.add(stencilSecondaryColorBtn);
+            stencilOptionsPanel.add(stencilSecondaryColorPreview);
+            stencilPanel.add(stencilOptionsPanel);
+            wallEffectsPanel.add(stencilPanel);
+
+            controlTabs.addTab("Wall Effects", wallEffectsPanel);
+
+            // ===== TAB 7: Image Color & Tone =====
             JPanel imageColorPanel = new JPanel();
             imageColorPanel.setLayout(new BoxLayout(imageColorPanel, BoxLayout.Y_AXIS));
             imageColorPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -3162,6 +3407,28 @@ public class arabicSync {
                         g2d.rotate(angleRad, textCenterX, textCenterY);
                     }
 
+                    // Apply perspective/skew transform (wall depth effect)
+                    if (config.singleImagePerspectiveEnabled &&
+                        (config.singleImagePerspectiveSkewX != 0 || config.singleImagePerspectiveSkewY != 0 || config.singleImagePerspectiveDepth > 0)) {
+                        AffineTransform perspectiveTransform = new AffineTransform();
+                        perspectiveTransform.translate(textCenterX, textCenterY);
+
+                        // Apply horizontal skew (shear X)
+                        double shearX = Math.tan(Math.toRadians(config.singleImagePerspectiveSkewX * 0.5));
+                        // Apply vertical skew (shear Y)
+                        double shearY = Math.tan(Math.toRadians(config.singleImagePerspectiveSkewY * 0.5));
+                        perspectiveTransform.shear(shearX, shearY);
+
+                        // Apply depth scaling effect (text gets smaller toward vanishing point)
+                        if (config.singleImagePerspectiveDepth > 0) {
+                            double depthScale = 1.0 - (config.singleImagePerspectiveDepth * 0.003);
+                            perspectiveTransform.scale(1.0, depthScale);
+                        }
+
+                        perspectiveTransform.translate(-textCenterX, -textCenterY);
+                        g2d.transform(perspectiveTransform);
+                    }
+
                     // Draw text background box
                     if (config.singleImageTextBgEnabled && config.singleImageTextBgOpacity > 0) {
                         int bgPadding = (int)(15 * scaleFactor);
@@ -3287,6 +3554,113 @@ public class arabicSync {
                             g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
                             g2d.setColor(config.singleImageInnerShadowColor);
                             drawStringWithSpacing(g2d, line, lineX + 1, currentY + 1, config.singleImageLetterSpacing);
+                        }
+
+                        // Apply Grunge/Concrete texture overlay effect
+                        if (config.singleImageGrungeEnabled && config.singleImageGrungeIntensity > 0) {
+                            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * (config.singleImageGrungeIntensity / 200.0f)));
+                            java.util.Random grungeRand = new java.util.Random(line.hashCode());
+                            int grungeType = config.singleImageGrungeType;
+                            Color grungeColor = config.singleImageGrungeColor;
+
+                            // Draw grunge texture pattern based on type
+                            for (int gx = 0; gx < lineWidth; gx += (grungeType == 1 ? 8 : 4)) {
+                                for (int gy = -fm.getAscent(); gy < fm.getDescent(); gy += (grungeType == 1 ? 6 : 3)) {
+                                    if (grungeRand.nextFloat() < 0.3f) {
+                                        int alpha = 30 + grungeRand.nextInt(70);
+                                        g2d.setColor(new Color(grungeColor.getRed(), grungeColor.getGreen(), grungeColor.getBlue(), alpha));
+
+                                        int px = lineX + gx + grungeRand.nextInt(3) - 1;
+                                        int py = currentY + gy + grungeRand.nextInt(3) - 1;
+
+                                        if (grungeType == 0) { // Concrete - small scattered dots
+                                            g2d.fillRect(px, py, 1 + grungeRand.nextInt(2), 1 + grungeRand.nextInt(2));
+                                        } else if (grungeType == 1) { // Brick - small rectangular patches
+                                            g2d.fillRect(px, py, 3 + grungeRand.nextInt(4), 2 + grungeRand.nextInt(2));
+                                        } else if (grungeType == 2) { // Rough Stone - irregular shapes
+                                            int[] xPoints = {px, px + grungeRand.nextInt(4), px + grungeRand.nextInt(3)};
+                                            int[] yPoints = {py, py + grungeRand.nextInt(3), py + grungeRand.nextInt(4)};
+                                            g2d.fillPolygon(xPoints, yPoints, 3);
+                                        } else if (grungeType == 3) { // Weathered - horizontal streaks
+                                            g2d.drawLine(px, py, px + 3 + grungeRand.nextInt(5), py);
+                                        } else { // Cracked - small lines
+                                            int endX = px + grungeRand.nextInt(5) - 2;
+                                            int endY = py + grungeRand.nextInt(5) - 2;
+                                            g2d.drawLine(px, py, endX, endY);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Apply Stencil/Graffiti typography effects
+                        if (config.singleImageStencilEnabled) {
+                            int stencilStyle = config.singleImageStencilStyle;
+                            int roughness = config.singleImageStencilRoughness;
+                            java.util.Random stencilRand = new java.util.Random(line.hashCode() + 12345);
+
+                            // Draw spray overspray effect (dots around text)
+                            if (config.singleImageStencilSprayOverspray && stencilStyle == 0) {
+                                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.3f));
+                                int numDots = (int)(roughness * 2);
+                                for (int d = 0; d < numDots; d++) {
+                                    int dotX = lineX + stencilRand.nextInt(lineWidth + 20) - 10;
+                                    int dotY = currentY - fm.getAscent() + stencilRand.nextInt(fm.getHeight() + 10) - 5;
+                                    int dotSize = 1 + stencilRand.nextInt(2);
+                                    int alpha = 20 + stencilRand.nextInt(60);
+                                    g2d.setColor(new Color(config.singleImageTextColor.getRed(),
+                                            config.singleImageTextColor.getGreen(),
+                                            config.singleImageTextColor.getBlue(), alpha));
+                                    g2d.fillOval(dotX, dotY, dotSize, dotSize);
+                                }
+                            }
+
+                            // Draw edge roughness effect (irregular edges)
+                            if (roughness > 0) {
+                                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.7f));
+                                int numEdges = roughness / 5;
+                                for (int e = 0; e < numEdges; e++) {
+                                    int edgeX = lineX + stencilRand.nextInt(lineWidth);
+                                    int edgeY = currentY - fm.getAscent() + stencilRand.nextInt(fm.getHeight());
+                                    int edgeSize = 1 + stencilRand.nextInt(3);
+
+                                    if (stencilStyle == 1) { // Stencil Cut - sharp notches
+                                        g2d.setColor(new Color(0, 0, 0, 100));
+                                        g2d.fillRect(edgeX, edgeY, edgeSize, 1);
+                                    } else if (stencilStyle == 2) { // Brush Stroke - textured strokes
+                                        g2d.setColor(new Color(config.singleImageTextColor.getRed(),
+                                                config.singleImageTextColor.getGreen(),
+                                                config.singleImageTextColor.getBlue(), 80));
+                                        g2d.drawLine(edgeX, edgeY, edgeX + stencilRand.nextInt(4), edgeY + stencilRand.nextInt(2));
+                                    } else if (stencilStyle == 4) { // Chalk - dusty texture
+                                        g2d.setColor(new Color(255, 255, 255, 40 + stencilRand.nextInt(40)));
+                                        g2d.fillRect(edgeX, edgeY, 1, 1);
+                                    }
+                                }
+                            }
+
+                            // Draw paint drip effect
+                            if (config.singleImageStencilDripAmount > 0 && (stencilStyle == 0 || stencilStyle == 3)) {
+                                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.8f));
+                                int numDrips = config.singleImageStencilDripAmount / 10;
+                                for (int drip = 0; drip < numDrips; drip++) {
+                                    int dripX = lineX + stencilRand.nextInt(lineWidth);
+                                    int dripStartY = currentY + fm.getDescent() / 2;
+                                    int dripLength = 5 + stencilRand.nextInt(15 + config.singleImageStencilDripAmount / 5);
+                                    int dripWidth = 1 + stencilRand.nextInt(2);
+
+                                    // Draw drip with gradient fade
+                                    for (int dy = 0; dy < dripLength; dy++) {
+                                        int alpha = (int)(255 * (1.0 - (double)dy / dripLength) * 0.7);
+                                        g2d.setColor(new Color(config.singleImageTextColor.getRed(),
+                                                config.singleImageTextColor.getGreen(),
+                                                config.singleImageTextColor.getBlue(), Math.max(0, alpha)));
+                                        g2d.fillRect(dripX, dripStartY + dy, dripWidth, 1);
+                                        // Slight random horizontal drift
+                                        if (stencilRand.nextFloat() < 0.1f) dripX += stencilRand.nextInt(3) - 1;
+                                    }
+                                }
+                            }
                         }
 
                         currentY += arabicLineHeight;
@@ -8247,6 +8621,29 @@ public class arabicSync {
             g2d.rotate(angleRad, centerX, y);
         }
 
+        // Apply perspective/skew transform (wall depth effect)
+        if (config.singleImagePerspectiveEnabled &&
+            (config.singleImagePerspectiveSkewX != 0 || config.singleImagePerspectiveSkewY != 0 || config.singleImagePerspectiveDepth > 0)) {
+            int centerX = x + lineWidth / 2;
+            AffineTransform perspectiveTransform = new AffineTransform();
+            perspectiveTransform.translate(centerX, y);
+
+            // Apply horizontal skew (shear X)
+            double shearX = Math.tan(Math.toRadians(config.singleImagePerspectiveSkewX * 0.5));
+            // Apply vertical skew (shear Y)
+            double shearY = Math.tan(Math.toRadians(config.singleImagePerspectiveSkewY * 0.5));
+            perspectiveTransform.shear(shearX, shearY);
+
+            // Apply depth scaling effect (text gets smaller toward vanishing point)
+            if (config.singleImagePerspectiveDepth > 0) {
+                double depthScale = 1.0 - (config.singleImagePerspectiveDepth * 0.003);
+                perspectiveTransform.scale(1.0, depthScale);
+            }
+
+            perspectiveTransform.translate(-centerX, -y);
+            g2d.transform(perspectiveTransform);
+        }
+
         // Calculate pulse effect
         double pulseScale = 1.0;
         if (config.singleImagePulseIntensity > 0) {
@@ -8397,6 +8794,113 @@ public class arabicSync {
                 g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
                 g2d.setColor(config.singleImageInnerShadowColor);
                 drawVideoStringWithSpacing(g2d, word, wordX + 1, wordY + 1, config.singleImageLetterSpacing);
+            }
+
+            // Apply Grunge/Concrete texture overlay effect
+            if (config.singleImageGrungeEnabled && config.singleImageGrungeIntensity > 0) {
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * (config.singleImageGrungeIntensity / 200.0f)));
+                java.util.Random grungeRand = new java.util.Random(word.hashCode());
+                int grungeType = config.singleImageGrungeType;
+                Color grungeColor = config.singleImageGrungeColor;
+
+                // Draw grunge texture pattern based on type
+                for (int gx = 0; gx < wordWidths[i]; gx += (grungeType == 1 ? 8 : 4)) {
+                    for (int gy = -fm.getAscent(); gy < fm.getDescent(); gy += (grungeType == 1 ? 6 : 3)) {
+                        if (grungeRand.nextFloat() < 0.3f) {
+                            int alpha = 30 + grungeRand.nextInt(70);
+                            g2d.setColor(new Color(grungeColor.getRed(), grungeColor.getGreen(), grungeColor.getBlue(), alpha));
+
+                            int px = wordX + gx + grungeRand.nextInt(3) - 1;
+                            int py = wordY + gy + grungeRand.nextInt(3) - 1;
+
+                            if (grungeType == 0) { // Concrete - small scattered dots
+                                g2d.fillRect(px, py, 1 + grungeRand.nextInt(2), 1 + grungeRand.nextInt(2));
+                            } else if (grungeType == 1) { // Brick - small rectangular patches
+                                g2d.fillRect(px, py, 3 + grungeRand.nextInt(4), 2 + grungeRand.nextInt(2));
+                            } else if (grungeType == 2) { // Rough Stone - irregular shapes
+                                int[] xPoints = {px, px + grungeRand.nextInt(4), px + grungeRand.nextInt(3)};
+                                int[] yPoints = {py, py + grungeRand.nextInt(3), py + grungeRand.nextInt(4)};
+                                g2d.fillPolygon(xPoints, yPoints, 3);
+                            } else if (grungeType == 3) { // Weathered - horizontal streaks
+                                g2d.drawLine(px, py, px + 3 + grungeRand.nextInt(5), py);
+                            } else { // Cracked - small lines
+                                int endX = px + grungeRand.nextInt(5) - 2;
+                                int endY = py + grungeRand.nextInt(5) - 2;
+                                g2d.drawLine(px, py, endX, endY);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Apply Stencil/Graffiti typography effects
+            if (config.singleImageStencilEnabled) {
+                int stencilStyle = config.singleImageStencilStyle;
+                int roughness = config.singleImageStencilRoughness;
+                java.util.Random stencilRand = new java.util.Random(word.hashCode() + 12345);
+
+                // Draw spray overspray effect (dots around text)
+                if (config.singleImageStencilSprayOverspray && stencilStyle == 0) {
+                    g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.3f));
+                    int numDots = (int)(roughness * 1.5);
+                    for (int d = 0; d < numDots; d++) {
+                        int dotX = wordX + stencilRand.nextInt(wordWidths[i] + 20) - 10;
+                        int dotY = wordY - fm.getAscent() + stencilRand.nextInt(fm.getHeight() + 10) - 5;
+                        int dotSize = 1 + stencilRand.nextInt(2);
+                        int alpha = 20 + stencilRand.nextInt(60);
+                        g2d.setColor(new Color(config.singleImageTextColor.getRed(),
+                                config.singleImageTextColor.getGreen(),
+                                config.singleImageTextColor.getBlue(), alpha));
+                        g2d.fillOval(dotX, dotY, dotSize, dotSize);
+                    }
+                }
+
+                // Draw edge roughness effect (irregular edges)
+                if (roughness > 0) {
+                    g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.7f));
+                    int numEdges = roughness / 5;
+                    for (int e = 0; e < numEdges; e++) {
+                        int edgeX = wordX + stencilRand.nextInt(wordWidths[i]);
+                        int edgeY = wordY - fm.getAscent() + stencilRand.nextInt(fm.getHeight());
+                        int edgeSize = 1 + stencilRand.nextInt(3);
+
+                        if (stencilStyle == 1) { // Stencil Cut - sharp notches
+                            g2d.setColor(new Color(0, 0, 0, 100));
+                            g2d.fillRect(edgeX, edgeY, edgeSize, 1);
+                        } else if (stencilStyle == 2) { // Brush Stroke - textured strokes
+                            g2d.setColor(new Color(config.singleImageTextColor.getRed(),
+                                    config.singleImageTextColor.getGreen(),
+                                    config.singleImageTextColor.getBlue(), 80));
+                            g2d.drawLine(edgeX, edgeY, edgeX + stencilRand.nextInt(4), edgeY + stencilRand.nextInt(2));
+                        } else if (stencilStyle == 4) { // Chalk - dusty texture
+                            g2d.setColor(new Color(255, 255, 255, 40 + stencilRand.nextInt(40)));
+                            g2d.fillRect(edgeX, edgeY, 1, 1);
+                        }
+                    }
+                }
+
+                // Draw paint drip effect
+                if (config.singleImageStencilDripAmount > 0 && (stencilStyle == 0 || stencilStyle == 3)) {
+                    g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.8f));
+                    int numDrips = config.singleImageStencilDripAmount / 15;
+                    for (int drip = 0; drip < numDrips; drip++) {
+                        int dripX = wordX + stencilRand.nextInt(wordWidths[i]);
+                        int dripStartY = wordY + fm.getDescent() / 2;
+                        int dripLength = 5 + stencilRand.nextInt(15 + config.singleImageStencilDripAmount / 5);
+                        int dripWidth = 1 + stencilRand.nextInt(2);
+
+                        // Draw drip with gradient fade
+                        for (int dy = 0; dy < dripLength; dy++) {
+                            int alpha = (int)(255 * (1.0 - (double)dy / dripLength) * 0.7);
+                            g2d.setColor(new Color(config.singleImageTextColor.getRed(),
+                                    config.singleImageTextColor.getGreen(),
+                                    config.singleImageTextColor.getBlue(), Math.max(0, alpha)));
+                            g2d.fillRect(dripX, dripStartY + dy, dripWidth, 1);
+                            // Slight random horizontal drift
+                            if (stencilRand.nextFloat() < 0.1f) dripX += stencilRand.nextInt(3) - 1;
+                        }
+                    }
+                }
             }
         }
 
