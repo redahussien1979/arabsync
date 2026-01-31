@@ -117,6 +117,11 @@ public class arabicSync {
 
         double frameRate = 10.0; // ADD THIS LINE
 
+        int videoWidth = 1080; // Video width in pixels
+        int videoHeight = 1920; // Video height in pixels
+        int waveformHeight = 60; // Waveform height in pixels (20-200)
+        int waveformY = 250; // Waveform Y position in pixels (-1000 to hide, 0-2000 to show)
+
         String imagesPerLineFolder = "images_per_line"; // ADD THIS
 
         // Images per line mode settings
@@ -333,6 +338,20 @@ public class arabicSync {
         private JTextField rerunCountField; // ADD THIS LINE
         private JTextField specificBackgroundField; // ADD THIS LINE
         private JTextField frameRateField; // ADD THIS LINE
+        private JRadioButton videoDim1080x1920; // 1080x1920 (9:16 Portrait)
+        private JRadioButton videoDim1920x1080; // 1920x1080 (16:9 Landscape)
+        private JRadioButton videoDim720x1280; // 720x1280 (9:16 Portrait HD)
+        private JRadioButton videoDim1280x720; // 1280x720 (16:9 Landscape HD)
+        private JRadioButton videoDim1440x2560; // 1440x2560 (9:16 Portrait 2K)
+        private JRadioButton videoDim2560x1440; // 2560x1440 (16:9 Landscape 2K)
+        private JRadioButton videoDimCustom; // Custom dimensions
+        private JTextField videoWidthField; // Video width input field (for custom)
+        private JTextField videoHeightField; // Video height input field (for custom)
+        private ButtonGroup videoDimensionGroup; // Radio button group
+        private JSlider waveformHeightSlider; // Waveform height slider
+        private JLabel waveformHeightLabel; // Waveform height label
+        private JSlider waveformYSlider; // Waveform Y position slider
+        private JLabel waveformYLabel; // Waveform Y position label
         private JComboBox<String> backgroundModeCombo;
         private JButton generateButton;
         private JButton stopButton;  // ADD THIS
@@ -366,8 +385,13 @@ public class arabicSync {
         public ArabicVideoGUI() {
             setTitle("Arabic Video Generator");
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            setSize(800, 700);
+            // Set initial size but allow resizing
+            setSize(900, 700);
             setLocationRelativeTo(null);
+            // Make window resizable and maximizeable
+            setResizable(true);
+            // Set minimum size to ensure usability
+            setMinimumSize(new Dimension(700, 500));
 
             initializeGUI();
             loadDefaultValues();
@@ -379,17 +403,32 @@ public class arabicSync {
             // Main panel with tabs
             JTabbedPane tabbedPane = new JTabbedPane();
 
-            // Files tab
+            // Files tab - wrap in scroll pane
             JPanel filesPanel = createFilesPanel();
-            tabbedPane.addTab("Files & Fonts", filesPanel);
+            JScrollPane filesScrollPane = new JScrollPane(filesPanel);
+            filesScrollPane.setBorder(null);
+            filesScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+            filesScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+            filesScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+            tabbedPane.addTab("Files & Fonts", filesScrollPane);
 
-            // Folders tab
+            // Folders tab - wrap in scroll pane
             JPanel foldersPanel = createFoldersPanel();
-            tabbedPane.addTab("Image Folders", foldersPanel);
+            JScrollPane foldersScrollPane = new JScrollPane(foldersPanel);
+            foldersScrollPane.setBorder(null);
+            foldersScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+            foldersScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+            foldersScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+            tabbedPane.addTab("Image Folders", foldersScrollPane);
 
-            // Settings tab
+            // Settings tab - wrap in scroll pane
             JPanel settingsPanel = createSettingsPanel();
-            tabbedPane.addTab("Settings", settingsPanel);
+            JScrollPane settingsScrollPane = new JScrollPane(settingsPanel);
+            settingsScrollPane.setBorder(null);
+            settingsScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+            settingsScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+            settingsScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+            tabbedPane.addTab("Settings", settingsScrollPane);
 
             add(tabbedPane, BorderLayout.CENTER);
 
@@ -1236,18 +1275,171 @@ public class arabicSync {
             panel.add(frameRateField, gbc);
             gbc.gridwidth = 1;
 
-            // === SINGLE IMAGE EFFECTS SECTION (FOUR COLUMNS) ===
+            // Video Dimensions - Radio Buttons
             gbc.gridx = 0;
             gbc.gridy = 6;
+            gbc.weightx = 0;
+            panel.add(new JLabel("Video Dimensions:"), gbc);
+            
+            // Create radio button group
+            videoDimensionGroup = new ButtonGroup();
+            
+            // First row of radio buttons
+            gbc.gridx = 1;
+            gbc.gridy = 6;
+            gbc.fill = GridBagConstraints.NONE;
+            gbc.weightx = 0;
+            videoDim1080x1920 = new JRadioButton("1080x1920 (9:16 Portrait)", true);
+            videoDimensionGroup.add(videoDim1080x1920);
+            panel.add(videoDim1080x1920, gbc);
+            
+            gbc.gridx = 2;
+            videoDim1920x1080 = new JRadioButton("1920x1080 (16:9 Landscape)");
+            videoDimensionGroup.add(videoDim1920x1080);
+            panel.add(videoDim1920x1080, gbc);
+            
+            gbc.gridx = 3;
+            videoDim720x1280 = new JRadioButton("720x1280 (9:16 HD)");
+            videoDimensionGroup.add(videoDim720x1280);
+            panel.add(videoDim720x1280, gbc);
+            
+            // Second row of radio buttons
+            gbc.gridx = 1;
+            gbc.gridy = 7;
+            videoDim1280x720 = new JRadioButton("1280x720 (16:9 HD)");
+            videoDimensionGroup.add(videoDim1280x720);
+            panel.add(videoDim1280x720, gbc);
+            
+            gbc.gridx = 2;
+            videoDim1440x2560 = new JRadioButton("1440x2560 (9:16 2K)");
+            videoDimensionGroup.add(videoDim1440x2560);
+            panel.add(videoDim1440x2560, gbc);
+            
+            gbc.gridx = 3;
+            videoDim2560x1440 = new JRadioButton("2560x1440 (16:9 2K)");
+            videoDimensionGroup.add(videoDim2560x1440);
+            panel.add(videoDim2560x1440, gbc);
+            
+            // Custom option with text fields
+            gbc.gridx = 1;
+            gbc.gridy = 8;
+            videoDimCustom = new JRadioButton("Custom:");
+            videoDimensionGroup.add(videoDimCustom);
+            panel.add(videoDimCustom, gbc);
+            
+            gbc.gridx = 2;
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+            gbc.weightx = 0.5;
+            gbc.gridwidth = 1;
+            videoWidthField = new JTextField("1080", 10);
+            videoWidthField.setEnabled(false);
+            panel.add(videoWidthField, gbc);
+            
+            gbc.gridx = 3;
+            gbc.weightx = 0;
+            gbc.gridwidth = 1;
+            panel.add(new JLabel("x"), gbc);
+            
+            gbc.gridx = 4;
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+            gbc.weightx = 0.5;
+            videoHeightField = new JTextField("1920", 10);
+            videoHeightField.setEnabled(false);
+            panel.add(videoHeightField, gbc);
+            
+            // Enable/disable custom fields based on radio selection
+            videoDimCustom.addActionListener(e -> {
+                boolean customSelected = videoDimCustom.isSelected();
+                videoWidthField.setEnabled(customSelected);
+                videoHeightField.setEnabled(customSelected);
+            });
+            
+            // Disable custom fields when other options are selected
+            java.util.List<JRadioButton> presetButtons = java.util.Arrays.asList(
+                videoDim1080x1920, videoDim1920x1080, videoDim720x1280,
+                videoDim1280x720, videoDim1440x2560, videoDim2560x1440
+            );
+            for (JRadioButton btn : presetButtons) {
+                btn.addActionListener(e -> {
+                    if (btn.isSelected()) {
+                        videoWidthField.setEnabled(false);
+                        videoHeightField.setEnabled(false);
+                    }
+                });
+            }
+            
+            gbc.gridwidth = 1;
+            gbc.fill = GridBagConstraints.NONE;
+            gbc.weightx = 0;
+
+            // Waveform Height
+            gbc.gridx = 0;
+            gbc.gridy = 9;
+            gbc.weightx = 0;
+            panel.add(new JLabel("Waveform Height (px):"), gbc);
+            gbc.gridx = 1;
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+            gbc.weightx = 1.0;
+            gbc.gridwidth = 2;
+            waveformHeightSlider = new JSlider(20, 200, config.waveformHeight);
+            waveformHeightSlider.setMajorTickSpacing(40);
+            waveformHeightSlider.setMinorTickSpacing(10);
+            waveformHeightSlider.setPaintTicks(true);
+            waveformHeightSlider.setPaintLabels(true);
+            waveformHeightLabel = new JLabel(config.waveformHeight + " px");
+            waveformHeightSlider.addChangeListener(e -> {
+                config.waveformHeight = waveformHeightSlider.getValue();
+                waveformHeightLabel.setText(config.waveformHeight + " px");
+            });
+            panel.add(waveformHeightSlider, gbc);
+            gbc.gridx = 3;
+            gbc.fill = GridBagConstraints.NONE;
+            gbc.weightx = 0;
+            gbc.gridwidth = 1;
+            waveformHeightLabel.setPreferredSize(new Dimension(60, 25));
+            panel.add(waveformHeightLabel, gbc);
+            gbc.gridwidth = 1;
+
+            // Waveform Y Position
+            gbc.gridx = 0;
+            gbc.gridy = 10;
+            gbc.weightx = 0;
+            panel.add(new JLabel("Waveform Y Position (px):"), gbc);
+            gbc.gridx = 1;
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+            gbc.weightx = 1.0;
+            gbc.gridwidth = 2;
+            waveformYSlider = new JSlider(-1000, 2000, config.waveformY);
+            waveformYSlider.setMajorTickSpacing(500);
+            waveformYSlider.setMinorTickSpacing(100);
+            waveformYSlider.setPaintTicks(true);
+            waveformYSlider.setPaintLabels(true);
+            waveformYLabel = new JLabel(config.waveformY + " px");
+            waveformYSlider.addChangeListener(e -> {
+                config.waveformY = waveformYSlider.getValue();
+                waveformYLabel.setText(config.waveformY + " px");
+            });
+            panel.add(waveformYSlider, gbc);
+            gbc.gridx = 3;
+            gbc.fill = GridBagConstraints.NONE;
+            gbc.weightx = 0;
+            gbc.gridwidth = 1;
+            waveformYLabel.setPreferredSize(new Dimension(80, 25));
+            panel.add(waveformYLabel, gbc);
+            gbc.gridwidth = 1;
+
+            // === SINGLE IMAGE EFFECTS SECTION (FOUR COLUMNS) ===
+            gbc.gridx = 0;
+            gbc.gridy = 11;
             gbc.gridwidth = 5;
             JLabel effectsLabel = new JLabel("Single Image Effects:");
             effectsLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
             panel.add(effectsLabel, gbc);
             gbc.gridwidth = 1;
 
-            // Row 7 - 4 checkboxes
+            // Row 12 - 4 checkboxes
             gbc.gridx = 0;
-            gbc.gridy = 7;
+            gbc.gridy = 12;
             colorEnhancementCheck = new JCheckBox("Color Enhancement", true);
             panel.add(colorEnhancementCheck, gbc);
 
@@ -1263,9 +1455,9 @@ public class arabicSync {
             lensDistortionCheck = new JCheckBox("Lens Distortion", true);
             panel.add(lensDistortionCheck, gbc);
 
-            // Row 8 - 4 checkboxes
+            // Row 13 - 4 checkboxes
             gbc.gridx = 0;
-            gbc.gridy = 8;
+            gbc.gridy = 13;
             vignetteCheck = new JCheckBox("Vignette", true);
             panel.add(vignetteCheck, gbc);
 
@@ -1281,9 +1473,9 @@ public class arabicSync {
             sparklesCheck = new JCheckBox("Sparkles", true);
             panel.add(sparklesCheck, gbc);
 
-            // Row 9 - 4 checkboxes
+            // Row 14 - 4 checkboxes
             gbc.gridx = 0;
-            gbc.gridy = 9;
+            gbc.gridy = 14;
             zoomCheck = new JCheckBox("Zoom Effect", true);
             panel.add(zoomCheck, gbc);
 
@@ -1301,7 +1493,7 @@ public class arabicSync {
 
             // === SINGLE IMAGE TEXT SETTINGS BUTTON ===
             gbc.gridx = 4;
-            gbc.gridy = 9;
+            gbc.gridy = 14;
             JButton singleImageTextBtn = new JButton("Text Settings + Preview");
             singleImageTextBtn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
             singleImageTextBtn.setForeground(new Color(0, 100, 180));
@@ -1310,7 +1502,7 @@ public class arabicSync {
 
             // === BATCH MODE SECTION ===
             gbc.gridx = 0;
-            gbc.gridy = 10;
+            gbc.gridy = 15;
             gbc.gridwidth = 5;
             batchModeCheck = new JCheckBox("Enable Batch Mode (Process Multiple Quotes)", false);
             panel.add(batchModeCheck, gbc);
@@ -1318,7 +1510,7 @@ public class arabicSync {
 
             // Batch Input Folder
             gbc.gridx = 0;
-            gbc.gridy = 11;
+            gbc.gridy = 16;
             gbc.weightx = 0;
             panel.add(new JLabel("Batch Input Folder:"), gbc);
             gbc.gridx = 1;
@@ -1720,9 +1912,22 @@ public class arabicSync {
 
         private void openSingleImageTextSettingsDialog() {
             JDialog dialog = new JDialog(this, "Professional Text Customization Studio", true);
-            dialog.setSize(1500, 950);
+            // Get screen dimensions to set reasonable dialog size
+            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+            int maxWidth = (int) (screenSize.width * 0.9); // 90% of screen width
+            int maxHeight = (int) (screenSize.height * 0.9); // 90% of screen height
+            int initialWidth = Math.min(1200, maxWidth); // Start with 1200 or screen width, whichever is smaller
+            int initialHeight = Math.min(800, maxHeight); // Start with 800 or screen height, whichever is smaller
+            
+            dialog.setSize(initialWidth, initialHeight);
             dialog.setLocationRelativeTo(this);
             dialog.setLayout(new BorderLayout(0, 0));
+            // Make dialog resizable
+            dialog.setResizable(true);
+            // Set maximum size to fit screen
+            dialog.setMaximumSize(new Dimension(maxWidth, maxHeight));
+            // Set minimum size for usability
+            dialog.setMinimumSize(new Dimension(800, 600));
 
             // Store reference to loaded image for preview
             final BufferedImage[] previewImage = {null};
@@ -1732,7 +1937,7 @@ public class arabicSync {
             // Try to load Arabic text from file
             try {
                 java.util.List<String> lines = java.nio.file.Files.readAllLines(
-                    java.nio.file.Paths.get(config.arabicFilePath), java.nio.charset.StandardCharsets.UTF_8);
+                        java.nio.file.Paths.get(config.arabicFilePath), java.nio.charset.StandardCharsets.UTF_8);
                 for (String line : lines) {
                     line = line.trim();
                     if (!line.isEmpty() && !line.startsWith("#")) {
@@ -1756,7 +1961,7 @@ public class arabicSync {
                         File[] imageFiles = folder.listFiles((dir, name) -> {
                             String lower = name.toLowerCase();
                             return lower.endsWith(".jpg") || lower.endsWith(".jpeg") ||
-                                   lower.endsWith(".png") || lower.endsWith(".jfif");
+                                    lower.endsWith(".png") || lower.endsWith(".jfif");
                         });
                         if (imageFiles != null && imageFiles.length > 0) {
                             previewImage[0] = ImageIO.read(imageFiles[0]);
@@ -2161,7 +2366,7 @@ public class arabicSync {
             JButton innerShadowColorBtn = new JButton("Color");
             JPanel innerShadowColorPreview = new JPanel();
             innerShadowColorPreview.setBackground(new Color(config.singleImageInnerShadowColor.getRed(),
-                config.singleImageInnerShadowColor.getGreen(), config.singleImageInnerShadowColor.getBlue()));
+                    config.singleImageInnerShadowColor.getGreen(), config.singleImageInnerShadowColor.getBlue()));
             innerShadowColorPreview.setPreferredSize(new Dimension(40, 25));
             innerShadowColorPreview.setBorder(BorderFactory.createLineBorder(Color.GRAY));
             innerShadowColorBtn.addActionListener(e -> {
@@ -2815,8 +3020,9 @@ public class arabicSync {
                     int panelWidth = getWidth();
                     int panelHeight = getHeight();
 
-                    // Calculate aspect ratio for 1080x1920 video (9:16)
-                    double targetAspect = 1080.0 / 1920.0;
+                    // Calculate aspect ratio for video dimensions
+                   double targetAspect = (double) config.videoWidth / config.videoHeight;
+
                     int previewWidth, previewHeight;
                     int offsetX = 0, offsetY = 0;
 
@@ -2902,7 +3108,7 @@ public class arabicSync {
                     }
 
                     // Scale font size for preview
-                    float scaleFactor = previewHeight / 1920.0f;
+                    float scaleFactor = previewHeight / (float) config.videoHeight;
                     int baseFontSize = (int) (config.singleImageTextSize * scaleFactor * pulseScale);
                     int scaledFontSize = Math.max(8, baseFontSize);
 
@@ -2965,8 +3171,8 @@ public class arabicSync {
                         int bgHeight = totalHeight + bgPadding * 2;
                         int alpha = (int)(config.singleImageTextBgOpacity * 2.55);
                         g2d.setColor(new Color(config.singleImageTextBgColor.getRed(),
-                            config.singleImageTextBgColor.getGreen(),
-                            config.singleImageTextBgColor.getBlue(), alpha));
+                                config.singleImageTextBgColor.getGreen(),
+                                config.singleImageTextBgColor.getBlue(), alpha));
                         int radius = (int)(config.singleImageTextBgRadius * scaleFactor);
                         g2d.fillRoundRect(bgX, bgY, bgWidth, bgHeight, radius, radius);
                     }
@@ -3059,16 +3265,16 @@ public class arabicSync {
                             GradientPaint gradient;
                             if (config.singleImageGradientDirection == 0) { // Vertical
                                 gradient = new GradientPaint(lineX, currentY - fm.getAscent(),
-                                    config.singleImageTextColor, lineX, currentY + fm.getDescent(),
-                                    config.singleImageGradientColor2);
+                                        config.singleImageTextColor, lineX, currentY + fm.getDescent(),
+                                        config.singleImageGradientColor2);
                             } else if (config.singleImageGradientDirection == 1) { // Horizontal
                                 gradient = new GradientPaint(lineX, currentY,
-                                    config.singleImageTextColor, lineX + lineWidth, currentY,
-                                    config.singleImageGradientColor2);
+                                        config.singleImageTextColor, lineX + lineWidth, currentY,
+                                        config.singleImageGradientColor2);
                             } else { // Diagonal
                                 gradient = new GradientPaint(lineX, currentY - fm.getAscent(),
-                                    config.singleImageTextColor, lineX + lineWidth, currentY + fm.getDescent(),
-                                    config.singleImageGradientColor2);
+                                        config.singleImageTextColor, lineX + lineWidth, currentY + fm.getDescent(),
+                                        config.singleImageGradientColor2);
                             }
                             g2d.setPaint(gradient);
                         } else {
@@ -3526,6 +3732,48 @@ public class arabicSync {
                 config.frameRate = 10.0; // Default fallback
             }
 
+            // ADD THESE LINES FOR VIDEO DIMENSIONS:
+            if (videoDim1080x1920.isSelected()) {
+                config.videoWidth = 1080;
+                config.videoHeight = 1920;
+            } else if (videoDim1920x1080.isSelected()) {
+                config.videoWidth = 1920;
+                config.videoHeight = 1080;
+            } else if (videoDim720x1280.isSelected()) {
+                config.videoWidth = 720;
+                config.videoHeight = 1280;
+            } else if (videoDim1280x720.isSelected()) {
+                config.videoWidth = 1280;
+                config.videoHeight = 720;
+            } else if (videoDim1440x2560.isSelected()) {
+                config.videoWidth = 1440;
+                config.videoHeight = 2560;
+            } else if (videoDim2560x1440.isSelected()) {
+                config.videoWidth = 2560;
+                config.videoHeight = 1440;
+            } else if (videoDimCustom.isSelected()) {
+                // Custom dimensions from text fields
+                try {
+                    config.videoWidth = Integer.parseInt(videoWidthField.getText().trim());
+                    if (config.videoWidth < 100) config.videoWidth = 100;
+                    if (config.videoWidth > 7680) config.videoWidth = 7680; // 8K limit
+                } catch (NumberFormatException e) {
+                    config.videoWidth = 1080; // Default fallback
+                }
+
+                try {
+                    config.videoHeight = Integer.parseInt(videoHeightField.getText().trim());
+                    if (config.videoHeight < 100) config.videoHeight = 100;
+                    if (config.videoHeight > 4320) config.videoHeight = 4320; // 8K limit
+                } catch (NumberFormatException e) {
+                    config.videoHeight = 1920; // Default fallback
+                }
+            } else {
+                // Fallback to default if nothing selected
+                config.videoWidth = 1080;
+                config.videoHeight = 1920;
+            }
+
             if (config.outputVideoName.isEmpty()) {
                 config.outputVideoName = getCleanArabicVideoName(config.arabicFilePath);
             }
@@ -3855,10 +4103,14 @@ public class arabicSync {
             // DEBUG: Print single image text settings at video generation start
             System.out.println("=== SINGLE IMAGE TEXT SETTINGS ===");
             System.out.println("  backgroundMode: " + config.backgroundMode);
+            System.out.println("  enableBatchMode: " + config.enableBatchMode);
+            System.out.println("  removeTextAndBackground: " + config.removeTextAndBackground);
             System.out.println("  TextSize: " + config.singleImageTextSize);
             System.out.println("  TextColor: " + config.singleImageTextColor);
             System.out.println("  X Position: " + config.singleImageTextXPercent + "%");
             System.out.println("  Y Position: " + config.singleImageTextYPercent + "%");
+            System.out.println("  TextOpacity: " + config.singleImageTextOpacity + "%");
+            System.out.println("  TextAlign: " + config.singleImageTextAlign);
             System.out.println("  Outline: " + config.singleImageOutlineEnabled + " Color: " + config.singleImageOutlineColor);
             System.out.println("  Glow: " + config.singleImageGlowEnabled + " Color: " + config.singleImageGlowColor);
             System.out.println("  Shadow: " + config.singleImageShadowEnabled + " Offset: " + config.singleImageShadowOffset);
@@ -3982,35 +4234,23 @@ public class arabicSync {
     private void createVideoFromPreciseSequence(String tempFolder, String audioPath,
                                                 String outputVideo, double audioDuration) {
         try {
-// Set waveform Y position based on mode
-            // Set waveform Y position based on mode
-            int waveformY;
-            if (config.removeTextAndBackground) {
-                if (config.highlightWordCount == -2) {
-                    waveformY = 150; // Stripes mode
-                } else {
-                    waveformY = 350; // Other remove text modes
-                }
-            } else if (config.backgroundMode == 5) {
-                waveformY = 150; // Image + Text mode - higher position
-            } else if (config.backgroundMode == 6) {
-                waveformY = -1000; // Image + Text mode - higher position
-            } else if (config.backgroundMode == 7) {
-                waveformY = -1000; // Image + Text mode - higher position
-
-            } else {
-                waveformY = 250; // Normal mode with background
-            }
+            // Use configurable waveform Y position
+            int waveformY = config.waveformY;
             // Complex filter with waveform and border
+            // Calculate waveform dimensions based on configurable height
+            int waveformWidth = 400; // Keep width fixed
+            int waveformBgHeight = config.waveformHeight + 10; // Background slightly larger than waveform
+            int waveformBgWidth = waveformWidth + 10; // Background slightly wider than waveform
+            
             String filterComplex =
                     // Scale and pad base video
-                    "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2[padded];" +
+                    "[0:v]scale=" + config.videoWidth + ":" + config.videoHeight + ":force_original_aspect_ratio=decrease,pad=" + config.videoWidth + ":" + config.videoHeight + ":(ow-iw)/2:(oh-ih)/2[padded];" +
 
                             // Create waveform background
-                            "color=black@0.1:s=410x70[bg];" +
+                            "color=black@0.1:s=" + waveformBgWidth + "x" + waveformBgHeight + "[bg];" +
 
                             // Generate audio waveform
-                            "[1:a]showwaves=s=400x60:mode=cline:colors=gold|white:scale=sqrt:draw=full[waves];" +
+                            "[1:a]showwaves=s=" + waveformWidth + "x" + config.waveformHeight + ":mode=cline:colors=gold|white:scale=sqrt:draw=full[waves];" +
 
                             // Overlay waveform on background
                             "[bg][waves]overlay=5:5[wave];" +
@@ -4701,7 +4941,7 @@ public class arabicSync {
                 System.out.println("🧩 Selected: JIGSAW PUZZLE background for Arabic audio sync");
                 BufferedImage jigsawBackground = loadJigsawBackgroundImage();
                 if (jigsawBackground != null) {
-                    BufferedImage scaledBackground = scaleImageToVideoDimensions(jigsawBackground, 1080, 1920);
+                    BufferedImage scaledBackground = scaleImageToVideoDimensions(jigsawBackground, config.videoWidth, config.videoHeight);
                     int puzzleGridSize = calculateOptimalPuzzleSize(audioDuration);
                     jigsawPieces = generateJigsawPieces(scaledBackground, puzzleGridSize);
                 } else {
@@ -4712,7 +4952,7 @@ public class arabicSync {
                 System.out.println("🎬 Selected: RANDOM SLIDESHOW from imgchng2 folder for Arabic audio sync");
             } else if (config.backgroundMode == 4) {
                 System.out.println("🎨 Selected: SOLID COLOR with effects for Arabic audio sync");
-                singleEffectImage = createSolidColorImage(config.backgroundColor, 1080, 1920);
+                singleEffectImage = createSolidColorImage(config.backgroundColor, config.videoWidth, config.videoHeight);
             } else if (config.backgroundMode == 5) {
                 System.out.println("🖼️ Selected: IMAGE + TEXT mode for Arabic audio sync");
                 // No pre-loading needed for this mode - handled per frame
@@ -4727,7 +4967,7 @@ public class arabicSync {
                 System.out.println("🎨 Selected: SINGLE IMAGE with effects for Arabic audio sync");
                 singleEffectImage = loadSingleRandomImageForEffects();
                 if (singleEffectImage != null) {
-                    singleEffectImage = scaleImageToVideoDimensions(singleEffectImage, 1080, 1920);
+                    singleEffectImage = scaleImageToVideoDimensions(singleEffectImage, config.videoWidth, config.videoHeight);
                 }
             }
 
@@ -4982,8 +5222,8 @@ public class arabicSync {
                                    String outputPath, double currentTime,
                                    Font englishFont, Font arabicFont, double totalDuration) throws Exception {
 
-        int width = 1080;
-        int height = 1920;
+        int width = config.videoWidth;
+        int height = config.videoHeight;
 
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = image.createGraphics();
@@ -5468,8 +5708,8 @@ public class arabicSync {
                                             String outputPath, double currentTime,
                                             Font englishFont, Font arabicFont, double totalDuration) throws Exception {
 
-        int width = 1080;
-        int height = 1920;
+        int width = config.videoWidth;
+        int height = config.videoHeight;
 
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = image.createGraphics();
@@ -5835,8 +6075,8 @@ public class arabicSync {
                                                   String outputPath, double currentTime,
                                                   Font englishFont, Font arabicFont, double totalDuration) throws Exception {
 
-        int width = 1080;
-        int height = 1920;
+        int width = config.videoWidth;
+        int height = config.videoHeight;
 
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = image.createGraphics();
@@ -6430,8 +6670,8 @@ public class arabicSync {
                                                String outputPath, JigsawPiece[] jigsawPieces, double currentTime,
                                                Font englishFont, Font arabicFont, double totalDuration) throws Exception {
 
-        int width = 1080;
-        int height = 1920;
+        int width = config.videoWidth;
+        int height = config.videoHeight;
 
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = image.createGraphics();
@@ -6615,8 +6855,8 @@ public class arabicSync {
                                                     String outputPath, BufferedImage singleEffectImage, double currentTime,
                                                     Font englishFont, Font arabicFont, double totalDuration) throws Exception {
 
-        int width = 1080;
-        int height = 1920;
+        int width = config.videoWidth;
+        int height = config.videoHeight;
 
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = image.createGraphics();
@@ -7021,8 +7261,19 @@ public class arabicSync {
 
 
         if (config.removeTextAndBackground) {
-            // Check if we should use custom text settings for single image mode
-            boolean useCustomSettings = (config.backgroundMode == 3 || config.backgroundMode == 4);
+            // Use custom text settings for single image mode OR when explicitly configured
+            // Always use custom settings if background mode is 3 or 4, or if batch mode is enabled
+            // This ensures text settings work in batch mode regardless of background mode
+            boolean useCustomSettings = (config.backgroundMode == 3 || config.backgroundMode == 4 || config.enableBatchMode);
+            
+            // DEBUG: Verify custom settings are enabled
+            if (currentTime % 1.0 < 0.05) {
+                System.out.println("DEBUG: removeTextAndBackground=true, useCustomSettings=" + useCustomSettings + 
+                        " (backgroundMode=" + config.backgroundMode + ", enableBatchMode=" + config.enableBatchMode + ")");
+                System.out.println("DEBUG: Effect settings - Tilt=" + config.singleImageTextTilt + 
+                        ", Outline=" + config.singleImageOutlineEnabled + ", Glow=" + config.singleImageGlowEnabled + 
+                        ", Shadow=" + config.singleImageShadowEnabled);
+            }
 
             // SPECIAL MODE: Show word groups synced with audio timing
             if (currentWordTimings != null && currentWordTimings.length > 0 && displayInfo.isActive) {
@@ -7168,8 +7419,8 @@ public class arabicSync {
                             int bgHeight = totalHeight + bgPadding * 2;
                             int alpha = (int)(config.singleImageTextBgOpacity * 2.55);
                             g2d.setColor(new Color(config.singleImageTextBgColor.getRed(),
-                                config.singleImageTextBgColor.getGreen(),
-                                config.singleImageTextBgColor.getBlue(), alpha));
+                                    config.singleImageTextBgColor.getGreen(),
+                                    config.singleImageTextBgColor.getBlue(), alpha));
                             g2d.fillRoundRect(bgX, bgY, bgWidth, bgHeight, config.singleImageTextBgRadius, config.singleImageTextBgRadius);
                         }
 
@@ -7180,6 +7431,12 @@ public class arabicSync {
                             int centerXTilt = width / 2 + xOffset;
                             int centerYTilt = startY + totalHeight / 2;
                             g2d.rotate(angleRad, centerXTilt, centerYTilt);
+                            // DEBUG: Log tilt application
+                            if (currentTime % 1.0 < 0.05 && displayPhrase != null && !displayPhrase.isEmpty()) {
+                                System.out.println("DEBUG: Applying tilt: " + config.singleImageTextTilt + "° at (" + centerXTilt + ", " + centerYTilt + ")");
+                            }
+                        } else if (useCustomSettings && currentTime % 1.0 < 0.05 && displayPhrase != null && !displayPhrase.isEmpty()) {
+                            System.out.println("DEBUG: Tilt NOT applied - useCustomSettings=" + useCustomSettings + ", tilt=" + config.singleImageTextTilt);
                         }
 
                         for (int lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
@@ -7217,7 +7474,7 @@ public class arabicSync {
                                 g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.4f));
                                 g2d.setColor(config.singleImageShadow2Color);
                                 drawVideoStringWithSpacing(g2d, line, shakeX + config.singleImageShadow2Offset,
-                                    shakeY + config.singleImageShadow2Offset, config.singleImageLetterSpacing);
+                                        shakeY + config.singleImageShadow2Offset, config.singleImageLetterSpacing);
                             }
 
                             // Draw shadow (use custom settings if available)
@@ -7225,7 +7482,12 @@ public class arabicSync {
                                 g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.6f));
                                 g2d.setColor(config.singleImageShadowColor);
                                 drawVideoStringWithSpacing(g2d, line, shakeX + config.singleImageShadowOffset,
-                                    shakeY + config.singleImageShadowOffset, config.singleImageLetterSpacing);
+                                        shakeY + config.singleImageShadowOffset, config.singleImageLetterSpacing);
+                                // DEBUG: Log shadow
+                                if (currentTime % 1.0 < 0.05 && lineIdx == 0) {
+                                    System.out.println("DEBUG: Drawing shadow - enabled=" + config.singleImageShadowEnabled + 
+                                            ", offset=" + config.singleImageShadowOffset + ", color=" + config.singleImageShadowColor);
+                                }
                             } else if (!useCustomSettings) {
                                 // Original shadow
                                 g2d.setColor(new Color(0, 0, 0, 180));
@@ -7244,6 +7506,11 @@ public class arabicSync {
                                     drawVideoStringWithSpacing(g2d, line, shakeX + i, shakeY, config.singleImageLetterSpacing);
                                     drawVideoStringWithSpacing(g2d, line, shakeX, shakeY - i, config.singleImageLetterSpacing);
                                     drawVideoStringWithSpacing(g2d, line, shakeX, shakeY + i, config.singleImageLetterSpacing);
+                                }
+                                // DEBUG: Log glow
+                                if (currentTime % 1.0 < 0.05 && lineIdx == 0) {
+                                    System.out.println("DEBUG: Drawing glow - enabled=" + config.singleImageGlowEnabled + 
+                                            ", color=" + config.singleImageGlowColor);
                                 }
                             }
 
@@ -7268,6 +7535,11 @@ public class arabicSync {
                                             drawVideoStringWithSpacing(g2d, line, shakeX + ox, shakeY + oy, config.singleImageLetterSpacing);
                                         }
                                     }
+                                }
+                                // DEBUG: Log outline
+                                if (currentTime % 1.0 < 0.05 && lineIdx == 0) {
+                                    System.out.println("DEBUG: Drawing outline - enabled=" + config.singleImageOutlineEnabled + 
+                                            ", thickness=" + thickness + ", color=" + config.singleImageOutlineColor);
                                 }
                             } else if (useCustomSettings) {
                                 // Skip outline if disabled
@@ -7312,20 +7584,25 @@ public class arabicSync {
                             // Draw main text (use custom color or gradient if available)
                             if (useCustomSettings) {
                                 g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity));
+                                // DEBUG: Log text color being used
+                                if (currentTime % 1.0 < 0.05 && displayPhrase != null && !displayPhrase.isEmpty()) {
+                                    System.out.println("DEBUG: Drawing text with custom color: " + config.singleImageTextColor + 
+                                            ", opacity: " + textOpacity);
+                                }
                                 if (config.singleImageGradientEnabled) {
                                     GradientPaint gradient;
                                     if (config.singleImageGradientDirection == 0) { // Vertical
                                         gradient = new GradientPaint(shakeX, shakeY - fm.getAscent(),
-                                            config.singleImageTextColor, shakeX, shakeY + fm.getDescent(),
-                                            config.singleImageGradientColor2);
+                                                config.singleImageTextColor, shakeX, shakeY + fm.getDescent(),
+                                                config.singleImageGradientColor2);
                                     } else if (config.singleImageGradientDirection == 1) { // Horizontal
                                         gradient = new GradientPaint(shakeX, shakeY,
-                                            config.singleImageTextColor, shakeX + wordWidth, shakeY,
-                                            config.singleImageGradientColor2);
+                                                config.singleImageTextColor, shakeX + wordWidth, shakeY,
+                                                config.singleImageGradientColor2);
                                     } else { // Diagonal
                                         gradient = new GradientPaint(shakeX, shakeY - fm.getAscent(),
-                                            config.singleImageTextColor, shakeX + wordWidth, shakeY + fm.getDescent(),
-                                            config.singleImageGradientColor2);
+                                                config.singleImageTextColor, shakeX + wordWidth, shakeY + fm.getDescent(),
+                                                config.singleImageGradientColor2);
                                     }
                                     g2d.setPaint(gradient);
                                 } else {
@@ -7598,6 +7875,19 @@ public class arabicSync {
                                 centerY = height / 2;
                             }
 
+                            // Apply tilt/rotation transform BEFORE shake
+                            AffineTransform originalTransformWord = g2d.getTransform();
+                            if (useCustomSettings && config.singleImageTextTilt != 0) {
+                                double angleRad = Math.toRadians(config.singleImageTextTilt);
+                                int tiltCenterX = centerX + wordWidth / 2;
+                                int tiltCenterY = centerY;
+                                g2d.rotate(angleRad, tiltCenterX, tiltCenterY);
+                                // DEBUG: Log tilt application
+                                if (currentTime % 1.0 < 0.05) {
+                                    System.out.println("DEBUG: Applying tilt to word-count mode: " + config.singleImageTextTilt + "°");
+                                }
+                            }
+
                             int[] shakeOffset = calculateShakeOffset(currentTime, 4);
                             int shakeX = centerX + shakeOffset[0];
                             int shakeY = centerY + shakeOffset[1];
@@ -7606,10 +7896,37 @@ public class arabicSync {
                             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                             g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-                            // Draw shadow
+                            // Set text opacity
+                            float textOpacity = useCustomSettings ? config.singleImageTextOpacity / 100.0f : 1.0f;
+                            Composite oldCompositeWord = g2d.getComposite();
+
+                            // Draw 3D extrusion effect
+                            if (useCustomSettings && config.singleImage3DEnabled) {
+                                int depth3D = config.singleImage3DDepth;
+                                for (int d = depth3D; d > 0; d--) {
+                                    float depthOpacity = textOpacity * (0.3f + 0.4f * (depth3D - d) / depth3D);
+                                    g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, depthOpacity));
+                                    g2d.setColor(config.singleImage3DColor);
+                                    g2d.drawString(currentWords, shakeX + d, shakeY + d);
+                                }
+                            }
+
+                            // Draw double shadow
+                            if (useCustomSettings && config.singleImageDoubleShadowEnabled) {
+                                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.4f));
+                                g2d.setColor(config.singleImageShadow2Color);
+                                g2d.drawString(currentWords, shakeX + config.singleImageShadow2Offset, shakeY + config.singleImageShadow2Offset);
+                            }
+
+                            // Draw shadow (use custom settings if available)
                             if (useCustomSettings && config.singleImageShadowEnabled) {
-                                g2d.setColor(new Color(0, 0, 0, 150));
+                                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.6f));
+                                g2d.setColor(config.singleImageShadowColor);
                                 g2d.drawString(currentWords, shakeX + config.singleImageShadowOffset, shakeY + config.singleImageShadowOffset);
+                                // DEBUG: Log shadow
+                                if (currentTime % 1.0 < 0.05) {
+                                    System.out.println("DEBUG: Drawing shadow in word-count mode - enabled=" + config.singleImageShadowEnabled);
+                                }
                             } else {
                                 g2d.setColor(new Color(0, 0, 0, 180));
                                 for (int offset = 8; offset <= 12; offset++) {
@@ -7618,28 +7935,19 @@ public class arabicSync {
                                 }
                             }
 
-                            // Draw outline
-                            if (useCustomSettings && config.singleImageOutlineEnabled) {
-                                g2d.setColor(config.singleImageOutlineColor);
-                                for (int ox = -2; ox <= 2; ox++) {
-                                    for (int oy = -2; oy <= 2; oy++) {
-                                        if (ox != 0 || oy != 0) {
-                                            g2d.drawString(currentWords, shakeX + ox, shakeY + oy);
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Draw glow
+                            // Draw glow effect
                             if (useCustomSettings && config.singleImageGlowEnabled) {
-                                Color glowBase = config.singleImageGlowColor;
-                                for (int offset = 1; offset <= 5; offset++) {
-                                    int alpha = Math.max(30, 150 - offset * 25);
-                                    g2d.setColor(new Color(glowBase.getRed(), glowBase.getGreen(), glowBase.getBlue(), alpha));
-                                    g2d.drawString(currentWords, shakeX - offset, shakeY);
-                                    g2d.drawString(currentWords, shakeX + offset, shakeY);
-                                    g2d.drawString(currentWords, shakeX, shakeY - offset);
-                                    g2d.drawString(currentWords, shakeX, shakeY + offset);
+                                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.25f));
+                                g2d.setColor(config.singleImageGlowColor);
+                                for (int i = 4; i > 0; i--) {
+                                    g2d.drawString(currentWords, shakeX - i, shakeY);
+                                    g2d.drawString(currentWords, shakeX + i, shakeY);
+                                    g2d.drawString(currentWords, shakeX, shakeY - i);
+                                    g2d.drawString(currentWords, shakeX, shakeY + i);
+                                }
+                                // DEBUG: Log glow
+                                if (currentTime % 1.0 < 0.05) {
+                                    System.out.println("DEBUG: Drawing glow in word-count mode - enabled=" + config.singleImageGlowEnabled);
                                 }
                             } else if (!useCustomSettings) {
                                 Color[] glowColors = {
@@ -7666,9 +7974,47 @@ public class arabicSync {
                                 }
                             }
 
-                            // Draw main text
+                            // Draw outline (use custom settings if available)
+                            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity));
+                            if (useCustomSettings && config.singleImageOutlineEnabled) {
+                                g2d.setColor(config.singleImageOutlineColor);
+                                int thickness = config.singleImageOutlineThickness;
+                                for (int ox = -thickness; ox <= thickness; ox++) {
+                                    for (int oy = -thickness; oy <= thickness; oy++) {
+                                        if (ox != 0 || oy != 0) {
+                                            g2d.drawString(currentWords, shakeX + ox, shakeY + oy);
+                                        }
+                                    }
+                                }
+                                // DEBUG: Log outline
+                                if (currentTime % 1.0 < 0.05) {
+                                    System.out.println("DEBUG: Drawing outline in word-count mode - enabled=" + config.singleImageOutlineEnabled + 
+                                            ", thickness=" + thickness);
+                                }
+                            }
+
+                            // Draw main text (use custom color or gradient if available)
                             if (useCustomSettings) {
-                                g2d.setColor(config.singleImageTextColor);
+                                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity));
+                                if (config.singleImageGradientEnabled) {
+                                    GradientPaint gradient;
+                                    if (config.singleImageGradientDirection == 0) { // Vertical
+                                        gradient = new GradientPaint(shakeX, shakeY - fm.getAscent(),
+                                                config.singleImageTextColor, shakeX, shakeY + fm.getDescent(),
+                                                config.singleImageGradientColor2);
+                                    } else if (config.singleImageGradientDirection == 1) { // Horizontal
+                                        gradient = new GradientPaint(shakeX, shakeY,
+                                                config.singleImageTextColor, shakeX + wordWidth, shakeY,
+                                                config.singleImageGradientColor2);
+                                    } else { // Diagonal
+                                        gradient = new GradientPaint(shakeX, shakeY - fm.getAscent(),
+                                                config.singleImageTextColor, shakeX + wordWidth, shakeY + fm.getDescent(),
+                                                config.singleImageGradientColor2);
+                                    }
+                                    g2d.setPaint(gradient);
+                                } else {
+                                    g2d.setColor(config.singleImageTextColor);
+                                }
                             } else {
                                 GradientPaint gradient = new GradientPaint(
                                         shakeX, shakeY - fm.getHeight() / 2, new Color(0, 0, 0, 255),
@@ -7677,6 +8023,17 @@ public class arabicSync {
                                 g2d.setPaint(gradient);
                             }
                             g2d.drawString(currentWords, shakeX, shakeY);
+                            
+                            // Draw inner shadow if enabled
+                            if (useCustomSettings && config.singleImageInnerShadowEnabled) {
+                                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
+                                g2d.setColor(config.singleImageInnerShadowColor);
+                                g2d.drawString(currentWords, shakeX + 1, shakeY + 1);
+                            }
+                            
+                            // Restore transform and composite
+                            g2d.setTransform(originalTransformWord);
+                            g2d.setComposite(oldCompositeWord);
 
                             // Shine effect (only for non-custom mode)
                             if (!useCustomSettings) {
@@ -7705,12 +8062,15 @@ public class arabicSync {
 
         // NORMAL MODE: Continue with original text layout
         // Check if we're in single image mode (3) or solid color mode (4) with custom text settings
-        boolean useSingleImageTextSettings = (config.backgroundMode == 3 || config.backgroundMode == 4);
+        // Use custom text settings for single image mode OR when batch mode is enabled
+        // This ensures text settings work in batch mode regardless of background mode
+        boolean useSingleImageTextSettings = (config.backgroundMode == 3 || config.backgroundMode == 4 || config.enableBatchMode);
 
         // DEBUG: Print once per second to show which mode is active
         if (currentTime % 1.0 < 0.05) {
             System.out.println("drawArabicAudioSyncText: useSingleImageTextSettings=" + useSingleImageTextSettings +
-                " (backgroundMode=" + config.backgroundMode + ")");
+                    " (backgroundMode=" + config.backgroundMode + ", enableBatchMode=" + config.enableBatchMode + 
+                    ", removeTextAndBackground=" + config.removeTextAndBackground + ")");
         }
 
         // Apply custom font size for single image mode
@@ -7947,7 +8307,7 @@ public class arabicSync {
                 g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.4f));
                 g2d.setColor(config.singleImageShadow2Color);
                 drawVideoStringWithSpacing(g2d, word, wordX + config.singleImageShadow2Offset,
-                    wordY + config.singleImageShadow2Offset, config.singleImageLetterSpacing);
+                        wordY + config.singleImageShadow2Offset, config.singleImageLetterSpacing);
             }
 
             // Draw primary shadow (using configured settings)
@@ -7955,7 +8315,7 @@ public class arabicSync {
                 g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 0.6f));
                 g2d.setColor(config.singleImageShadowColor);
                 drawVideoStringWithSpacing(g2d, word, wordX + config.singleImageShadowOffset,
-                    wordY + config.singleImageShadowOffset, config.singleImageLetterSpacing);
+                        wordY + config.singleImageShadowOffset, config.singleImageLetterSpacing);
             }
 
             // Draw glow effect (using configured color)
@@ -8006,16 +8366,16 @@ public class arabicSync {
                 int wordWidth = wordWidths[i];
                 if (config.singleImageGradientDirection == 0) { // Vertical
                     gradient = new GradientPaint(wordX, wordY - fm.getAscent(),
-                        config.singleImageTextColor, wordX, wordY + fm.getDescent(),
-                        config.singleImageGradientColor2);
+                            config.singleImageTextColor, wordX, wordY + fm.getDescent(),
+                            config.singleImageGradientColor2);
                 } else if (config.singleImageGradientDirection == 1) { // Horizontal
                     gradient = new GradientPaint(wordX, wordY,
-                        config.singleImageTextColor, wordX + wordWidth, wordY,
-                        config.singleImageGradientColor2);
+                            config.singleImageTextColor, wordX + wordWidth, wordY,
+                            config.singleImageGradientColor2);
                 } else { // Diagonal
                     gradient = new GradientPaint(wordX, wordY - fm.getAscent(),
-                        config.singleImageTextColor, wordX + wordWidth, wordY + fm.getDescent(),
-                        config.singleImageGradientColor2);
+                            config.singleImageTextColor, wordX + wordWidth, wordY + fm.getDescent(),
+                            config.singleImageGradientColor2);
                 }
                 g2d.setPaint(gradient);
             } else {
@@ -8742,15 +9102,15 @@ public class arabicSync {
 
         // Define color grade parameters: [shadowR, shadowG, shadowB, highlightR, highlightG, highlightB, satMult, contrastMult]
         double[][] presets = {
-            {0, 0, 0, 0, 0, 0, 1.0, 1.0}, // 0: None
-            {0, 60, 80, 80, 40, 0, 1.1, 1.1}, // 1: Teal & Orange
-            {40, 30, 10, 50, 40, 20, 0.9, 0.95}, // 2: Vintage Film
-            {0, 20, 60, 10, 30, 50, 0.95, 1.05}, // 3: Cold Blue
-            {40, 20, 0, 60, 40, 10, 1.15, 1.05}, // 4: Warm Sunset
-            {0, 0, 0, 20, 20, 20, 0.3, 1.3}, // 5: Film Noir
-            {60, 0, 60, 0, 80, 80, 1.3, 1.2}, // 6: Cyberpunk
-            {10, 30, 10, 30, 50, 20, 1.1, 1.0}, // 7: Forest Green
-            {40, 30, 10, 70, 50, 20, 1.1, 1.1} // 8: Desert Gold
+                {0, 0, 0, 0, 0, 0, 1.0, 1.0}, // 0: None
+                {0, 60, 80, 80, 40, 0, 1.1, 1.1}, // 1: Teal & Orange
+                {40, 30, 10, 50, 40, 20, 0.9, 0.95}, // 2: Vintage Film
+                {0, 20, 60, 10, 30, 50, 0.95, 1.05}, // 3: Cold Blue
+                {40, 20, 0, 60, 40, 10, 1.15, 1.05}, // 4: Warm Sunset
+                {0, 0, 0, 20, 20, 20, 0.3, 1.3}, // 5: Film Noir
+                {60, 0, 60, 0, 80, 80, 1.3, 1.2}, // 6: Cyberpunk
+                {10, 30, 10, 30, 50, 20, 1.1, 1.0}, // 7: Forest Green
+                {40, 30, 10, 70, 50, 20, 1.1, 1.1} // 8: Desert Gold
         };
 
         double[] p = presets[Math.min(preset, presets.length - 1)];
@@ -9175,7 +9535,7 @@ public class arabicSync {
         Color[] colors = {transparent, semi, full};
 
         RadialGradientPaint vignette = new RadialGradientPaint(
-            new Point2D.Float(x + w / 2f, y + h / 2f), radius, fractions, colors);
+                new Point2D.Float(x + w / 2f, y + h / 2f), radius, fractions, colors);
 
         Composite oldComp = g2d.getComposite();
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.8f));
@@ -9205,7 +9565,7 @@ public class arabicSync {
 
 // ============= END PROFESSIONAL IMAGE EFFECTS =============
 
-//    private double calculateTimeProgress() {
+    //    private double calculateTimeProgress() {
 //        // You'll need to pass currentTime and totalDuration to this method
 //        // For now, using a simple calculation - modify as needed
 //        return (System.currentTimeMillis() % 10000) / 10000.0; // 10-second cycle
@@ -10556,8 +10916,8 @@ public class arabicSync {
                                             String outputPath, double currentTime,
                                             Font englishFont, Font arabicFont, double totalDuration) throws Exception {
 
-        int width = 1080;
-        int height = 1920;
+        int width = config.videoWidth;
+        int height = config.videoHeight;
 
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = image.createGraphics();
