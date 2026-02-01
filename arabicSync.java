@@ -9175,6 +9175,8 @@ public class arabicSync {
 
         // Find which ElevenLabs word is being spoken
         int elevenLabsWordIdx = -1;
+        int lastEndedWordIdx = -1; // Track the most recently ended word
+
         for (int i = 0; i < currentWordTimings.length; i++) {
             double startTime = currentWordTimings[i].startTime;
             double endTime = currentWordTimings[i].endTime;
@@ -9188,6 +9190,11 @@ public class arabicSync {
                 elevenLabsWordIdx = i;
                 break;
             }
+
+            // Track the most recently ended word (for gap handling)
+            if (currentTime >= endTime) {
+                lastEndedWordIdx = i;
+            }
         }
 
         // Handle edge cases
@@ -9195,7 +9202,9 @@ public class arabicSync {
             if (currentTime < currentWordTimings[0].startTime) {
                 return -1; // Before first word
             }
-            elevenLabsWordIdx = currentWordTimings.length - 1; // Past all words
+            // Use the most recently ended word instead of jumping to last word
+            // This fixes the "jump to last word" bug during timing gaps
+            elevenLabsWordIdx = (lastEndedWordIdx >= 0) ? lastEndedWordIdx : 0;
         }
 
         // Map ElevenLabs word index proportionally to original text word index
