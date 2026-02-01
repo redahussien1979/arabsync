@@ -1710,11 +1710,9 @@ public class arabicSync {
 
             // === LEFT PANEL: Line List and Global Settings ===
             JPanel leftPanel = new JPanel(new BorderLayout(5, 5));
-            leftPanel.setPreferredSize(new Dimension(320, 600));
 
-            // Global Settings Section
+            // Global Settings Section - make it scrollable
             JPanel globalPanel = new JPanel(new GridBagLayout());
-            globalPanel.setBorder(BorderFactory.createTitledBorder("Global Settings"));
             GridBagConstraints gbc = new GridBagConstraints();
             gbc.insets = new Insets(3, 5, 3, 5);
             gbc.anchor = GridBagConstraints.WEST;
@@ -1950,7 +1948,12 @@ public class arabicSync {
             });
             globalPanel.add(videoBorderRadiusSpinner, gbc);
 
-            leftPanel.add(globalPanel, BorderLayout.NORTH);
+            // Wrap global panel in scroll pane
+            JScrollPane globalScrollPane = new JScrollPane(globalPanel);
+            globalScrollPane.setBorder(BorderFactory.createTitledBorder("Global Settings"));
+            globalScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+            globalScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+            globalScrollPane.getVerticalScrollBar().setUnitIncrement(16);
 
             // Lines List
             JPanel linesPanel = new JPanel(new BorderLayout(5, 5));
@@ -1967,7 +1970,6 @@ public class arabicSync {
                 }
             });
             JScrollPane linesScroll = new JScrollPane(paraModeLineList);
-            linesScroll.setPreferredSize(new Dimension(300, 200));
             linesPanel.add(linesScroll, BorderLayout.CENTER);
 
             // Reload button
@@ -1975,12 +1977,15 @@ public class arabicSync {
             reloadLinesBtn.addActionListener(e -> loadParaModeLinesFromFile());
             linesPanel.add(reloadLinesBtn, BorderLayout.SOUTH);
 
-            leftPanel.add(linesPanel, BorderLayout.CENTER);
+            // Use vertical split pane for left panel (global settings on top, lines list on bottom)
+            JSplitPane leftSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, globalScrollPane, linesPanel);
+            leftSplitPane.setResizeWeight(0.5);
+            leftSplitPane.setDividerLocation(350);
+            leftSplitPane.setOneTouchExpandable(true);
+            leftPanel.add(leftSplitPane, BorderLayout.CENTER);
 
             // === CENTER PANEL: Line-Specific Settings ===
             JPanel centerPanel = new JPanel(new BorderLayout(5, 5));
-            centerPanel.setBorder(BorderFactory.createTitledBorder("Selected Line Style"));
-            centerPanel.setPreferredSize(new Dimension(280, 400));
 
             JPanel lineStylePanel = new JPanel(new GridBagLayout());
             gbc = new GridBagConstraints();
@@ -2250,7 +2255,13 @@ public class arabicSync {
             applyToAllBtn.addActionListener(e -> applyStyleToAllLines());
             lineStylePanel.add(applyToAllBtn, gbc);
 
-            centerPanel.add(lineStylePanel, BorderLayout.NORTH);
+            // Wrap line style panel in scroll pane
+            JScrollPane lineStyleScrollPane = new JScrollPane(lineStylePanel);
+            lineStyleScrollPane.setBorder(BorderFactory.createTitledBorder("Selected Line Style"));
+            lineStyleScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+            lineStyleScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+            lineStyleScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+            centerPanel.add(lineStyleScrollPane, BorderLayout.CENTER);
 
             // === RIGHT PANEL: Live Preview ===
             JPanel rightPanel = new JPanel(new BorderLayout(5, 5));
@@ -2287,10 +2298,20 @@ public class arabicSync {
             previewControlsPanel.add(simulatedLineSlider);
             rightPanel.add(previewControlsPanel, BorderLayout.SOUTH);
 
-            // Assemble main panel
-            mainPanel.add(leftPanel, BorderLayout.WEST);
-            mainPanel.add(centerPanel, BorderLayout.CENTER);
-            mainPanel.add(rightPanel, BorderLayout.EAST);
+            // Use horizontal split panes to make all panels resizable
+            // First split: left panel and center panel
+            JSplitPane leftCenterSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, centerPanel);
+            leftCenterSplit.setResizeWeight(0.4);
+            leftCenterSplit.setDividerLocation(320);
+            leftCenterSplit.setOneTouchExpandable(true);
+
+            // Second split: (left+center) and right panel
+            JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftCenterSplit, rightPanel);
+            mainSplit.setResizeWeight(0.7);
+            mainSplit.setDividerLocation(600);
+            mainSplit.setOneTouchExpandable(true);
+
+            mainPanel.add(mainSplit, BorderLayout.CENTER);
 
             // Load lines on panel creation
             SwingUtilities.invokeLater(this::loadParaModeLinesFromFile);
