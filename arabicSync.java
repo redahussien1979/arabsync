@@ -596,12 +596,13 @@ public class arabicSync {
             bottomPanel.add(buttonPanel, BorderLayout.NORTH);
             bottomPanel.add(progressBar, BorderLayout.CENTER);
 
-            // Log area
-            logArea = new JTextArea(8, 50);
+            // Log area - minimized to single line
+            logArea = new JTextArea(1, 50);
             logArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
             logArea.setEditable(false);
             JScrollPane logScroll = new JScrollPane(logArea);
             logScroll.setBorder(BorderFactory.createTitledBorder("Log"));
+            logScroll.setPreferredSize(new Dimension(800, 40));
             bottomPanel.add(logScroll, BorderLayout.SOUTH);
 
             add(bottomPanel, BorderLayout.SOUTH);
