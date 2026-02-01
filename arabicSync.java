@@ -92,7 +92,51 @@ public class arabicSync {
         }
     }
 
+    // === PARAMODE: Per-line styling class ===
+    private static class ParaLineStyle implements Serializable {
+        String fontFamily = ""; // Empty means use default
+        int fontSize = 50; // Font size in pixels
+        Color color = new Color(255, 255, 255); // Text color
+        boolean bold = false;
+        boolean italic = false;
+        boolean underline = false;
+        int lineSpacingBefore = 20; // Space before this line (pixels)
+        int wordSpacing = 0; // Extra word spacing (pixels)
+        int alignment = 1; // 0=left, 1=center, 2=right
+        boolean shadowEnabled = true;
+        Color shadowColor = new Color(0, 0, 0);
+        int shadowOffset = 3;
+        boolean outlineEnabled = true;
+        Color outlineColor = new Color(0, 0, 0);
+        int outlineThickness = 2;
+        boolean glowEnabled = false;
+        Color glowColor = new Color(255, 200, 100);
+        Color highlightColor = new Color(255, 215, 0); // Color when line is active
 
+        // Create a copy of this style
+        ParaLineStyle copy() {
+            ParaLineStyle c = new ParaLineStyle();
+            c.fontFamily = this.fontFamily;
+            c.fontSize = this.fontSize;
+            c.color = this.color;
+            c.bold = this.bold;
+            c.italic = this.italic;
+            c.underline = this.underline;
+            c.lineSpacingBefore = this.lineSpacingBefore;
+            c.wordSpacing = this.wordSpacing;
+            c.alignment = this.alignment;
+            c.shadowEnabled = this.shadowEnabled;
+            c.shadowColor = this.shadowColor;
+            c.shadowOffset = this.shadowOffset;
+            c.outlineEnabled = this.outlineEnabled;
+            c.outlineColor = this.outlineColor;
+            c.outlineThickness = this.outlineThickness;
+            c.glowEnabled = this.glowEnabled;
+            c.glowColor = this.glowColor;
+            c.highlightColor = this.highlightColor;
+            return c;
+        }
+    }
 
     ////////////////////////////Add batch mode flag to VideoConfig////
     ///
@@ -339,6 +383,23 @@ public class arabicSync {
         // Glitch Effect
         boolean imageGlitchEnabled = false;
         int imageGlitchIntensity = 30; // Glitch intensity (0-100)
+
+        // === PARAMODE SETTINGS ===
+        java.util.List<ParaLineStyle> paraLineStyles = new java.util.ArrayList<>();
+        int paraModeStartY = 10; // Start Y position (percentage from top 0-50)
+        int paraModeDefaultFontSize = 45; // Default font size for all lines
+        Color paraModeDefaultColor = new Color(255, 255, 255); // Default text color
+        Color paraModeHighlightColor = new Color(255, 215, 0); // Active line highlight color
+        Color paraModeBackgroundColor = new Color(0, 0, 0); // Background color
+        String paraModeBackgroundImage = ""; // Optional background image path
+        int paraModeBackgroundOpacity = 100; // Background opacity (0-100)
+        boolean paraModeShowEnglish = false; // Show English text above Arabic
+        int paramodeGlobalLineSpacing = 25; // Global line spacing in pixels
+        int paraModeHighlightMode = 0; // 0=color change, 1=scale up, 2=glow pulse, 3=underline
+        boolean paraModeAnimateTransition = true; // Smooth transition between lines
+        int paraModeTextBoxOpacity = 0; // Semi-transparent box behind text (0-100)
+        Color paraModeTextBoxColor = new Color(0, 0, 0); // Text box color
+        int paraModeTextBoxPadding = 15; // Padding around text in box
     }
 
 
@@ -459,6 +520,15 @@ public class arabicSync {
             settingsScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
             settingsScrollPane.getVerticalScrollBar().setUnitIncrement(16);
             tabbedPane.addTab("Settings", settingsScrollPane);
+
+            // Paragraph Mode tab - with live preview
+            JPanel paraModePanel = createParaModePanel();
+            JScrollPane paraModeScrollPane = new JScrollPane(paraModePanel);
+            paraModeScrollPane.setBorder(null);
+            paraModeScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+            paraModeScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+            paraModeScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+            tabbedPane.addTab("Paragraph Mode", paraModeScrollPane);
 
             add(tabbedPane, BorderLayout.CENTER);
 
@@ -1178,7 +1248,7 @@ public class arabicSync {
             ////////////honnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn
 
             backgroundModeCombo = new JComboBox<>(new String[]{
-                    "Random Selection", "Jigsaw Puzzle", "Slideshow", "Single Image with Effects", "Solid Color with Effects", "Image + Text (Comma-separated)", "Quiz Mode", "Images per Line"
+                    "Random Selection", "Jigsaw Puzzle", "Slideshow", "Single Image with Effects", "Solid Color with Effects", "Image + Text (Comma-separated)", "Quiz Mode", "Images per Line", "Paragraph Mode"
             });
             panel.add(backgroundModeCombo, gbc);
 
@@ -1558,6 +1628,689 @@ public class arabicSync {
             panel.add(browseBatchFolder, gbc);
 
             return panel;
+        }
+
+        // === PARAGRAPH MODE PANEL ===
+        private JPanel paraModePreviewPanel;
+        private JList<String> paraModeLineList;
+        private DefaultListModel<String> paraModeLineListModel;
+        private int paraModeSelectedLineIndex = -1;
+        private JSpinner paraModeFontSizeSpinner;
+        private JComboBox<String> paraModeFontStyleCombo;
+        private JComboBox<String> paraModeAlignmentCombo;
+        private JPanel paraModeLineColorPanel;
+        private JPanel paraModeHighlightColorPanel;
+        private JCheckBox paraModeBoldCheck;
+        private JCheckBox paraModeItalicCheck;
+        private JCheckBox paraModeUnderlineCheck;
+        private JCheckBox paraModeShadowCheck;
+        private JCheckBox paraModeOutlineCheck;
+        private JCheckBox paraModeGlowCheck;
+        private JSpinner paraModeLineSpacingSpinner;
+        private JSpinner paraModeWordSpacingSpinner;
+        private java.util.List<String> paraModeCurrentLines = new java.util.ArrayList<>();
+
+        private JPanel createParaModePanel() {
+            JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+            mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+            // === LEFT PANEL: Line List and Global Settings ===
+            JPanel leftPanel = new JPanel(new BorderLayout(5, 5));
+            leftPanel.setPreferredSize(new Dimension(320, 600));
+
+            // Global Settings Section
+            JPanel globalPanel = new JPanel(new GridBagLayout());
+            globalPanel.setBorder(BorderFactory.createTitledBorder("Global Settings"));
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(3, 5, 3, 5);
+            gbc.anchor = GridBagConstraints.WEST;
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+
+            // Default Font Size
+            gbc.gridx = 0; gbc.gridy = 0;
+            globalPanel.add(new JLabel("Default Font Size:"), gbc);
+            gbc.gridx = 1;
+            JSpinner globalFontSizeSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeDefaultFontSize, 20, 150, 2));
+            globalFontSizeSpinner.addChangeListener(e -> {
+                config.paraModeDefaultFontSize = (Integer) globalFontSizeSpinner.getValue();
+                updateParaModePreview();
+            });
+            globalPanel.add(globalFontSizeSpinner, gbc);
+
+            // Start Y Position
+            gbc.gridx = 0; gbc.gridy = 1;
+            globalPanel.add(new JLabel("Start Y Position (%):"), gbc);
+            gbc.gridx = 1;
+            JSpinner startYSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeStartY, 0, 50, 1));
+            startYSpinner.addChangeListener(e -> {
+                config.paraModeStartY = (Integer) startYSpinner.getValue();
+                updateParaModePreview();
+            });
+            globalPanel.add(startYSpinner, gbc);
+
+            // Global Line Spacing
+            gbc.gridx = 0; gbc.gridy = 2;
+            globalPanel.add(new JLabel("Line Spacing (px):"), gbc);
+            gbc.gridx = 1;
+            JSpinner globalLineSpacingSpinner = new JSpinner(new SpinnerNumberModel(config.paramodeGlobalLineSpacing, 5, 100, 5));
+            globalLineSpacingSpinner.addChangeListener(e -> {
+                config.paramodeGlobalLineSpacing = (Integer) globalLineSpacingSpinner.getValue();
+                updateParaModePreview();
+            });
+            globalPanel.add(globalLineSpacingSpinner, gbc);
+
+            // Default Text Color
+            gbc.gridx = 0; gbc.gridy = 3;
+            globalPanel.add(new JLabel("Default Color:"), gbc);
+            gbc.gridx = 1;
+            JPanel defaultColorPanel = new JPanel();
+            defaultColorPanel.setBackground(config.paraModeDefaultColor);
+            defaultColorPanel.setPreferredSize(new Dimension(60, 25));
+            defaultColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            defaultColorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    Color c = JColorChooser.showDialog(mainPanel, "Default Text Color", config.paraModeDefaultColor);
+                    if (c != null) {
+                        config.paraModeDefaultColor = c;
+                        defaultColorPanel.setBackground(c);
+                        updateParaModePreview();
+                    }
+                }
+            });
+            globalPanel.add(defaultColorPanel, gbc);
+
+            // Highlight Color
+            gbc.gridx = 0; gbc.gridy = 4;
+            globalPanel.add(new JLabel("Highlight Color:"), gbc);
+            gbc.gridx = 1;
+            JPanel highlightColorPanel = new JPanel();
+            highlightColorPanel.setBackground(config.paraModeHighlightColor);
+            highlightColorPanel.setPreferredSize(new Dimension(60, 25));
+            highlightColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            highlightColorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    Color c = JColorChooser.showDialog(mainPanel, "Highlight Color", config.paraModeHighlightColor);
+                    if (c != null) {
+                        config.paraModeHighlightColor = c;
+                        highlightColorPanel.setBackground(c);
+                        updateParaModePreview();
+                    }
+                }
+            });
+            globalPanel.add(highlightColorPanel, gbc);
+
+            // Background Color
+            gbc.gridx = 0; gbc.gridy = 5;
+            globalPanel.add(new JLabel("Background Color:"), gbc);
+            gbc.gridx = 1;
+            JPanel bgColorPanel = new JPanel();
+            bgColorPanel.setBackground(config.paraModeBackgroundColor);
+            bgColorPanel.setPreferredSize(new Dimension(60, 25));
+            bgColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            bgColorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    Color c = JColorChooser.showDialog(mainPanel, "Background Color", config.paraModeBackgroundColor);
+                    if (c != null) {
+                        config.paraModeBackgroundColor = c;
+                        bgColorPanel.setBackground(c);
+                        updateParaModePreview();
+                    }
+                }
+            });
+            globalPanel.add(bgColorPanel, gbc);
+
+            // Highlight Mode
+            gbc.gridx = 0; gbc.gridy = 6;
+            globalPanel.add(new JLabel("Highlight Mode:"), gbc);
+            gbc.gridx = 1;
+            JComboBox<String> highlightModeCombo = new JComboBox<>(new String[]{
+                "Color Change", "Scale Up", "Glow Pulse", "Underline"
+            });
+            highlightModeCombo.setSelectedIndex(config.paraModeHighlightMode);
+            highlightModeCombo.addActionListener(e -> {
+                config.paraModeHighlightMode = highlightModeCombo.getSelectedIndex();
+                updateParaModePreview();
+            });
+            globalPanel.add(highlightModeCombo, gbc);
+
+            // Text Box Opacity
+            gbc.gridx = 0; gbc.gridy = 7;
+            globalPanel.add(new JLabel("Text Box Opacity:"), gbc);
+            gbc.gridx = 1;
+            JSpinner textBoxOpacitySpinner = new JSpinner(new SpinnerNumberModel(config.paraModeTextBoxOpacity, 0, 100, 5));
+            textBoxOpacitySpinner.addChangeListener(e -> {
+                config.paraModeTextBoxOpacity = (Integer) textBoxOpacitySpinner.getValue();
+                updateParaModePreview();
+            });
+            globalPanel.add(textBoxOpacitySpinner, gbc);
+
+            // Background Image
+            gbc.gridx = 0; gbc.gridy = 8;
+            globalPanel.add(new JLabel("Background Image:"), gbc);
+            gbc.gridx = 1;
+            JButton bgImageBtn = new JButton("Select...");
+            bgImageBtn.addActionListener(e -> {
+                JFileChooser fc = new JFileChooser();
+                fc.setFileFilter(new FileNameExtensionFilter("Images", "jpg", "jpeg", "png", "bmp", "gif"));
+                if (fc.showOpenDialog(mainPanel) == JFileChooser.APPROVE_OPTION) {
+                    config.paraModeBackgroundImage = fc.getSelectedFile().getAbsolutePath();
+                    updateParaModePreview();
+                }
+            });
+            globalPanel.add(bgImageBtn, gbc);
+
+            leftPanel.add(globalPanel, BorderLayout.NORTH);
+
+            // Lines List
+            JPanel linesPanel = new JPanel(new BorderLayout(5, 5));
+            linesPanel.setBorder(BorderFactory.createTitledBorder("Lines (from quoteAR.txt)"));
+
+            paraModeLineListModel = new DefaultListModel<>();
+            paraModeLineList = new JList<>(paraModeLineListModel);
+            paraModeLineList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            paraModeLineList.addListSelectionListener(e -> {
+                if (!e.getValueIsAdjusting()) {
+                    paraModeSelectedLineIndex = paraModeLineList.getSelectedIndex();
+                    updateLineStyleControls();
+                    updateParaModePreview();
+                }
+            });
+            JScrollPane linesScroll = new JScrollPane(paraModeLineList);
+            linesScroll.setPreferredSize(new Dimension(300, 200));
+            linesPanel.add(linesScroll, BorderLayout.CENTER);
+
+            // Reload button
+            JButton reloadLinesBtn = new JButton("Reload Lines from File");
+            reloadLinesBtn.addActionListener(e -> loadParaModeLinesFromFile());
+            linesPanel.add(reloadLinesBtn, BorderLayout.SOUTH);
+
+            leftPanel.add(linesPanel, BorderLayout.CENTER);
+
+            // === CENTER PANEL: Line-Specific Settings ===
+            JPanel centerPanel = new JPanel(new BorderLayout(5, 5));
+            centerPanel.setBorder(BorderFactory.createTitledBorder("Selected Line Style"));
+            centerPanel.setPreferredSize(new Dimension(280, 400));
+
+            JPanel lineStylePanel = new JPanel(new GridBagLayout());
+            gbc = new GridBagConstraints();
+            gbc.insets = new Insets(4, 5, 4, 5);
+            gbc.anchor = GridBagConstraints.WEST;
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+
+            // Font Size
+            gbc.gridx = 0; gbc.gridy = 0;
+            lineStylePanel.add(new JLabel("Font Size:"), gbc);
+            gbc.gridx = 1;
+            paraModeFontSizeSpinner = new JSpinner(new SpinnerNumberModel(50, 20, 200, 2));
+            paraModeFontSizeSpinner.addChangeListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeFontSizeSpinner, gbc);
+
+            // Font Style
+            gbc.gridx = 0; gbc.gridy = 1;
+            lineStylePanel.add(new JLabel("Font Style:"), gbc);
+            gbc.gridx = 1;
+            paraModeFontStyleCombo = new JComboBox<>(new String[]{"Default", "Serif", "SansSerif", "Monospaced"});
+            paraModeFontStyleCombo.addActionListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeFontStyleCombo, gbc);
+
+            // Alignment
+            gbc.gridx = 0; gbc.gridy = 2;
+            lineStylePanel.add(new JLabel("Alignment:"), gbc);
+            gbc.gridx = 1;
+            paraModeAlignmentCombo = new JComboBox<>(new String[]{"Left", "Center", "Right"});
+            paraModeAlignmentCombo.setSelectedIndex(1);
+            paraModeAlignmentCombo.addActionListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeAlignmentCombo, gbc);
+
+            // Text Color
+            gbc.gridx = 0; gbc.gridy = 3;
+            lineStylePanel.add(new JLabel("Text Color:"), gbc);
+            gbc.gridx = 1;
+            paraModeLineColorPanel = new JPanel();
+            paraModeLineColorPanel.setBackground(Color.WHITE);
+            paraModeLineColorPanel.setPreferredSize(new Dimension(60, 25));
+            paraModeLineColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            paraModeLineColorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (paraModeSelectedLineIndex >= 0 && paraModeSelectedLineIndex < config.paraLineStyles.size()) {
+                        Color c = JColorChooser.showDialog(mainPanel, "Text Color", paraModeLineColorPanel.getBackground());
+                        if (c != null) {
+                            paraModeLineColorPanel.setBackground(c);
+                            applyLineStyleChange();
+                        }
+                    }
+                }
+            });
+            lineStylePanel.add(paraModeLineColorPanel, gbc);
+
+            // Highlight Color
+            gbc.gridx = 0; gbc.gridy = 4;
+            lineStylePanel.add(new JLabel("Highlight Color:"), gbc);
+            gbc.gridx = 1;
+            paraModeHighlightColorPanel = new JPanel();
+            paraModeHighlightColorPanel.setBackground(new Color(255, 215, 0));
+            paraModeHighlightColorPanel.setPreferredSize(new Dimension(60, 25));
+            paraModeHighlightColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            paraModeHighlightColorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (paraModeSelectedLineIndex >= 0 && paraModeSelectedLineIndex < config.paraLineStyles.size()) {
+                        Color c = JColorChooser.showDialog(mainPanel, "Highlight Color", paraModeHighlightColorPanel.getBackground());
+                        if (c != null) {
+                            paraModeHighlightColorPanel.setBackground(c);
+                            applyLineStyleChange();
+                        }
+                    }
+                }
+            });
+            lineStylePanel.add(paraModeHighlightColorPanel, gbc);
+
+            // Bold, Italic, Underline
+            gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2;
+            JPanel styleChecksPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+            paraModeBoldCheck = new JCheckBox("Bold");
+            paraModeBoldCheck.addActionListener(e -> applyLineStyleChange());
+            paraModeItalicCheck = new JCheckBox("Italic");
+            paraModeItalicCheck.addActionListener(e -> applyLineStyleChange());
+            paraModeUnderlineCheck = new JCheckBox("Underline");
+            paraModeUnderlineCheck.addActionListener(e -> applyLineStyleChange());
+            styleChecksPanel.add(paraModeBoldCheck);
+            styleChecksPanel.add(paraModeItalicCheck);
+            styleChecksPanel.add(paraModeUnderlineCheck);
+            lineStylePanel.add(styleChecksPanel, gbc);
+            gbc.gridwidth = 1;
+
+            // Shadow, Outline, Glow
+            gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 2;
+            JPanel effectChecksPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+            paraModeShadowCheck = new JCheckBox("Shadow");
+            paraModeShadowCheck.setSelected(true);
+            paraModeShadowCheck.addActionListener(e -> applyLineStyleChange());
+            paraModeOutlineCheck = new JCheckBox("Outline");
+            paraModeOutlineCheck.setSelected(true);
+            paraModeOutlineCheck.addActionListener(e -> applyLineStyleChange());
+            paraModeGlowCheck = new JCheckBox("Glow");
+            paraModeGlowCheck.addActionListener(e -> applyLineStyleChange());
+            effectChecksPanel.add(paraModeShadowCheck);
+            effectChecksPanel.add(paraModeOutlineCheck);
+            effectChecksPanel.add(paraModeGlowCheck);
+            lineStylePanel.add(effectChecksPanel, gbc);
+            gbc.gridwidth = 1;
+
+            // Line Spacing Before
+            gbc.gridx = 0; gbc.gridy = 7;
+            lineStylePanel.add(new JLabel("Space Before (px):"), gbc);
+            gbc.gridx = 1;
+            paraModeLineSpacingSpinner = new JSpinner(new SpinnerNumberModel(20, 0, 200, 5));
+            paraModeLineSpacingSpinner.addChangeListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeLineSpacingSpinner, gbc);
+
+            // Word Spacing
+            gbc.gridx = 0; gbc.gridy = 8;
+            lineStylePanel.add(new JLabel("Word Spacing:"), gbc);
+            gbc.gridx = 1;
+            paraModeWordSpacingSpinner = new JSpinner(new SpinnerNumberModel(0, -10, 50, 2));
+            paraModeWordSpacingSpinner.addChangeListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeWordSpacingSpinner, gbc);
+
+            // Apply to All Lines button
+            gbc.gridx = 0; gbc.gridy = 9; gbc.gridwidth = 2;
+            JButton applyToAllBtn = new JButton("Apply This Style to All Lines");
+            applyToAllBtn.addActionListener(e -> applyStyleToAllLines());
+            lineStylePanel.add(applyToAllBtn, gbc);
+
+            centerPanel.add(lineStylePanel, BorderLayout.NORTH);
+
+            // === RIGHT PANEL: Live Preview ===
+            JPanel rightPanel = new JPanel(new BorderLayout(5, 5));
+            rightPanel.setBorder(BorderFactory.createTitledBorder("Live Preview"));
+
+            paraModePreviewPanel = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    drawParaModePreview((Graphics2D) g);
+                }
+            };
+            paraModePreviewPanel.setBackground(Color.BLACK);
+            paraModePreviewPanel.setPreferredSize(new Dimension(350, 600));
+            rightPanel.add(paraModePreviewPanel, BorderLayout.CENTER);
+
+            // Preview controls
+            JPanel previewControlsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+            JButton refreshBtn = new JButton("Refresh Preview");
+            refreshBtn.addActionListener(e -> updateParaModePreview());
+            previewControlsPanel.add(refreshBtn);
+
+            JSlider simulatedLineSlider = new JSlider(0, 10, 0);
+            simulatedLineSlider.setMajorTickSpacing(1);
+            simulatedLineSlider.setPaintTicks(true);
+            simulatedLineSlider.addChangeListener(e -> {
+                paraModeSelectedLineIndex = simulatedLineSlider.getValue();
+                if (paraModeSelectedLineIndex < paraModeLineListModel.size()) {
+                    paraModeLineList.setSelectedIndex(paraModeSelectedLineIndex);
+                }
+                updateParaModePreview();
+            });
+            previewControlsPanel.add(new JLabel("Simulate Active Line:"));
+            previewControlsPanel.add(simulatedLineSlider);
+            rightPanel.add(previewControlsPanel, BorderLayout.SOUTH);
+
+            // Assemble main panel
+            mainPanel.add(leftPanel, BorderLayout.WEST);
+            mainPanel.add(centerPanel, BorderLayout.CENTER);
+            mainPanel.add(rightPanel, BorderLayout.EAST);
+
+            // Load lines on panel creation
+            SwingUtilities.invokeLater(this::loadParaModeLinesFromFile);
+
+            return mainPanel;
+        }
+
+        private void loadParaModeLinesFromFile() {
+            paraModeLineListModel.clear();
+            paraModeCurrentLines.clear();
+            config.paraLineStyles.clear();
+
+            String arabicFilePath = arabicFileField != null ? arabicFileField.getText() : config.arabicFilePath;
+            File arabicFile = new File(arabicFilePath);
+
+            if (arabicFile.exists()) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(arabicFile), "UTF-8"))) {
+                    String line;
+                    int lineNum = 1;
+                    while ((line = reader.readLine()) != null) {
+                        if (!line.trim().isEmpty()) {
+                            String displayText = line.length() > 40 ? line.substring(0, 40) + "..." : line;
+                            paraModeLineListModel.addElement(lineNum + ": " + displayText);
+                            paraModeCurrentLines.add(line);
+
+                            // Create default style for this line
+                            ParaLineStyle style = new ParaLineStyle();
+                            style.fontSize = config.paraModeDefaultFontSize;
+                            style.color = config.paraModeDefaultColor;
+                            style.highlightColor = config.paraModeHighlightColor;
+                            config.paraLineStyles.add(style);
+                            lineNum++;
+                        }
+                    }
+                } catch (IOException e) {
+                    JOptionPane.showMessageDialog(null, "Error reading Arabic file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                // Add sample lines for preview
+                String[] sampleLines = {"بسم الله الرحمن الرحيم", "الحمد لله رب العالمين", "الرحمن الرحيم", "مالك يوم الدين"};
+                for (int i = 0; i < sampleLines.length; i++) {
+                    paraModeLineListModel.addElement((i + 1) + ": " + sampleLines[i]);
+                    paraModeCurrentLines.add(sampleLines[i]);
+                    ParaLineStyle style = new ParaLineStyle();
+                    style.fontSize = config.paraModeDefaultFontSize;
+                    style.color = config.paraModeDefaultColor;
+                    style.highlightColor = config.paraModeHighlightColor;
+                    config.paraLineStyles.add(style);
+                }
+            }
+
+            if (paraModeLineListModel.size() > 0) {
+                paraModeLineList.setSelectedIndex(0);
+                paraModeSelectedLineIndex = 0;
+                updateLineStyleControls();
+            }
+            updateParaModePreview();
+        }
+
+        private void updateLineStyleControls() {
+            if (paraModeSelectedLineIndex < 0 || paraModeSelectedLineIndex >= config.paraLineStyles.size()) {
+                return;
+            }
+            ParaLineStyle style = config.paraLineStyles.get(paraModeSelectedLineIndex);
+
+            paraModeFontSizeSpinner.setValue(style.fontSize);
+            paraModeAlignmentCombo.setSelectedIndex(style.alignment);
+            paraModeLineColorPanel.setBackground(style.color);
+            paraModeHighlightColorPanel.setBackground(style.highlightColor);
+            paraModeBoldCheck.setSelected(style.bold);
+            paraModeItalicCheck.setSelected(style.italic);
+            paraModeUnderlineCheck.setSelected(style.underline);
+            paraModeShadowCheck.setSelected(style.shadowEnabled);
+            paraModeOutlineCheck.setSelected(style.outlineEnabled);
+            paraModeGlowCheck.setSelected(style.glowEnabled);
+            paraModeLineSpacingSpinner.setValue(style.lineSpacingBefore);
+            paraModeWordSpacingSpinner.setValue(style.wordSpacing);
+
+            // Font family
+            String family = style.fontFamily;
+            if (family == null || family.isEmpty()) {
+                paraModeFontStyleCombo.setSelectedIndex(0);
+            } else if (family.contains("Serif")) {
+                paraModeFontStyleCombo.setSelectedIndex(1);
+            } else if (family.contains("Sans")) {
+                paraModeFontStyleCombo.setSelectedIndex(2);
+            } else if (family.contains("Mono")) {
+                paraModeFontStyleCombo.setSelectedIndex(3);
+            } else {
+                paraModeFontStyleCombo.setSelectedIndex(0);
+            }
+        }
+
+        private void applyLineStyleChange() {
+            if (paraModeSelectedLineIndex < 0 || paraModeSelectedLineIndex >= config.paraLineStyles.size()) {
+                return;
+            }
+            ParaLineStyle style = config.paraLineStyles.get(paraModeSelectedLineIndex);
+
+            style.fontSize = (Integer) paraModeFontSizeSpinner.getValue();
+            style.alignment = paraModeAlignmentCombo.getSelectedIndex();
+            style.color = paraModeLineColorPanel.getBackground();
+            style.highlightColor = paraModeHighlightColorPanel.getBackground();
+            style.bold = paraModeBoldCheck.isSelected();
+            style.italic = paraModeItalicCheck.isSelected();
+            style.underline = paraModeUnderlineCheck.isSelected();
+            style.shadowEnabled = paraModeShadowCheck.isSelected();
+            style.outlineEnabled = paraModeOutlineCheck.isSelected();
+            style.glowEnabled = paraModeGlowCheck.isSelected();
+            style.lineSpacingBefore = (Integer) paraModeLineSpacingSpinner.getValue();
+            style.wordSpacing = (Integer) paraModeWordSpacingSpinner.getValue();
+
+            // Font family
+            switch (paraModeFontStyleCombo.getSelectedIndex()) {
+                case 1: style.fontFamily = "Serif"; break;
+                case 2: style.fontFamily = "SansSerif"; break;
+                case 3: style.fontFamily = "Monospaced"; break;
+                default: style.fontFamily = ""; break;
+            }
+
+            updateParaModePreview();
+        }
+
+        private void applyStyleToAllLines() {
+            if (paraModeSelectedLineIndex < 0 || paraModeSelectedLineIndex >= config.paraLineStyles.size()) {
+                return;
+            }
+            ParaLineStyle sourceStyle = config.paraLineStyles.get(paraModeSelectedLineIndex);
+
+            for (int i = 0; i < config.paraLineStyles.size(); i++) {
+                if (i != paraModeSelectedLineIndex) {
+                    ParaLineStyle style = config.paraLineStyles.get(i);
+                    style.fontSize = sourceStyle.fontSize;
+                    style.fontFamily = sourceStyle.fontFamily;
+                    style.color = sourceStyle.color;
+                    style.highlightColor = sourceStyle.highlightColor;
+                    style.bold = sourceStyle.bold;
+                    style.italic = sourceStyle.italic;
+                    style.underline = sourceStyle.underline;
+                    style.shadowEnabled = sourceStyle.shadowEnabled;
+                    style.outlineEnabled = sourceStyle.outlineEnabled;
+                    style.glowEnabled = sourceStyle.glowEnabled;
+                    style.lineSpacingBefore = sourceStyle.lineSpacingBefore;
+                    style.wordSpacing = sourceStyle.wordSpacing;
+                    style.alignment = sourceStyle.alignment;
+                }
+            }
+            updateParaModePreview();
+            JOptionPane.showMessageDialog(null, "Style applied to all lines!", "Success", JOptionPane.INFORMATION_MESSAGE);
+        }
+
+        private void updateParaModePreview() {
+            if (paraModePreviewPanel != null) {
+                paraModePreviewPanel.repaint();
+            }
+        }
+
+        private void drawParaModePreview(Graphics2D g2d) {
+            int previewWidth = paraModePreviewPanel.getWidth();
+            int previewHeight = paraModePreviewPanel.getHeight();
+
+            // Enable antialiasing
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            // Draw background
+            if (config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
+                try {
+                    BufferedImage bgImage = ImageIO.read(new File(config.paraModeBackgroundImage));
+                    g2d.drawImage(bgImage, 0, 0, previewWidth, previewHeight, null);
+                    // Apply opacity overlay
+                    if (config.paraModeBackgroundOpacity < 100) {
+                        int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
+                        g2d.setColor(new Color(0, 0, 0, alpha));
+                        g2d.fillRect(0, 0, previewWidth, previewHeight);
+                    }
+                } catch (IOException e) {
+                    g2d.setColor(config.paraModeBackgroundColor);
+                    g2d.fillRect(0, 0, previewWidth, previewHeight);
+                }
+            } else {
+                g2d.setColor(config.paraModeBackgroundColor);
+                g2d.fillRect(0, 0, previewWidth, previewHeight);
+            }
+
+            // Draw all lines
+            int currentY = (int) (previewHeight * config.paraModeStartY / 100.0);
+            int simulatedActiveLine = paraModeSelectedLineIndex >= 0 ? paraModeSelectedLineIndex : 0;
+
+            for (int i = 0; i < paraModeCurrentLines.size() && i < config.paraLineStyles.size(); i++) {
+                String lineText = paraModeCurrentLines.get(i);
+                ParaLineStyle style = config.paraLineStyles.get(i);
+                boolean isActive = (i == simulatedActiveLine);
+
+                // Add line spacing
+                currentY += style.lineSpacingBefore;
+
+                // Create font
+                int fontStyle = Font.PLAIN;
+                if (style.bold) fontStyle |= Font.BOLD;
+                if (style.italic) fontStyle |= Font.ITALIC;
+
+                String fontFamily = style.fontFamily.isEmpty() ? "SansSerif" : style.fontFamily;
+                Font font = new Font(fontFamily, fontStyle, (int)(style.fontSize * 0.6)); // Scale for preview
+                g2d.setFont(font);
+                FontMetrics fm = g2d.getFontMetrics();
+
+                // Calculate text width with word spacing
+                int textWidth = fm.stringWidth(lineText);
+                if (style.wordSpacing > 0) {
+                    int spaceCount = lineText.split(" ").length - 1;
+                    textWidth += spaceCount * style.wordSpacing;
+                }
+
+                // Calculate X based on alignment
+                int x;
+                switch (style.alignment) {
+                    case 0: x = 10; break; // Left
+                    case 2: x = previewWidth - textWidth - 10; break; // Right
+                    default: x = (previewWidth - textWidth) / 2; break; // Center
+                }
+
+                // Use highlight color if active
+                Color textColor = isActive ? style.highlightColor : style.color;
+
+                // Draw text box background if enabled
+                if (config.paraModeTextBoxOpacity > 0) {
+                    int padding = config.paraModeTextBoxPadding;
+                    int alpha = (int) (config.paraModeTextBoxOpacity * 2.55);
+                    g2d.setColor(new Color(config.paraModeTextBoxColor.getRed(),
+                                          config.paraModeTextBoxColor.getGreen(),
+                                          config.paraModeTextBoxColor.getBlue(), alpha));
+                    g2d.fillRoundRect(x - padding, currentY - fm.getAscent() - padding/2,
+                                     textWidth + padding * 2, fm.getHeight() + padding, 8, 8);
+                }
+
+                // Apply highlight effects
+                if (isActive) {
+                    switch (config.paraModeHighlightMode) {
+                        case 1: // Scale up
+                            Font scaledFont = font.deriveFont(font.getSize() * 1.15f);
+                            g2d.setFont(scaledFont);
+                            fm = g2d.getFontMetrics();
+                            textWidth = fm.stringWidth(lineText);
+                            x = (previewWidth - textWidth) / 2;
+                            break;
+                        case 2: // Glow pulse
+                            g2d.setColor(new Color(style.highlightColor.getRed(),
+                                                  style.highlightColor.getGreen(),
+                                                  style.highlightColor.getBlue(), 100));
+                            for (int glow = 6; glow > 0; glow -= 2) {
+                                g2d.drawString(lineText, x - glow, currentY);
+                                g2d.drawString(lineText, x + glow, currentY);
+                                g2d.drawString(lineText, x, currentY - glow);
+                                g2d.drawString(lineText, x, currentY + glow);
+                            }
+                            break;
+                        case 3: // Underline
+                            g2d.setColor(textColor);
+                            g2d.drawLine(x, currentY + 3, x + textWidth, currentY + 3);
+                            break;
+                    }
+                }
+
+                // Draw shadow
+                if (style.shadowEnabled) {
+                    g2d.setColor(new Color(style.shadowColor.getRed(), style.shadowColor.getGreen(),
+                                          style.shadowColor.getBlue(), 150));
+                    g2d.drawString(lineText, x + style.shadowOffset, currentY + style.shadowOffset);
+                }
+
+                // Draw outline
+                if (style.outlineEnabled) {
+                    g2d.setColor(style.outlineColor);
+                    for (int ox = -style.outlineThickness; ox <= style.outlineThickness; ox++) {
+                        for (int oy = -style.outlineThickness; oy <= style.outlineThickness; oy++) {
+                            if (ox != 0 || oy != 0) {
+                                g2d.drawString(lineText, x + ox, currentY + oy);
+                            }
+                        }
+                    }
+                }
+
+                // Draw glow
+                if (style.glowEnabled) {
+                    g2d.setColor(new Color(style.glowColor.getRed(), style.glowColor.getGreen(),
+                                          style.glowColor.getBlue(), 80));
+                    for (int glow = 4; glow > 0; glow--) {
+                        g2d.drawString(lineText, x - glow, currentY);
+                        g2d.drawString(lineText, x + glow, currentY);
+                        g2d.drawString(lineText, x, currentY - glow);
+                        g2d.drawString(lineText, x, currentY + glow);
+                    }
+                }
+
+                // Draw main text
+                g2d.setColor(textColor);
+                g2d.drawString(lineText, x, currentY);
+
+                // Draw underline decoration if enabled
+                if (style.underline) {
+                    g2d.drawLine(x, currentY + 2, x + textWidth, currentY + 2);
+                }
+
+                // Move to next line
+                currentY += fm.getHeight() + config.paramodeGlobalLineSpacing;
+            }
+
+            // Draw active line indicator
+            g2d.setColor(new Color(255, 255, 255, 100));
+            g2d.setFont(new Font("SansSerif", Font.PLAIN, 10));
+            g2d.drawString("Active Line: " + (simulatedActiveLine + 1) + " of " + paraModeCurrentLines.size(), 5, previewHeight - 5);
         }
 
 
@@ -4295,6 +5048,16 @@ public class arabicSync {
                     return "Slideshow";
                 case 3:
                     return "Single Image with Effects";
+                case 4:
+                    return "Solid Color with Effects";
+                case 5:
+                    return "Image + Text (Comma-separated)";
+                case 6:
+                    return "Quiz Mode";
+                case 7:
+                    return "Images per Line";
+                case 8:
+                    return "Paragraph Mode";
                 default:
                     return "Unknown";
             }
@@ -5311,7 +6074,9 @@ public class arabicSync {
             } else if (config.backgroundMode == 7) {
                 System.out.println("🖼️ Selected: IMAGES PER LINE mode for Arabic audio sync");
                 // No pre-loading needed - images loaded per line
-
+            } else if (config.backgroundMode == 8) {
+                System.out.println("📄 Selected: PARAGRAPH MODE for Arabic audio sync");
+                // No pre-loading needed - all lines displayed at once with per-line styling
             } else {
                 System.out.println("🎨 Selected: SINGLE IMAGE with effects for Arabic audio sync");
                 singleEffectImage = loadSingleRandomImageForEffects();
@@ -5359,6 +6124,9 @@ public class arabicSync {
                             preloadedEnglishFont, preloadedArabicFont, audioDuration);
                 } else if (config.backgroundMode == 7) {
                     generateImagesPerLineFrame(formattedData, displayInfo, frameName, currentTime,
+                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
+                } else if (config.backgroundMode == 8) {
+                    generateParaModeFrame(formattedData, displayInfo, frameName, currentTime,
                             preloadedEnglishFont, preloadedArabicFont, audioDuration);
                 } else {
                     generateArabicSyncSingleImageFrame(formattedData, displayInfo, frameName, singleEffectImage, currentTime,
@@ -12449,6 +13217,284 @@ public class arabicSync {
             return Integer.parseInt(numberPart);
         } catch (Exception e) {
             return 0;
+        }
+    }
+
+    // === PARAGRAPH MODE FRAME GENERATOR ===
+    // Displays all lines on screen at once with the active line highlighted based on audio timing
+    private void generateParaModeFrame(FormattedTextDataArabicSync formattedData, QuoteDisplayInfoArabicSync displayInfo,
+                                       String outputPath, double currentTime,
+                                       Font englishFont, Font arabicFont, double totalDuration) throws Exception {
+
+        int width = config.videoWidth;
+        int height = config.videoHeight;
+
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = image.createGraphics();
+
+        // High-quality rendering
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+
+        // Draw background
+        if (config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
+            try {
+                BufferedImage bgImage = ImageIO.read(new File(config.paraModeBackgroundImage));
+                g2d.drawImage(bgImage, 0, 0, width, height, null);
+                // Apply opacity overlay if needed
+                if (config.paraModeBackgroundOpacity < 100) {
+                    int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
+                    g2d.setColor(new Color(0, 0, 0, alpha));
+                    g2d.fillRect(0, 0, width, height);
+                }
+            } catch (IOException e) {
+                g2d.setColor(config.paraModeBackgroundColor);
+                g2d.fillRect(0, 0, width, height);
+            }
+        } else {
+            g2d.setColor(config.paraModeBackgroundColor);
+            g2d.fillRect(0, 0, width, height);
+        }
+
+        // Get the active line based on audio timing
+        int activeLine = displayInfo.currentQuote;
+        boolean lineIsActive = displayInfo.isActive;
+
+        // Calculate starting Y position
+        int currentY = (int) (height * config.paraModeStartY / 100.0);
+
+        // Draw all lines
+        for (int i = 0; i < formattedData.lines.size(); i++) {
+            // Get or create style for this line
+            ParaLineStyle style;
+            if (i < config.paraLineStyles.size()) {
+                style = config.paraLineStyles.get(i);
+            } else {
+                style = new ParaLineStyle();
+                style.fontSize = config.paraModeDefaultFontSize;
+                style.color = config.paraModeDefaultColor;
+                style.highlightColor = config.paraModeHighlightColor;
+            }
+
+            FormattedLineArabicSync line = formattedData.lines.get(i);
+            String lineText = line.arabicContent;
+            boolean isActive = (i == activeLine) && lineIsActive;
+
+            // Add line spacing
+            currentY += style.lineSpacingBefore;
+
+            // Create font
+            int fontStyle = Font.PLAIN;
+            if (style.bold) fontStyle |= Font.BOLD;
+            if (style.italic) fontStyle |= Font.ITALIC;
+
+            // Use the arabicFont if no custom font family is set
+            Font lineFont;
+            if (style.fontFamily == null || style.fontFamily.isEmpty()) {
+                lineFont = arabicFont.deriveFont(fontStyle, (float) style.fontSize);
+            } else {
+                lineFont = new Font(style.fontFamily, fontStyle, style.fontSize);
+            }
+
+            g2d.setFont(lineFont);
+            FontMetrics fm = g2d.getFontMetrics();
+
+            // Calculate text width with word spacing
+            int textWidth = getParaModeTextWidth(lineText, fm, style.wordSpacing);
+
+            // Calculate X based on alignment
+            int x;
+            switch (style.alignment) {
+                case 0: x = 30; break; // Left
+                case 2: x = width - textWidth - 30; break; // Right
+                default: x = (width - textWidth) / 2; break; // Center
+            }
+
+            // Use highlight color if active
+            Color textColor = isActive ? style.highlightColor : style.color;
+
+            // Draw text box background if enabled
+            if (config.paraModeTextBoxOpacity > 0) {
+                int padding = config.paraModeTextBoxPadding;
+                int alpha = (int) (config.paraModeTextBoxOpacity * 2.55);
+                g2d.setColor(new Color(config.paraModeTextBoxColor.getRed(),
+                                      config.paraModeTextBoxColor.getGreen(),
+                                      config.paraModeTextBoxColor.getBlue(), alpha));
+                g2d.fillRoundRect(x - padding, currentY - fm.getAscent() - padding/2,
+                                 textWidth + padding * 2, fm.getHeight() + padding, 12, 12);
+            }
+
+            // Apply highlight effects for active line
+            if (isActive) {
+                switch (config.paraModeHighlightMode) {
+                    case 1: // Scale up
+                        Font scaledFont = lineFont.deriveFont(lineFont.getSize() * 1.2f);
+                        g2d.setFont(scaledFont);
+                        fm = g2d.getFontMetrics();
+                        textWidth = getParaModeTextWidth(lineText, fm, style.wordSpacing);
+                        x = (width - textWidth) / 2; // Re-center scaled text
+                        break;
+                    case 2: // Glow pulse - animated glow effect
+                        double pulsePhase = (currentTime * 3) % (2 * Math.PI);
+                        int pulseAlpha = (int) (80 + 40 * Math.sin(pulsePhase));
+                        g2d.setColor(new Color(style.highlightColor.getRed(),
+                                              style.highlightColor.getGreen(),
+                                              style.highlightColor.getBlue(), pulseAlpha));
+                        for (int glow = 8; glow > 0; glow -= 2) {
+                            drawParaModeText(g2d, lineText, x - glow, currentY, style.wordSpacing);
+                            drawParaModeText(g2d, lineText, x + glow, currentY, style.wordSpacing);
+                            drawParaModeText(g2d, lineText, x, currentY - glow, style.wordSpacing);
+                            drawParaModeText(g2d, lineText, x, currentY + glow, style.wordSpacing);
+                        }
+                        break;
+                    case 3: // Underline
+                        g2d.setColor(textColor);
+                        g2d.setStroke(new BasicStroke(3));
+                        g2d.drawLine(x, currentY + 5, x + textWidth, currentY + 5);
+                        g2d.setStroke(new BasicStroke(1));
+                        break;
+                }
+            }
+
+            // Draw shadow
+            if (style.shadowEnabled) {
+                g2d.setColor(new Color(style.shadowColor.getRed(), style.shadowColor.getGreen(),
+                                      style.shadowColor.getBlue(), 180));
+                drawParaModeText(g2d, lineText, x + style.shadowOffset, currentY + style.shadowOffset, style.wordSpacing);
+            }
+
+            // Draw outline
+            if (style.outlineEnabled) {
+                g2d.setColor(style.outlineColor);
+                for (int ox = -style.outlineThickness; ox <= style.outlineThickness; ox++) {
+                    for (int oy = -style.outlineThickness; oy <= style.outlineThickness; oy++) {
+                        if (ox != 0 || oy != 0) {
+                            drawParaModeText(g2d, lineText, x + ox, currentY + oy, style.wordSpacing);
+                        }
+                    }
+                }
+            }
+
+            // Draw glow
+            if (style.glowEnabled) {
+                g2d.setColor(new Color(style.glowColor.getRed(), style.glowColor.getGreen(),
+                                      style.glowColor.getBlue(), 100));
+                for (int glow = 5; glow > 0; glow--) {
+                    drawParaModeText(g2d, lineText, x - glow, currentY, style.wordSpacing);
+                    drawParaModeText(g2d, lineText, x + glow, currentY, style.wordSpacing);
+                    drawParaModeText(g2d, lineText, x, currentY - glow, style.wordSpacing);
+                    drawParaModeText(g2d, lineText, x, currentY + glow, style.wordSpacing);
+                }
+            }
+
+            // Draw main text
+            g2d.setColor(textColor);
+            drawParaModeText(g2d, lineText, x, currentY, style.wordSpacing);
+
+            // Draw underline decoration if enabled
+            if (style.underline) {
+                g2d.setStroke(new BasicStroke(2));
+                g2d.drawLine(x, currentY + 3, x + textWidth, currentY + 3);
+                g2d.setStroke(new BasicStroke(1));
+            }
+
+            // Highlight active word within the active line
+            if (isActive && currentWordTimings != null && currentWordTimings.length > 0) {
+                highlightActiveWord(g2d, lineText, x, currentY, fm, line, currentTime, style);
+            }
+
+            // Move to next line
+            currentY += fm.getHeight() + config.paramodeGlobalLineSpacing;
+        }
+
+        // Draw waveform if configured
+        if (config.waveformY >= 0 && config.waveformHeight > 0) {
+            // Draw a simple indicator bar for the audio position
+            double progress = currentTime / totalDuration;
+            int barWidth = (int) (width * 0.8);
+            int barX = (width - barWidth) / 2;
+            int barY = config.waveformY;
+
+            // Background bar
+            g2d.setColor(new Color(50, 50, 50, 200));
+            g2d.fillRoundRect(barX, barY, barWidth, 8, 4, 4);
+
+            // Progress bar
+            g2d.setColor(config.paraModeHighlightColor);
+            g2d.fillRoundRect(barX, barY, (int) (barWidth * progress), 8, 4, 4);
+        }
+
+        g2d.dispose();
+        ImageIO.write(image, "JPEG", new File(outputPath));
+    }
+
+    // Helper method to calculate text width with word spacing
+    private int getParaModeTextWidth(String text, FontMetrics fm, int wordSpacing) {
+        int width = fm.stringWidth(text);
+        if (wordSpacing > 0) {
+            int spaceCount = text.split(" ").length - 1;
+            width += spaceCount * wordSpacing;
+        }
+        return width;
+    }
+
+    // Helper method to draw text with word spacing
+    private void drawParaModeText(Graphics2D g2d, String text, int x, int y, int wordSpacing) {
+        if (wordSpacing == 0) {
+            g2d.drawString(text, x, y);
+        } else {
+            // Draw words with custom spacing
+            String[] words = text.split(" ");
+            FontMetrics fm = g2d.getFontMetrics();
+            int currentX = x;
+            for (int i = 0; i < words.length; i++) {
+                g2d.drawString(words[i], currentX, y);
+                currentX += fm.stringWidth(words[i]) + fm.stringWidth(" ") + wordSpacing;
+            }
+        }
+    }
+
+    // Helper method to highlight the currently spoken word
+    private void highlightActiveWord(Graphics2D g2d, String lineText, int lineX, int lineY,
+                                     FontMetrics fm, FormattedLineArabicSync line,
+                                     double currentTime, ParaLineStyle style) {
+        // Find the currently spoken word based on timing
+        int wordStartIdx = line.wordStartIndex;
+        int wordCount = line.wordCount;
+
+        if (wordStartIdx >= currentWordTimings.length) return;
+
+        int endIdx = Math.min(wordStartIdx + wordCount, currentWordTimings.length);
+
+        for (int wi = wordStartIdx; wi < endIdx; wi++) {
+            if (wi >= currentWordTimings.length) break;
+
+            WordTiming wt = currentWordTimings[wi];
+            if (currentTime >= wt.startTime && currentTime <= wt.endTime) {
+                // This word is currently being spoken - add an additional highlight effect
+                String[] words = lineText.split("\\s+");
+                int wordIdx = wi - wordStartIdx;
+
+                if (wordIdx >= 0 && wordIdx < words.length) {
+                    // Calculate word position
+                    int currentX = lineX;
+                    for (int w = 0; w < wordIdx; w++) {
+                        currentX += fm.stringWidth(words[w]) + fm.stringWidth(" ") + style.wordSpacing;
+                    }
+
+                    String word = words[wordIdx];
+                    int wordWidth = fm.stringWidth(word);
+
+                    // Draw subtle underline under the active word
+                    g2d.setColor(new Color(255, 255, 255, 150));
+                    g2d.setStroke(new BasicStroke(2));
+                    g2d.drawLine(currentX, lineY + 3, currentX + wordWidth, lineY + 3);
+                    g2d.setStroke(new BasicStroke(1));
+                }
+                break;
+            }
         }
     }
 
