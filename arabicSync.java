@@ -1635,6 +1635,7 @@ public class arabicSync {
         private JList<String> paraModeLineList;
         private DefaultListModel<String> paraModeLineListModel;
         private int paraModeSelectedLineIndex = -1;
+        private boolean paraModeUpdatingControls = false; // Flag to prevent applying changes while updating controls
         private JSpinner paraModeFontSizeSpinner;
         private JComboBox<String> paraModeFontStyleCombo;
         private JComboBox<String> paraModeAlignmentCombo;
@@ -2062,37 +2063,50 @@ public class arabicSync {
             if (paraModeSelectedLineIndex < 0 || paraModeSelectedLineIndex >= config.paraLineStyles.size()) {
                 return;
             }
-            ParaLineStyle style = config.paraLineStyles.get(paraModeSelectedLineIndex);
 
-            paraModeFontSizeSpinner.setValue(style.fontSize);
-            paraModeAlignmentCombo.setSelectedIndex(style.alignment);
-            paraModeLineColorPanel.setBackground(style.color);
-            paraModeHighlightColorPanel.setBackground(style.highlightColor);
-            paraModeBoldCheck.setSelected(style.bold);
-            paraModeItalicCheck.setSelected(style.italic);
-            paraModeUnderlineCheck.setSelected(style.underline);
-            paraModeShadowCheck.setSelected(style.shadowEnabled);
-            paraModeOutlineCheck.setSelected(style.outlineEnabled);
-            paraModeGlowCheck.setSelected(style.glowEnabled);
-            paraModeLineSpacingSpinner.setValue(style.lineSpacingBefore);
-            paraModeWordSpacingSpinner.setValue(style.wordSpacing);
+            // Set flag to prevent applyLineStyleChange from running while updating controls
+            paraModeUpdatingControls = true;
 
-            // Font family
-            String family = style.fontFamily;
-            if (family == null || family.isEmpty()) {
-                paraModeFontStyleCombo.setSelectedIndex(0);
-            } else if (family.contains("Serif")) {
-                paraModeFontStyleCombo.setSelectedIndex(1);
-            } else if (family.contains("Sans")) {
-                paraModeFontStyleCombo.setSelectedIndex(2);
-            } else if (family.contains("Mono")) {
-                paraModeFontStyleCombo.setSelectedIndex(3);
-            } else {
-                paraModeFontStyleCombo.setSelectedIndex(0);
+            try {
+                ParaLineStyle style = config.paraLineStyles.get(paraModeSelectedLineIndex);
+
+                paraModeFontSizeSpinner.setValue(style.fontSize);
+                paraModeAlignmentCombo.setSelectedIndex(style.alignment);
+                paraModeLineColorPanel.setBackground(style.color);
+                paraModeHighlightColorPanel.setBackground(style.highlightColor);
+                paraModeBoldCheck.setSelected(style.bold);
+                paraModeItalicCheck.setSelected(style.italic);
+                paraModeUnderlineCheck.setSelected(style.underline);
+                paraModeShadowCheck.setSelected(style.shadowEnabled);
+                paraModeOutlineCheck.setSelected(style.outlineEnabled);
+                paraModeGlowCheck.setSelected(style.glowEnabled);
+                paraModeLineSpacingSpinner.setValue(style.lineSpacingBefore);
+                paraModeWordSpacingSpinner.setValue(style.wordSpacing);
+
+                // Font family
+                String family = style.fontFamily;
+                if (family == null || family.isEmpty()) {
+                    paraModeFontStyleCombo.setSelectedIndex(0);
+                } else if (family.contains("Serif")) {
+                    paraModeFontStyleCombo.setSelectedIndex(1);
+                } else if (family.contains("Sans")) {
+                    paraModeFontStyleCombo.setSelectedIndex(2);
+                } else if (family.contains("Mono")) {
+                    paraModeFontStyleCombo.setSelectedIndex(3);
+                } else {
+                    paraModeFontStyleCombo.setSelectedIndex(0);
+                }
+            } finally {
+                // Always reset the flag
+                paraModeUpdatingControls = false;
             }
         }
 
         private void applyLineStyleChange() {
+            // Don't apply changes while controls are being updated (prevents overwriting when selecting a line)
+            if (paraModeUpdatingControls) {
+                return;
+            }
             if (paraModeSelectedLineIndex < 0 || paraModeSelectedLineIndex >= config.paraLineStyles.size()) {
                 return;
             }
