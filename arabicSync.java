@@ -114,6 +114,21 @@ public class arabicSync {
         Color glowColor = new Color(255, 200, 100);
         Color highlightColor = new Color(255, 215, 0); // Color when line is active
 
+        // Per-line border settings
+        boolean borderEnabled = false;
+        int borderStyle = 0; // 0=solid, 1=double, 2=dashed, 3=gradient, 4=rounded
+        int borderThickness = 2;
+        Color borderColor = new Color(255, 215, 0); // Gold
+        Color borderColor2 = new Color(255, 165, 0); // Orange (for gradient)
+        int borderPadding = 10; // Padding inside border
+        int borderRadius = 8; // Corner radius for rounded style
+
+        // Per-line highlight background (when active)
+        boolean highlightBgEnabled = false;
+        Color highlightBgColor = new Color(255, 215, 0, 50); // Semi-transparent gold
+        int highlightBgPadding = 8;
+        int highlightBgRadius = 6;
+
         // Create a copy of this style
         ParaLineStyle copy() {
             ParaLineStyle c = new ParaLineStyle();
@@ -136,6 +151,19 @@ public class arabicSync {
             c.glowEnabled = this.glowEnabled;
             c.glowColor = this.glowColor;
             c.highlightColor = this.highlightColor;
+            // Copy border settings
+            c.borderEnabled = this.borderEnabled;
+            c.borderStyle = this.borderStyle;
+            c.borderThickness = this.borderThickness;
+            c.borderColor = this.borderColor;
+            c.borderColor2 = this.borderColor2;
+            c.borderPadding = this.borderPadding;
+            c.borderRadius = this.borderRadius;
+            // Copy highlight background settings
+            c.highlightBgEnabled = this.highlightBgEnabled;
+            c.highlightBgColor = this.highlightBgColor;
+            c.highlightBgPadding = this.highlightBgPadding;
+            c.highlightBgRadius = this.highlightBgRadius;
             return c;
         }
     }
@@ -402,6 +430,15 @@ public class arabicSync {
         int paraModeTextBoxOpacity = 0; // Semi-transparent box behind text (0-100)
         Color paraModeTextBoxColor = new Color(0, 0, 0); // Text box color
         int paraModeTextBoxPadding = 15; // Padding around text in box
+
+        // === GLOBAL VIDEO BORDER SETTINGS ===
+        boolean paraModeVideoBorderEnabled = false;
+        int paraModeVideoBorderStyle = 0; // 0=solid, 1=double, 2=dashed, 3=gradient, 4=rounded, 5=ornamental
+        int paraModeVideoBorderThickness = 10;
+        Color paraModeVideoBorderColor = new Color(255, 215, 0); // Gold
+        Color paraModeVideoBorderColor2 = new Color(255, 165, 0); // Orange (for gradient)
+        int paraModeVideoBorderPadding = 20; // Distance from edge
+        int paraModeVideoBorderRadius = 30; // Corner radius for rounded style
     }
 
 
@@ -1652,6 +1689,19 @@ public class arabicSync {
         private JSpinner paraModeLineSpacingSpinner;
         private JSpinner paraModeWordSpacingSpinner;
         private JSpinner paraModeHorizontalOffsetSpinner;
+        // Per-line border controls
+        private JCheckBox paraModeBorderEnabledCheck;
+        private JComboBox<String> paraModeBorderStyleCombo;
+        private JSpinner paraModeBorderThicknessSpinner;
+        private JPanel paraModeBorderColorPanel;
+        private JPanel paraModeBorderColor2Panel;
+        private JSpinner paraModeBorderPaddingSpinner;
+        private JSpinner paraModeBorderRadiusSpinner;
+        // Per-line highlight background controls
+        private JCheckBox paraModeHighlightBgEnabledCheck;
+        private JPanel paraModeHighlightBgColorPanel;
+        private JSpinner paraModeHighlightBgPaddingSpinner;
+        private JSpinner paraModeHighlightBgRadiusSpinner;
         private java.util.List<String> paraModeCurrentLines = new java.util.ArrayList<>();
 
         private JPanel createParaModePanel() {
@@ -1802,6 +1852,103 @@ public class arabicSync {
                 }
             });
             globalPanel.add(bgImageBtn, gbc);
+
+            // === VIDEO BORDER SETTINGS (collapsible section) ===
+            gbc.gridx = 0; gbc.gridy = 9; gbc.gridwidth = 2;
+            JCheckBox videoBorderEnabledCheck = new JCheckBox("Enable Video Border", config.paraModeVideoBorderEnabled);
+            videoBorderEnabledCheck.addActionListener(e -> {
+                config.paraModeVideoBorderEnabled = videoBorderEnabledCheck.isSelected();
+                updateParaModePreview();
+            });
+            globalPanel.add(videoBorderEnabledCheck, gbc);
+            gbc.gridwidth = 1;
+
+            // Border Style
+            gbc.gridx = 0; gbc.gridy = 10;
+            globalPanel.add(new JLabel("Border Style:"), gbc);
+            gbc.gridx = 1;
+            JComboBox<String> videoBorderStyleCombo = new JComboBox<>(new String[]{
+                "Solid", "Double", "Dashed", "Gradient", "Rounded", "Ornamental"
+            });
+            videoBorderStyleCombo.setSelectedIndex(config.paraModeVideoBorderStyle);
+            videoBorderStyleCombo.addActionListener(e -> {
+                config.paraModeVideoBorderStyle = videoBorderStyleCombo.getSelectedIndex();
+                updateParaModePreview();
+            });
+            globalPanel.add(videoBorderStyleCombo, gbc);
+
+            // Border Thickness
+            gbc.gridx = 0; gbc.gridy = 11;
+            globalPanel.add(new JLabel("Border Thickness:"), gbc);
+            gbc.gridx = 1;
+            JSpinner videoBorderThicknessSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderThickness, 1, 50, 2));
+            videoBorderThicknessSpinner.addChangeListener(e -> {
+                config.paraModeVideoBorderThickness = (Integer) videoBorderThicknessSpinner.getValue();
+                updateParaModePreview();
+            });
+            globalPanel.add(videoBorderThicknessSpinner, gbc);
+
+            // Border Color
+            gbc.gridx = 0; gbc.gridy = 12;
+            globalPanel.add(new JLabel("Border Color:"), gbc);
+            gbc.gridx = 1;
+            JPanel videoBorderColorPanel = new JPanel();
+            videoBorderColorPanel.setBackground(config.paraModeVideoBorderColor);
+            videoBorderColorPanel.setPreferredSize(new Dimension(60, 25));
+            videoBorderColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            videoBorderColorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    Color c = JColorChooser.showDialog(mainPanel, "Border Color", config.paraModeVideoBorderColor);
+                    if (c != null) {
+                        config.paraModeVideoBorderColor = c;
+                        videoBorderColorPanel.setBackground(c);
+                        updateParaModePreview();
+                    }
+                }
+            });
+            globalPanel.add(videoBorderColorPanel, gbc);
+
+            // Border Color 2 (for gradient)
+            gbc.gridx = 0; gbc.gridy = 13;
+            globalPanel.add(new JLabel("Gradient Color 2:"), gbc);
+            gbc.gridx = 1;
+            JPanel videoBorderColor2Panel = new JPanel();
+            videoBorderColor2Panel.setBackground(config.paraModeVideoBorderColor2);
+            videoBorderColor2Panel.setPreferredSize(new Dimension(60, 25));
+            videoBorderColor2Panel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            videoBorderColor2Panel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    Color c = JColorChooser.showDialog(mainPanel, "Gradient Color 2", config.paraModeVideoBorderColor2);
+                    if (c != null) {
+                        config.paraModeVideoBorderColor2 = c;
+                        videoBorderColor2Panel.setBackground(c);
+                        updateParaModePreview();
+                    }
+                }
+            });
+            globalPanel.add(videoBorderColor2Panel, gbc);
+
+            // Border Padding
+            gbc.gridx = 0; gbc.gridy = 14;
+            globalPanel.add(new JLabel("Border Padding:"), gbc);
+            gbc.gridx = 1;
+            JSpinner videoBorderPaddingSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderPadding, 0, 100, 5));
+            videoBorderPaddingSpinner.addChangeListener(e -> {
+                config.paraModeVideoBorderPadding = (Integer) videoBorderPaddingSpinner.getValue();
+                updateParaModePreview();
+            });
+            globalPanel.add(videoBorderPaddingSpinner, gbc);
+
+            // Border Radius
+            gbc.gridx = 0; gbc.gridy = 15;
+            globalPanel.add(new JLabel("Border Radius:"), gbc);
+            gbc.gridx = 1;
+            JSpinner videoBorderRadiusSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderRadius, 0, 100, 5));
+            videoBorderRadiusSpinner.addChangeListener(e -> {
+                config.paraModeVideoBorderRadius = (Integer) videoBorderRadiusSpinner.getValue();
+                updateParaModePreview();
+            });
+            globalPanel.add(videoBorderRadiusSpinner, gbc);
 
             leftPanel.add(globalPanel, BorderLayout.NORTH);
 
@@ -1972,15 +2119,133 @@ public class arabicSync {
             paraModeHorizontalOffsetSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeHorizontalOffsetSpinner, gbc);
 
-            // Fancy Symbols button
+            // === PER-LINE BORDER SETTINGS ===
             gbc.gridx = 0; gbc.gridy = 10; gbc.gridwidth = 2;
+            paraModeBorderEnabledCheck = new JCheckBox("Enable Line Border");
+            paraModeBorderEnabledCheck.addActionListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeBorderEnabledCheck, gbc);
+            gbc.gridwidth = 1;
+
+            // Border Style
+            gbc.gridx = 0; gbc.gridy = 11;
+            lineStylePanel.add(new JLabel("Border Style:"), gbc);
+            gbc.gridx = 1;
+            paraModeBorderStyleCombo = new JComboBox<>(new String[]{"Solid", "Double", "Dashed", "Gradient", "Rounded"});
+            paraModeBorderStyleCombo.addActionListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeBorderStyleCombo, gbc);
+
+            // Border Thickness
+            gbc.gridx = 0; gbc.gridy = 12;
+            lineStylePanel.add(new JLabel("Border Thickness:"), gbc);
+            gbc.gridx = 1;
+            paraModeBorderThicknessSpinner = new JSpinner(new SpinnerNumberModel(2, 1, 20, 1));
+            paraModeBorderThicknessSpinner.addChangeListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeBorderThicknessSpinner, gbc);
+
+            // Border Colors
+            gbc.gridx = 0; gbc.gridy = 13;
+            lineStylePanel.add(new JLabel("Border Color:"), gbc);
+            gbc.gridx = 1;
+            paraModeBorderColorPanel = new JPanel();
+            paraModeBorderColorPanel.setBackground(new Color(255, 215, 0));
+            paraModeBorderColorPanel.setPreferredSize(new Dimension(60, 25));
+            paraModeBorderColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            paraModeBorderColorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    Color c = JColorChooser.showDialog(mainPanel, "Border Color", paraModeBorderColorPanel.getBackground());
+                    if (c != null) {
+                        paraModeBorderColorPanel.setBackground(c);
+                        applyLineStyleChange();
+                    }
+                }
+            });
+            lineStylePanel.add(paraModeBorderColorPanel, gbc);
+
+            gbc.gridx = 0; gbc.gridy = 14;
+            lineStylePanel.add(new JLabel("Gradient Color 2:"), gbc);
+            gbc.gridx = 1;
+            paraModeBorderColor2Panel = new JPanel();
+            paraModeBorderColor2Panel.setBackground(new Color(255, 165, 0));
+            paraModeBorderColor2Panel.setPreferredSize(new Dimension(60, 25));
+            paraModeBorderColor2Panel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            paraModeBorderColor2Panel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    Color c = JColorChooser.showDialog(mainPanel, "Gradient Color 2", paraModeBorderColor2Panel.getBackground());
+                    if (c != null) {
+                        paraModeBorderColor2Panel.setBackground(c);
+                        applyLineStyleChange();
+                    }
+                }
+            });
+            lineStylePanel.add(paraModeBorderColor2Panel, gbc);
+
+            // Border Padding
+            gbc.gridx = 0; gbc.gridy = 15;
+            lineStylePanel.add(new JLabel("Border Padding:"), gbc);
+            gbc.gridx = 1;
+            paraModeBorderPaddingSpinner = new JSpinner(new SpinnerNumberModel(10, 0, 50, 2));
+            paraModeBorderPaddingSpinner.addChangeListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeBorderPaddingSpinner, gbc);
+
+            // Border Radius
+            gbc.gridx = 0; gbc.gridy = 16;
+            lineStylePanel.add(new JLabel("Border Radius:"), gbc);
+            gbc.gridx = 1;
+            paraModeBorderRadiusSpinner = new JSpinner(new SpinnerNumberModel(8, 0, 50, 2));
+            paraModeBorderRadiusSpinner.addChangeListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeBorderRadiusSpinner, gbc);
+
+            // === PER-LINE HIGHLIGHT BACKGROUND SETTINGS ===
+            gbc.gridx = 0; gbc.gridy = 17; gbc.gridwidth = 2;
+            paraModeHighlightBgEnabledCheck = new JCheckBox("Enable Highlight Background");
+            paraModeHighlightBgEnabledCheck.addActionListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeHighlightBgEnabledCheck, gbc);
+            gbc.gridwidth = 1;
+
+            gbc.gridx = 0; gbc.gridy = 18;
+            lineStylePanel.add(new JLabel("Highlight BG Color:"), gbc);
+            gbc.gridx = 1;
+            paraModeHighlightBgColorPanel = new JPanel();
+            paraModeHighlightBgColorPanel.setBackground(new Color(255, 215, 0, 50));
+            paraModeHighlightBgColorPanel.setPreferredSize(new Dimension(60, 25));
+            paraModeHighlightBgColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            paraModeHighlightBgColorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    Color currentColor = paraModeHighlightBgColorPanel.getBackground();
+                    Color c = JColorChooser.showDialog(mainPanel, "Highlight Background Color", currentColor);
+                    if (c != null) {
+                        // Preserve alpha or use a default
+                        Color withAlpha = new Color(c.getRed(), c.getGreen(), c.getBlue(), 80);
+                        paraModeHighlightBgColorPanel.setBackground(withAlpha);
+                        applyLineStyleChange();
+                    }
+                }
+            });
+            lineStylePanel.add(paraModeHighlightBgColorPanel, gbc);
+
+            gbc.gridx = 0; gbc.gridy = 19;
+            lineStylePanel.add(new JLabel("Highlight Padding:"), gbc);
+            gbc.gridx = 1;
+            paraModeHighlightBgPaddingSpinner = new JSpinner(new SpinnerNumberModel(8, 0, 50, 2));
+            paraModeHighlightBgPaddingSpinner.addChangeListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeHighlightBgPaddingSpinner, gbc);
+
+            gbc.gridx = 0; gbc.gridy = 20;
+            lineStylePanel.add(new JLabel("Highlight Radius:"), gbc);
+            gbc.gridx = 1;
+            paraModeHighlightBgRadiusSpinner = new JSpinner(new SpinnerNumberModel(6, 0, 50, 2));
+            paraModeHighlightBgRadiusSpinner.addChangeListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeHighlightBgRadiusSpinner, gbc);
+
+            // Fancy Symbols button
+            gbc.gridx = 0; gbc.gridy = 21; gbc.gridwidth = 2;
             JButton fancySymbolsBtn = new JButton("Insert Fancy Symbols");
             fancySymbolsBtn.addActionListener(e -> showFancySymbolsDialog());
             lineStylePanel.add(fancySymbolsBtn, gbc);
             gbc.gridwidth = 1;
 
             // Apply to All Lines button
-            gbc.gridx = 0; gbc.gridy = 11; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 22; gbc.gridwidth = 2;
             JButton applyToAllBtn = new JButton("Apply This Style to All Lines");
             applyToAllBtn.addActionListener(e -> applyStyleToAllLines());
             lineStylePanel.add(applyToAllBtn, gbc);
@@ -2128,6 +2393,21 @@ public class arabicSync {
                         paraModeFontStyleCombo.setSelectedIndex(0);
                     }
                 }
+
+                // Load border settings
+                paraModeBorderEnabledCheck.setSelected(style.borderEnabled);
+                paraModeBorderStyleCombo.setSelectedIndex(style.borderStyle);
+                paraModeBorderThicknessSpinner.setValue(style.borderThickness);
+                paraModeBorderColorPanel.setBackground(style.borderColor);
+                paraModeBorderColor2Panel.setBackground(style.borderColor2);
+                paraModeBorderPaddingSpinner.setValue(style.borderPadding);
+                paraModeBorderRadiusSpinner.setValue(style.borderRadius);
+
+                // Load highlight background settings
+                paraModeHighlightBgEnabledCheck.setSelected(style.highlightBgEnabled);
+                paraModeHighlightBgColorPanel.setBackground(style.highlightBgColor);
+                paraModeHighlightBgPaddingSpinner.setValue(style.highlightBgPadding);
+                paraModeHighlightBgRadiusSpinner.setValue(style.highlightBgRadius);
             } finally {
                 // Always reset the flag
                 paraModeUpdatingControls = false;
@@ -2166,6 +2446,21 @@ public class arabicSync {
                 style.fontFamily = selectedFont;
             }
 
+            // Save border settings
+            style.borderEnabled = paraModeBorderEnabledCheck.isSelected();
+            style.borderStyle = paraModeBorderStyleCombo.getSelectedIndex();
+            style.borderThickness = (Integer) paraModeBorderThicknessSpinner.getValue();
+            style.borderColor = paraModeBorderColorPanel.getBackground();
+            style.borderColor2 = paraModeBorderColor2Panel.getBackground();
+            style.borderPadding = (Integer) paraModeBorderPaddingSpinner.getValue();
+            style.borderRadius = (Integer) paraModeBorderRadiusSpinner.getValue();
+
+            // Save highlight background settings
+            style.highlightBgEnabled = paraModeHighlightBgEnabledCheck.isSelected();
+            style.highlightBgColor = paraModeHighlightBgColorPanel.getBackground();
+            style.highlightBgPadding = (Integer) paraModeHighlightBgPaddingSpinner.getValue();
+            style.highlightBgRadius = (Integer) paraModeHighlightBgRadiusSpinner.getValue();
+
             updateParaModePreview();
         }
 
@@ -2192,6 +2487,19 @@ public class arabicSync {
                     style.wordSpacing = sourceStyle.wordSpacing;
                     style.horizontalOffset = sourceStyle.horizontalOffset;
                     style.alignment = sourceStyle.alignment;
+                    // Copy border settings
+                    style.borderEnabled = sourceStyle.borderEnabled;
+                    style.borderStyle = sourceStyle.borderStyle;
+                    style.borderThickness = sourceStyle.borderThickness;
+                    style.borderColor = sourceStyle.borderColor;
+                    style.borderColor2 = sourceStyle.borderColor2;
+                    style.borderPadding = sourceStyle.borderPadding;
+                    style.borderRadius = sourceStyle.borderRadius;
+                    // Copy highlight background settings
+                    style.highlightBgEnabled = sourceStyle.highlightBgEnabled;
+                    style.highlightBgColor = sourceStyle.highlightBgColor;
+                    style.highlightBgPadding = sourceStyle.highlightBgPadding;
+                    style.highlightBgRadius = sourceStyle.highlightBgRadius;
                 }
             }
             updateParaModePreview();
@@ -2327,9 +2635,15 @@ public class arabicSync {
             int previewWidth = paraModePreviewPanel.getWidth();
             int previewHeight = paraModePreviewPanel.getHeight();
 
+            // Calculate scale factor based on actual video dimensions (default 1080x1920)
+            double scaleX = (double) previewWidth / config.videoWidth;
+            double scaleY = (double) previewHeight / config.videoHeight;
+            double scale = Math.min(scaleX, scaleY);
+
             // Enable antialiasing
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
             // Always fill background with background color first
             g2d.setColor(config.paraModeBackgroundColor);
@@ -2354,6 +2668,11 @@ public class arabicSync {
                 }
             }
 
+            // === DRAW GLOBAL VIDEO BORDER ===
+            if (config.paraModeVideoBorderEnabled) {
+                drawVideoBorder(g2d, previewWidth, previewHeight, scale);
+            }
+
             // Draw all lines
             int currentY = (int) (previewHeight * config.paraModeStartY / 100.0);
             int simulatedActiveLine = paraModeSelectedLineIndex >= 0 ? paraModeSelectedLineIndex : 0;
@@ -2363,55 +2682,71 @@ public class arabicSync {
                 ParaLineStyle style = config.paraLineStyles.get(i);
                 boolean isActive = (i == simulatedActiveLine);
 
-                // Add line spacing
-                currentY += style.lineSpacingBefore;
+                // Add line spacing (scaled)
+                currentY += (int)(style.lineSpacingBefore * scale);
 
-                // Create font
+                // Create font (scaled)
                 int fontStyle = Font.PLAIN;
                 if (style.bold) fontStyle |= Font.BOLD;
                 if (style.italic) fontStyle |= Font.ITALIC;
 
                 String fontFamily = style.fontFamily.isEmpty() ? "SansSerif" : style.fontFamily;
-                Font font = new Font(fontFamily, fontStyle, (int)(style.fontSize * 0.4)); // Scale for preview (smaller)
+                Font font = new Font(fontFamily, fontStyle, (int)(style.fontSize * scale));
                 g2d.setFont(font);
                 FontMetrics fm = g2d.getFontMetrics();
 
                 // Scale word spacing for preview
-                int scaledWordSpacing = (int)(style.wordSpacing * 0.4);
+                int scaledWordSpacing = (int)(style.wordSpacing * scale);
 
                 // Calculate text width with word spacing (RTL)
                 int textWidth = getParaModePreviewTextWidth(lineText, fm, scaledWordSpacing);
 
                 // Calculate X based on alignment (RTL aware)
                 int x;
+                int margin = (int)(30 * scale);
                 switch (style.alignment) {
-                    case 0: x = previewWidth - textWidth - 10; break; // Left in RTL = right side
-                    case 2: x = 10; break; // Right in RTL = left side
+                    case 0: x = previewWidth - textWidth - margin; break; // Left in RTL = right side
+                    case 2: x = margin; break; // Right in RTL = left side
                     default: x = (previewWidth - textWidth) / 2; break; // Center
                 }
 
                 // Apply horizontal offset (scaled for preview)
-                x += (int)(style.horizontalOffset * 0.4);
+                x += (int)(style.horizontalOffset * scale);
 
                 // Use highlight color if active
                 Color textColor = isActive ? style.highlightColor : style.color;
 
-                // Draw text box background if enabled
+                // === DRAW PER-LINE HIGHLIGHT BACKGROUND (when active) ===
+                if (isActive && style.highlightBgEnabled) {
+                    int hbgPadding = (int)(style.highlightBgPadding * scale);
+                    int hbgRadius = (int)(style.highlightBgRadius * scale);
+                    g2d.setColor(style.highlightBgColor);
+                    g2d.fillRoundRect(x - hbgPadding, currentY - fm.getAscent() - hbgPadding/2,
+                                     textWidth + hbgPadding * 2, fm.getHeight() + hbgPadding, hbgRadius, hbgRadius);
+                }
+
+                // Draw text box background if enabled (global)
                 if (config.paraModeTextBoxOpacity > 0) {
-                    int padding = config.paraModeTextBoxPadding;
+                    int padding = (int)(config.paraModeTextBoxPadding * scale);
                     int alpha = (int) (config.paraModeTextBoxOpacity * 2.55);
                     g2d.setColor(new Color(config.paraModeTextBoxColor.getRed(),
                                           config.paraModeTextBoxColor.getGreen(),
                                           config.paraModeTextBoxColor.getBlue(), alpha));
                     g2d.fillRoundRect(x - padding, currentY - fm.getAscent() - padding/2,
-                                     textWidth + padding * 2, fm.getHeight() + padding, 8, 8);
+                                     textWidth + padding * 2, fm.getHeight() + padding,
+                                     (int)(8 * scale), (int)(8 * scale));
+                }
+
+                // === DRAW PER-LINE BORDER ===
+                if (style.borderEnabled) {
+                    drawLineBorder(g2d, style, x, currentY, textWidth, fm, scale);
                 }
 
                 // Apply highlight effects
                 if (isActive) {
                     switch (config.paraModeHighlightMode) {
                         case 1: // Scale up
-                            Font scaledFont = font.deriveFont(font.getSize() * 1.15f);
+                            Font scaledFont = font.deriveFont(font.getSize() * 1.2f);
                             g2d.setFont(scaledFont);
                             fm = g2d.getFontMetrics();
                             textWidth = getParaModePreviewTextWidth(lineText, fm, scaledWordSpacing);
@@ -2421,7 +2756,8 @@ public class arabicSync {
                             g2d.setColor(new Color(style.highlightColor.getRed(),
                                                   style.highlightColor.getGreen(),
                                                   style.highlightColor.getBlue(), 100));
-                            for (int glow = 6; glow > 0; glow -= 2) {
+                            int glowSize = (int)(8 * scale);
+                            for (int glow = glowSize; glow > 0; glow -= 2) {
                                 drawParaModePreviewTextRTL(g2d, lineText, x - glow, currentY, scaledWordSpacing);
                                 drawParaModePreviewTextRTL(g2d, lineText, x + glow, currentY, scaledWordSpacing);
                                 drawParaModePreviewTextRTL(g2d, lineText, x, currentY - glow, scaledWordSpacing);
@@ -2430,23 +2766,27 @@ public class arabicSync {
                             break;
                         case 3: // Underline
                             g2d.setColor(textColor);
-                            g2d.drawLine(x, currentY + 3, x + textWidth, currentY + 3);
+                            g2d.setStroke(new BasicStroke((float)(3 * scale)));
+                            g2d.drawLine(x, currentY + (int)(5 * scale), x + textWidth, currentY + (int)(5 * scale));
+                            g2d.setStroke(new BasicStroke(1));
                             break;
                     }
                 }
 
                 // Draw shadow
                 if (style.shadowEnabled) {
+                    int shadowOff = (int)(style.shadowOffset * scale);
                     g2d.setColor(new Color(style.shadowColor.getRed(), style.shadowColor.getGreen(),
-                                          style.shadowColor.getBlue(), 150));
-                    drawParaModePreviewTextRTL(g2d, lineText, x + style.shadowOffset, currentY + style.shadowOffset, scaledWordSpacing);
+                                          style.shadowColor.getBlue(), 180));
+                    drawParaModePreviewTextRTL(g2d, lineText, x + shadowOff, currentY + shadowOff, scaledWordSpacing);
                 }
 
                 // Draw outline
                 if (style.outlineEnabled) {
+                    int outlineT = Math.max(1, (int)(style.outlineThickness * scale));
                     g2d.setColor(style.outlineColor);
-                    for (int ox = -style.outlineThickness; ox <= style.outlineThickness; ox++) {
-                        for (int oy = -style.outlineThickness; oy <= style.outlineThickness; oy++) {
+                    for (int ox = -outlineT; ox <= outlineT; ox++) {
+                        for (int oy = -outlineT; oy <= outlineT; oy++) {
                             if (ox != 0 || oy != 0) {
                                 drawParaModePreviewTextRTL(g2d, lineText, x + ox, currentY + oy, scaledWordSpacing);
                             }
@@ -2457,8 +2797,9 @@ public class arabicSync {
                 // Draw glow
                 if (style.glowEnabled) {
                     g2d.setColor(new Color(style.glowColor.getRed(), style.glowColor.getGreen(),
-                                          style.glowColor.getBlue(), 80));
-                    for (int glow = 4; glow > 0; glow--) {
+                                          style.glowColor.getBlue(), 100));
+                    int glowSize = (int)(5 * scale);
+                    for (int glow = glowSize; glow > 0; glow--) {
                         drawParaModePreviewTextRTL(g2d, lineText, x - glow, currentY, scaledWordSpacing);
                         drawParaModePreviewTextRTL(g2d, lineText, x + glow, currentY, scaledWordSpacing);
                         drawParaModePreviewTextRTL(g2d, lineText, x, currentY - glow, scaledWordSpacing);
@@ -2472,17 +2813,127 @@ public class arabicSync {
 
                 // Draw underline decoration if enabled
                 if (style.underline) {
-                    g2d.drawLine(x, currentY + 2, x + textWidth, currentY + 2);
+                    g2d.setStroke(new BasicStroke((float)(2 * scale)));
+                    g2d.drawLine(x, currentY + (int)(3 * scale), x + textWidth, currentY + (int)(3 * scale));
+                    g2d.setStroke(new BasicStroke(1));
                 }
 
                 // Move to next line
-                currentY += fm.getHeight() + (int)(config.paramodeGlobalLineSpacing * 0.4);
+                currentY += fm.getHeight() + (int)(config.paramodeGlobalLineSpacing * scale);
             }
 
             // Draw active line indicator
             g2d.setColor(new Color(255, 255, 255, 100));
             g2d.setFont(new Font("SansSerif", Font.PLAIN, 10));
             g2d.drawString("Active Line: " + (simulatedActiveLine + 1) + " of " + paraModeCurrentLines.size(), 5, previewHeight - 5);
+        }
+
+        // Helper method to draw global video border in preview
+        private void drawVideoBorder(Graphics2D g2d, int width, int height, double scale) {
+            int thickness = (int)(config.paraModeVideoBorderThickness * scale);
+            int padding = (int)(config.paraModeVideoBorderPadding * scale);
+            int radius = (int)(config.paraModeVideoBorderRadius * scale);
+            Color color1 = config.paraModeVideoBorderColor;
+            Color color2 = config.paraModeVideoBorderColor2;
+
+            g2d.setStroke(new BasicStroke(thickness));
+
+            switch (config.paraModeVideoBorderStyle) {
+                case 0: // Solid
+                    g2d.setColor(color1);
+                    g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                    break;
+                case 1: // Double
+                    g2d.setColor(color1);
+                    g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                    g2d.drawRect(padding + thickness + 3, padding + thickness + 3,
+                                width - (padding + thickness + 3) * 2, height - (padding + thickness + 3) * 2);
+                    break;
+                case 2: // Dashed
+                    g2d.setColor(color1);
+                    g2d.setStroke(new BasicStroke(thickness, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
+                                                 10.0f, new float[]{10.0f * (float)scale, 5.0f * (float)scale}, 0.0f));
+                    g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                    break;
+                case 3: // Gradient
+                    java.awt.GradientPaint gradient = new java.awt.GradientPaint(
+                        0, 0, color1, width, height, color2);
+                    g2d.setPaint(gradient);
+                    g2d.setStroke(new BasicStroke(thickness));
+                    g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                    break;
+                case 4: // Rounded
+                    g2d.setColor(color1);
+                    g2d.setStroke(new BasicStroke(thickness));
+                    g2d.drawRoundRect(padding, padding, width - padding * 2, height - padding * 2, radius, radius);
+                    break;
+                case 5: // Ornamental (decorative corners)
+                    g2d.setColor(color1);
+                    g2d.setStroke(new BasicStroke(thickness));
+                    int cornerSize = (int)(40 * scale);
+                    // Top-left corner
+                    g2d.drawLine(padding, padding + cornerSize, padding, padding);
+                    g2d.drawLine(padding, padding, padding + cornerSize, padding);
+                    // Top-right corner
+                    g2d.drawLine(width - padding - cornerSize, padding, width - padding, padding);
+                    g2d.drawLine(width - padding, padding, width - padding, padding + cornerSize);
+                    // Bottom-left corner
+                    g2d.drawLine(padding, height - padding - cornerSize, padding, height - padding);
+                    g2d.drawLine(padding, height - padding, padding + cornerSize, height - padding);
+                    // Bottom-right corner
+                    g2d.drawLine(width - padding - cornerSize, height - padding, width - padding, height - padding);
+                    g2d.drawLine(width - padding, height - padding - cornerSize, width - padding, height - padding);
+                    break;
+            }
+            g2d.setStroke(new BasicStroke(1));
+        }
+
+        // Helper method to draw per-line border in preview
+        private void drawLineBorder(Graphics2D g2d, ParaLineStyle style, int x, int y, int textWidth, FontMetrics fm, double scale) {
+            int thickness = Math.max(1, (int)(style.borderThickness * scale));
+            int padding = (int)(style.borderPadding * scale);
+            int radius = (int)(style.borderRadius * scale);
+            Color color1 = style.borderColor;
+            Color color2 = style.borderColor2;
+
+            int boxX = x - padding;
+            int boxY = y - fm.getAscent() - padding / 2;
+            int boxWidth = textWidth + padding * 2;
+            int boxHeight = fm.getHeight() + padding;
+
+            g2d.setStroke(new BasicStroke(thickness));
+
+            switch (style.borderStyle) {
+                case 0: // Solid
+                    g2d.setColor(color1);
+                    g2d.drawRect(boxX, boxY, boxWidth, boxHeight);
+                    break;
+                case 1: // Double
+                    g2d.setColor(color1);
+                    g2d.drawRect(boxX, boxY, boxWidth, boxHeight);
+                    g2d.drawRect(boxX + thickness + 2, boxY + thickness + 2,
+                                boxWidth - (thickness + 2) * 2, boxHeight - (thickness + 2) * 2);
+                    break;
+                case 2: // Dashed
+                    g2d.setColor(color1);
+                    g2d.setStroke(new BasicStroke(thickness, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
+                                                 10.0f, new float[]{6.0f, 3.0f}, 0.0f));
+                    g2d.drawRect(boxX, boxY, boxWidth, boxHeight);
+                    break;
+                case 3: // Gradient
+                    java.awt.GradientPaint gradient = new java.awt.GradientPaint(
+                        boxX, boxY, color1, boxX + boxWidth, boxY + boxHeight, color2);
+                    g2d.setPaint(gradient);
+                    g2d.setStroke(new BasicStroke(thickness));
+                    g2d.drawRect(boxX, boxY, boxWidth, boxHeight);
+                    break;
+                case 4: // Rounded
+                    g2d.setColor(color1);
+                    g2d.setStroke(new BasicStroke(thickness));
+                    g2d.drawRoundRect(boxX, boxY, boxWidth, boxHeight, radius, radius);
+                    break;
+            }
+            g2d.setStroke(new BasicStroke(1));
         }
 
         // Helper method to calculate text width for preview with word spacing
@@ -13466,6 +13917,11 @@ public class arabicSync {
             }
         }
 
+        // === DRAW GLOBAL VIDEO BORDER ===
+        if (config.paraModeVideoBorderEnabled) {
+            drawVideoFrameBorder(g2d, width, height);
+        }
+
         // Get the active line based on audio timing
         int activeLine = displayInfo.currentQuote;
         boolean lineIsActive = displayInfo.isActive;
@@ -13526,7 +13982,16 @@ public class arabicSync {
             // Use highlight color if active
             Color textColor = isActive ? style.highlightColor : style.color;
 
-            // Draw text box background if enabled
+            // === DRAW PER-LINE HIGHLIGHT BACKGROUND (when active) ===
+            if (isActive && style.highlightBgEnabled) {
+                int hbgPadding = style.highlightBgPadding;
+                int hbgRadius = style.highlightBgRadius;
+                g2d.setColor(style.highlightBgColor);
+                g2d.fillRoundRect(x - hbgPadding, currentY - fm.getAscent() - hbgPadding/2,
+                                 textWidth + hbgPadding * 2, fm.getHeight() + hbgPadding, hbgRadius, hbgRadius);
+            }
+
+            // Draw text box background if enabled (global)
             if (config.paraModeTextBoxOpacity > 0) {
                 int padding = config.paraModeTextBoxPadding;
                 int alpha = (int) (config.paraModeTextBoxOpacity * 2.55);
@@ -13535,6 +14000,11 @@ public class arabicSync {
                                       config.paraModeTextBoxColor.getBlue(), alpha));
                 g2d.fillRoundRect(x - padding, currentY - fm.getAscent() - padding/2,
                                  textWidth + padding * 2, fm.getHeight() + padding, 12, 12);
+            }
+
+            // === DRAW PER-LINE BORDER ===
+            if (style.borderEnabled) {
+                drawLineFrameBorder(g2d, style, x, currentY, textWidth, fm);
             }
 
             // Apply highlight effects for active line
@@ -13649,6 +14119,114 @@ public class arabicSync {
             width += spaceCount * wordSpacing;
         }
         return Math.max(width, 0); // Ensure width is never negative
+    }
+
+    // Helper method to draw global video border in video frame
+    private void drawVideoFrameBorder(Graphics2D g2d, int width, int height) {
+        int thickness = config.paraModeVideoBorderThickness;
+        int padding = config.paraModeVideoBorderPadding;
+        int radius = config.paraModeVideoBorderRadius;
+        Color color1 = config.paraModeVideoBorderColor;
+        Color color2 = config.paraModeVideoBorderColor2;
+
+        g2d.setStroke(new BasicStroke(thickness));
+
+        switch (config.paraModeVideoBorderStyle) {
+            case 0: // Solid
+                g2d.setColor(color1);
+                g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                break;
+            case 1: // Double
+                g2d.setColor(color1);
+                g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                g2d.drawRect(padding + thickness + 5, padding + thickness + 5,
+                            width - (padding + thickness + 5) * 2, height - (padding + thickness + 5) * 2);
+                break;
+            case 2: // Dashed
+                g2d.setColor(color1);
+                g2d.setStroke(new BasicStroke(thickness, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
+                                             10.0f, new float[]{20.0f, 10.0f}, 0.0f));
+                g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                break;
+            case 3: // Gradient
+                java.awt.GradientPaint gradient = new java.awt.GradientPaint(
+                    0, 0, color1, width, height, color2);
+                g2d.setPaint(gradient);
+                g2d.setStroke(new BasicStroke(thickness));
+                g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                break;
+            case 4: // Rounded
+                g2d.setColor(color1);
+                g2d.setStroke(new BasicStroke(thickness));
+                g2d.drawRoundRect(padding, padding, width - padding * 2, height - padding * 2, radius, radius);
+                break;
+            case 5: // Ornamental (decorative corners)
+                g2d.setColor(color1);
+                g2d.setStroke(new BasicStroke(thickness));
+                int cornerSize = 80;
+                // Top-left corner
+                g2d.drawLine(padding, padding + cornerSize, padding, padding);
+                g2d.drawLine(padding, padding, padding + cornerSize, padding);
+                // Top-right corner
+                g2d.drawLine(width - padding - cornerSize, padding, width - padding, padding);
+                g2d.drawLine(width - padding, padding, width - padding, padding + cornerSize);
+                // Bottom-left corner
+                g2d.drawLine(padding, height - padding - cornerSize, padding, height - padding);
+                g2d.drawLine(padding, height - padding, padding + cornerSize, height - padding);
+                // Bottom-right corner
+                g2d.drawLine(width - padding - cornerSize, height - padding, width - padding, height - padding);
+                g2d.drawLine(width - padding, height - padding - cornerSize, width - padding, height - padding);
+                break;
+        }
+        g2d.setStroke(new BasicStroke(1));
+    }
+
+    // Helper method to draw per-line border in video frame
+    private void drawLineFrameBorder(Graphics2D g2d, ParaLineStyle style, int x, int y, int textWidth, FontMetrics fm) {
+        int thickness = style.borderThickness;
+        int padding = style.borderPadding;
+        int radius = style.borderRadius;
+        Color color1 = style.borderColor;
+        Color color2 = style.borderColor2;
+
+        int boxX = x - padding;
+        int boxY = y - fm.getAscent() - padding / 2;
+        int boxWidth = textWidth + padding * 2;
+        int boxHeight = fm.getHeight() + padding;
+
+        g2d.setStroke(new BasicStroke(thickness));
+
+        switch (style.borderStyle) {
+            case 0: // Solid
+                g2d.setColor(color1);
+                g2d.drawRect(boxX, boxY, boxWidth, boxHeight);
+                break;
+            case 1: // Double
+                g2d.setColor(color1);
+                g2d.drawRect(boxX, boxY, boxWidth, boxHeight);
+                g2d.drawRect(boxX + thickness + 3, boxY + thickness + 3,
+                            boxWidth - (thickness + 3) * 2, boxHeight - (thickness + 3) * 2);
+                break;
+            case 2: // Dashed
+                g2d.setColor(color1);
+                g2d.setStroke(new BasicStroke(thickness, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
+                                             10.0f, new float[]{10.0f, 5.0f}, 0.0f));
+                g2d.drawRect(boxX, boxY, boxWidth, boxHeight);
+                break;
+            case 3: // Gradient
+                java.awt.GradientPaint gradient = new java.awt.GradientPaint(
+                    boxX, boxY, color1, boxX + boxWidth, boxY + boxHeight, color2);
+                g2d.setPaint(gradient);
+                g2d.setStroke(new BasicStroke(thickness));
+                g2d.drawRect(boxX, boxY, boxWidth, boxHeight);
+                break;
+            case 4: // Rounded
+                g2d.setColor(color1);
+                g2d.setStroke(new BasicStroke(thickness));
+                g2d.drawRoundRect(boxX, boxY, boxWidth, boxHeight, radius, radius);
+                break;
+        }
+        g2d.setStroke(new BasicStroke(1));
     }
 
     // Helper method to draw text with word spacing (RTL - Right to Left for Arabic)
