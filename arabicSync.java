@@ -102,6 +102,7 @@ public class arabicSync {
         boolean underline = false;
         int lineSpacingBefore = 20; // Space before this line (pixels)
         int wordSpacing = 0; // Extra word spacing (pixels)
+        int horizontalOffset = 0; // Horizontal shift left/right (pixels, negative=left, positive=right)
         int alignment = 1; // 0=left, 1=center, 2=right
         boolean shadowEnabled = true;
         Color shadowColor = new Color(0, 0, 0);
@@ -124,6 +125,7 @@ public class arabicSync {
             c.underline = this.underline;
             c.lineSpacingBefore = this.lineSpacingBefore;
             c.wordSpacing = this.wordSpacing;
+            c.horizontalOffset = this.horizontalOffset;
             c.alignment = this.alignment;
             c.shadowEnabled = this.shadowEnabled;
             c.shadowColor = this.shadowColor;
@@ -1649,6 +1651,7 @@ public class arabicSync {
         private JCheckBox paraModeGlowCheck;
         private JSpinner paraModeLineSpacingSpinner;
         private JSpinner paraModeWordSpacingSpinner;
+        private JSpinner paraModeHorizontalOffsetSpinner;
         private java.util.List<String> paraModeCurrentLines = new java.util.ArrayList<>();
 
         private JPanel createParaModePanel() {
@@ -1850,7 +1853,15 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 1;
             lineStylePanel.add(new JLabel("Font Style:"), gbc);
             gbc.gridx = 1;
-            paraModeFontStyleCombo = new JComboBox<>(new String[]{"Default", "Serif", "SansSerif", "Monospaced"});
+            paraModeFontStyleCombo = new JComboBox<>(new String[]{
+                "Default", "Serif", "SansSerif", "Monospaced",
+                "Dialog", "DialogInput", "Arial", "Times New Roman",
+                "Courier New", "Georgia", "Verdana", "Tahoma",
+                "Trebuchet MS", "Impact", "Comic Sans MS",
+                "Arial Black", "Palatino Linotype", "Lucida Console",
+                "Traditional Arabic", "Simplified Arabic", "Arabic Typesetting",
+                "Sakkal Majalla", "Noto Naskh Arabic", "Amiri", "Scheherazade"
+            });
             paraModeFontStyleCombo.addActionListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeFontStyleCombo, gbc);
 
@@ -1953,8 +1964,23 @@ public class arabicSync {
             paraModeWordSpacingSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeWordSpacingSpinner, gbc);
 
+            // Horizontal Offset (shift left/right)
+            gbc.gridx = 0; gbc.gridy = 9;
+            lineStylePanel.add(new JLabel("Horizontal Offset:"), gbc);
+            gbc.gridx = 1;
+            paraModeHorizontalOffsetSpinner = new JSpinner(new SpinnerNumberModel(0, -500, 500, 10));
+            paraModeHorizontalOffsetSpinner.addChangeListener(e -> applyLineStyleChange());
+            lineStylePanel.add(paraModeHorizontalOffsetSpinner, gbc);
+
+            // Fancy Symbols button
+            gbc.gridx = 0; gbc.gridy = 10; gbc.gridwidth = 2;
+            JButton fancySymbolsBtn = new JButton("Insert Fancy Symbols");
+            fancySymbolsBtn.addActionListener(e -> showFancySymbolsDialog());
+            lineStylePanel.add(fancySymbolsBtn, gbc);
+            gbc.gridwidth = 1;
+
             // Apply to All Lines button
-            gbc.gridx = 0; gbc.gridy = 9; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 11; gbc.gridwidth = 2;
             JButton applyToAllBtn = new JButton("Apply This Style to All Lines");
             applyToAllBtn.addActionListener(e -> applyStyleToAllLines());
             lineStylePanel.add(applyToAllBtn, gbc);
@@ -1973,7 +1999,7 @@ public class arabicSync {
                 }
             };
             paraModePreviewPanel.setBackground(Color.BLACK);
-            paraModePreviewPanel.setPreferredSize(new Dimension(280, 400)); // Minimized for full visibility
+            paraModePreviewPanel.setPreferredSize(new Dimension(270, 480)); // YouTube Short aspect ratio (9:16)
             rightPanel.add(paraModePreviewPanel, BorderLayout.CENTER);
 
             // Preview controls
@@ -2082,19 +2108,25 @@ public class arabicSync {
                 paraModeGlowCheck.setSelected(style.glowEnabled);
                 paraModeLineSpacingSpinner.setValue(style.lineSpacingBefore);
                 paraModeWordSpacingSpinner.setValue(style.wordSpacing);
+                paraModeHorizontalOffsetSpinner.setValue(style.horizontalOffset);
 
-                // Font family
+                // Font family - find exact match or use Default
                 String family = style.fontFamily;
                 if (family == null || family.isEmpty()) {
                     paraModeFontStyleCombo.setSelectedIndex(0);
-                } else if (family.contains("Serif")) {
-                    paraModeFontStyleCombo.setSelectedIndex(1);
-                } else if (family.contains("Sans")) {
-                    paraModeFontStyleCombo.setSelectedIndex(2);
-                } else if (family.contains("Mono")) {
-                    paraModeFontStyleCombo.setSelectedIndex(3);
                 } else {
-                    paraModeFontStyleCombo.setSelectedIndex(0);
+                    // Try to find exact match in combo box
+                    boolean found = false;
+                    for (int i = 0; i < paraModeFontStyleCombo.getItemCount(); i++) {
+                        if (family.equals(paraModeFontStyleCombo.getItemAt(i))) {
+                            paraModeFontStyleCombo.setSelectedIndex(i);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        paraModeFontStyleCombo.setSelectedIndex(0);
+                    }
                 }
             } finally {
                 // Always reset the flag
@@ -2124,13 +2156,14 @@ public class arabicSync {
             style.glowEnabled = paraModeGlowCheck.isSelected();
             style.lineSpacingBefore = (Integer) paraModeLineSpacingSpinner.getValue();
             style.wordSpacing = (Integer) paraModeWordSpacingSpinner.getValue();
+            style.horizontalOffset = (Integer) paraModeHorizontalOffsetSpinner.getValue();
 
-            // Font family
-            switch (paraModeFontStyleCombo.getSelectedIndex()) {
-                case 1: style.fontFamily = "Serif"; break;
-                case 2: style.fontFamily = "SansSerif"; break;
-                case 3: style.fontFamily = "Monospaced"; break;
-                default: style.fontFamily = ""; break;
+            // Font family - use actual font name from combo box
+            String selectedFont = (String) paraModeFontStyleCombo.getSelectedItem();
+            if (selectedFont == null || selectedFont.equals("Default")) {
+                style.fontFamily = "";
+            } else {
+                style.fontFamily = selectedFont;
             }
 
             updateParaModePreview();
@@ -2157,6 +2190,7 @@ public class arabicSync {
                     style.glowEnabled = sourceStyle.glowEnabled;
                     style.lineSpacingBefore = sourceStyle.lineSpacingBefore;
                     style.wordSpacing = sourceStyle.wordSpacing;
+                    style.horizontalOffset = sourceStyle.horizontalOffset;
                     style.alignment = sourceStyle.alignment;
                 }
             }
@@ -2170,6 +2204,125 @@ public class arabicSync {
             }
         }
 
+        private void showFancySymbolsDialog() {
+            if (paraModeSelectedLineIndex < 0 || paraModeSelectedLineIndex >= paraModeCurrentLines.size()) {
+                JOptionPane.showMessageDialog(null, "Please select a line first!", "No Line Selected", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create symbols panel with categories
+            JPanel symbolsPanel = new JPanel(new BorderLayout(10, 10));
+
+            // Symbol categories and their symbols
+            String[][] symbolCategories = {
+                {"Stars & Sparkles", "★ ☆ ✦ ✧ ✪ ✫ ✬ ✭ ✮ ✯ ✰ ⭐ 🌟 ✨ ⁂ ❋ ❊ ❁"},
+                {"Arabic Ornaments", "﴾ ﴿ ۩ ஐ ๑ ۝ ﷽ ۞ ༺ ༻ ╬ ❖"},
+                {"Floral & Nature", "✿ ❀ ❃ ❁ ✾ ❋ ❊ ✻ ✼ ✽ ☘ ⚘ 🌺 🌸 🌹 🌷"},
+                {"Hearts & Love", "♥ ♡ ❤ ❥ ❣ 💕 💖 💗 💘 💝"},
+                {"Decorative Lines", "═ ═══ ─── ~~~ ▬▬▬ ◆◆◆ ◇◇◇ ═══❖═══"},
+                {"Brackets & Frames", "【 】 〖 〗 〘 〙 〚 〛 「 」 『 』 ⟦ ⟧"},
+                {"Arrows", "→ ← ↑ ↓ ↔ ↕ ➤ ➜ ➡ ⬅ ⬆ ⬇ ↩ ↪ ➲"},
+                {"Religious", "☪ ✝ ☸ ✡ ☯ ॐ ♱ ✟ ☦ 卍"},
+                {"Music & Art", "♪ ♫ ♬ ♩ ♭ ♮ ♯ 🎵 🎶 🎼"},
+                {"Misc Decorative", "◈ ◉ ◎ ● ○ ◐ ◑ ◒ ◓ ◔ ◕ ◖ ◗ ▲ △ ▶ ▷ ◀ ◁ ▼ ▽"}
+            };
+
+            JTabbedPane tabbedPane = new JTabbedPane();
+
+            for (String[] category : symbolCategories) {
+                JPanel categoryPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+                String[] symbols = category[1].split(" ");
+
+                for (String symbol : symbols) {
+                    if (!symbol.trim().isEmpty()) {
+                        JButton symbolBtn = new JButton(symbol);
+                        symbolBtn.setFont(new Font("SansSerif", Font.PLAIN, 18));
+                        symbolBtn.setPreferredSize(new Dimension(45, 40));
+                        symbolBtn.setToolTipText("Click to insert: " + symbol);
+                        symbolBtn.addActionListener(e -> {
+                            insertSymbolAtLine(symbol.trim());
+                        });
+                        categoryPanel.add(symbolBtn);
+                    }
+                }
+
+                JScrollPane scrollPane = new JScrollPane(categoryPanel);
+                scrollPane.setPreferredSize(new Dimension(400, 150));
+                tabbedPane.addTab(category[0], scrollPane);
+            }
+
+            // Position options
+            JPanel positionPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            ButtonGroup posGroup = new ButtonGroup();
+            JRadioButton beginningRadio = new JRadioButton("Beginning of line", true);
+            JRadioButton endRadio = new JRadioButton("End of line");
+            JRadioButton bothRadio = new JRadioButton("Both sides");
+            posGroup.add(beginningRadio);
+            posGroup.add(endRadio);
+            posGroup.add(bothRadio);
+            positionPanel.add(new JLabel("Insert position:"));
+            positionPanel.add(beginningRadio);
+            positionPanel.add(endRadio);
+            positionPanel.add(bothRadio);
+
+            // Store position selection for use in insertSymbolAtLine
+            paraModeSymbolPosition = 0; // 0=beginning, 1=end, 2=both
+            beginningRadio.addActionListener(e -> paraModeSymbolPosition = 0);
+            endRadio.addActionListener(e -> paraModeSymbolPosition = 1);
+            bothRadio.addActionListener(e -> paraModeSymbolPosition = 2);
+
+            symbolsPanel.add(positionPanel, BorderLayout.NORTH);
+            symbolsPanel.add(tabbedPane, BorderLayout.CENTER);
+
+            // Custom symbol input
+            JPanel customPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            JTextField customField = new JTextField(15);
+            JButton insertCustomBtn = new JButton("Insert Custom");
+            insertCustomBtn.addActionListener(e -> {
+                String custom = customField.getText().trim();
+                if (!custom.isEmpty()) {
+                    insertSymbolAtLine(custom);
+                }
+            });
+            customPanel.add(new JLabel("Custom symbol:"));
+            customPanel.add(customField);
+            customPanel.add(insertCustomBtn);
+            symbolsPanel.add(customPanel, BorderLayout.SOUTH);
+
+            JOptionPane.showMessageDialog(null, symbolsPanel, "Insert Fancy Symbols", JOptionPane.PLAIN_MESSAGE);
+        }
+
+        private int paraModeSymbolPosition = 0; // 0=beginning, 1=end, 2=both
+
+        private void insertSymbolAtLine(String symbol) {
+            if (paraModeSelectedLineIndex < 0 || paraModeSelectedLineIndex >= paraModeCurrentLines.size()) {
+                return;
+            }
+
+            String currentLine = paraModeCurrentLines.get(paraModeSelectedLineIndex);
+            String newLine;
+
+            switch (paraModeSymbolPosition) {
+                case 1: // End
+                    newLine = currentLine + " " + symbol;
+                    break;
+                case 2: // Both
+                    newLine = symbol + " " + currentLine + " " + symbol;
+                    break;
+                default: // Beginning
+                    newLine = symbol + " " + currentLine;
+                    break;
+            }
+
+            paraModeCurrentLines.set(paraModeSelectedLineIndex, newLine);
+
+            // Update list display
+            String displayText = newLine.length() > 40 ? newLine.substring(0, 40) + "..." : newLine;
+            paraModeLineListModel.set(paraModeSelectedLineIndex, (paraModeSelectedLineIndex + 1) + ": " + displayText);
+
+            updateParaModePreview();
+        }
+
         private void drawParaModePreview(Graphics2D g2d) {
             int previewWidth = paraModePreviewPanel.getWidth();
             int previewHeight = paraModePreviewPanel.getHeight();
@@ -2178,24 +2331,27 @@ public class arabicSync {
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-            // Draw background
+            // Always fill background with background color first
+            g2d.setColor(config.paraModeBackgroundColor);
+            g2d.fillRect(0, 0, previewWidth, previewHeight);
+
+            // Draw background image if specified (on top of color)
             if (config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
                 try {
-                    BufferedImage bgImage = ImageIO.read(new File(config.paraModeBackgroundImage));
-                    g2d.drawImage(bgImage, 0, 0, previewWidth, previewHeight, null);
-                    // Apply opacity overlay
-                    if (config.paraModeBackgroundOpacity < 100) {
-                        int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
-                        g2d.setColor(new Color(0, 0, 0, alpha));
-                        g2d.fillRect(0, 0, previewWidth, previewHeight);
+                    File bgFile = new File(config.paraModeBackgroundImage);
+                    if (bgFile.exists()) {
+                        BufferedImage bgImage = ImageIO.read(bgFile);
+                        g2d.drawImage(bgImage, 0, 0, previewWidth, previewHeight, null);
+                        // Apply opacity overlay
+                        if (config.paraModeBackgroundOpacity < 100) {
+                            int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
+                            g2d.setColor(new Color(0, 0, 0, alpha));
+                            g2d.fillRect(0, 0, previewWidth, previewHeight);
+                        }
                     }
                 } catch (IOException e) {
-                    g2d.setColor(config.paraModeBackgroundColor);
-                    g2d.fillRect(0, 0, previewWidth, previewHeight);
+                    // Background image failed to load, background color already drawn
                 }
-            } else {
-                g2d.setColor(config.paraModeBackgroundColor);
-                g2d.fillRect(0, 0, previewWidth, previewHeight);
             }
 
             // Draw all lines
@@ -2233,6 +2389,9 @@ public class arabicSync {
                     case 2: x = 10; break; // Right in RTL = left side
                     default: x = (previewWidth - textWidth) / 2; break; // Center
                 }
+
+                // Apply horizontal offset (scaled for preview)
+                x += (int)(style.horizontalOffset * 0.4);
 
                 // Use highlight color if active
                 Color textColor = isActive ? style.highlightColor : style.color;
@@ -13284,24 +13443,27 @@ public class arabicSync {
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
-        // Draw background
+        // Always fill background with background color first
+        g2d.setColor(config.paraModeBackgroundColor);
+        g2d.fillRect(0, 0, width, height);
+
+        // Draw background image if specified (on top of color)
         if (config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
             try {
-                BufferedImage bgImage = ImageIO.read(new File(config.paraModeBackgroundImage));
-                g2d.drawImage(bgImage, 0, 0, width, height, null);
-                // Apply opacity overlay if needed
-                if (config.paraModeBackgroundOpacity < 100) {
-                    int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
-                    g2d.setColor(new Color(0, 0, 0, alpha));
-                    g2d.fillRect(0, 0, width, height);
+                File bgFile = new File(config.paraModeBackgroundImage);
+                if (bgFile.exists()) {
+                    BufferedImage bgImage = ImageIO.read(bgFile);
+                    g2d.drawImage(bgImage, 0, 0, width, height, null);
+                    // Apply opacity overlay if needed
+                    if (config.paraModeBackgroundOpacity < 100) {
+                        int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
+                        g2d.setColor(new Color(0, 0, 0, alpha));
+                        g2d.fillRect(0, 0, width, height);
+                    }
                 }
             } catch (IOException e) {
-                g2d.setColor(config.paraModeBackgroundColor);
-                g2d.fillRect(0, 0, width, height);
+                // Background image failed to load, background color already drawn
             }
-        } else {
-            g2d.setColor(config.paraModeBackgroundColor);
-            g2d.fillRect(0, 0, width, height);
         }
 
         // Get the active line based on audio timing
@@ -13357,6 +13519,9 @@ public class arabicSync {
                 case 2: x = 30; break; // Right in RTL = left side of screen
                 default: x = (width - textWidth) / 2; break; // Center
             }
+
+            // Apply horizontal offset
+            x += style.horizontalOffset;
 
             // Use highlight color if active
             Color textColor = isActive ? style.highlightColor : style.color;
