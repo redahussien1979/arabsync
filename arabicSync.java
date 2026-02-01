@@ -1972,7 +1972,7 @@ public class arabicSync {
                 }
             };
             paraModePreviewPanel.setBackground(Color.BLACK);
-            paraModePreviewPanel.setPreferredSize(new Dimension(350, 600));
+            paraModePreviewPanel.setPreferredSize(new Dimension(280, 400)); // Minimized for full visibility
             rightPanel.add(paraModePreviewPanel, BorderLayout.CENTER);
 
             // Preview controls
@@ -2202,22 +2202,21 @@ public class arabicSync {
                 if (style.italic) fontStyle |= Font.ITALIC;
 
                 String fontFamily = style.fontFamily.isEmpty() ? "SansSerif" : style.fontFamily;
-                Font font = new Font(fontFamily, fontStyle, (int)(style.fontSize * 0.6)); // Scale for preview
+                Font font = new Font(fontFamily, fontStyle, (int)(style.fontSize * 0.4)); // Scale for preview (smaller)
                 g2d.setFont(font);
                 FontMetrics fm = g2d.getFontMetrics();
 
-                // Calculate text width with word spacing
-                int textWidth = fm.stringWidth(lineText);
-                if (style.wordSpacing > 0) {
-                    int spaceCount = lineText.split(" ").length - 1;
-                    textWidth += spaceCount * style.wordSpacing;
-                }
+                // Scale word spacing for preview
+                int scaledWordSpacing = (int)(style.wordSpacing * 0.4);
 
-                // Calculate X based on alignment
+                // Calculate text width with word spacing (RTL)
+                int textWidth = getParaModePreviewTextWidth(lineText, fm, scaledWordSpacing);
+
+                // Calculate X based on alignment (RTL aware)
                 int x;
                 switch (style.alignment) {
-                    case 0: x = 10; break; // Left
-                    case 2: x = previewWidth - textWidth - 10; break; // Right
+                    case 0: x = previewWidth - textWidth - 10; break; // Left in RTL = right side
+                    case 2: x = 10; break; // Right in RTL = left side
                     default: x = (previewWidth - textWidth) / 2; break; // Center
                 }
 
@@ -2242,7 +2241,7 @@ public class arabicSync {
                             Font scaledFont = font.deriveFont(font.getSize() * 1.15f);
                             g2d.setFont(scaledFont);
                             fm = g2d.getFontMetrics();
-                            textWidth = fm.stringWidth(lineText);
+                            textWidth = getParaModePreviewTextWidth(lineText, fm, scaledWordSpacing);
                             x = (previewWidth - textWidth) / 2;
                             break;
                         case 2: // Glow pulse
@@ -2250,10 +2249,10 @@ public class arabicSync {
                                                   style.highlightColor.getGreen(),
                                                   style.highlightColor.getBlue(), 100));
                             for (int glow = 6; glow > 0; glow -= 2) {
-                                g2d.drawString(lineText, x - glow, currentY);
-                                g2d.drawString(lineText, x + glow, currentY);
-                                g2d.drawString(lineText, x, currentY - glow);
-                                g2d.drawString(lineText, x, currentY + glow);
+                                drawParaModePreviewTextRTL(g2d, lineText, x - glow, currentY, scaledWordSpacing);
+                                drawParaModePreviewTextRTL(g2d, lineText, x + glow, currentY, scaledWordSpacing);
+                                drawParaModePreviewTextRTL(g2d, lineText, x, currentY - glow, scaledWordSpacing);
+                                drawParaModePreviewTextRTL(g2d, lineText, x, currentY + glow, scaledWordSpacing);
                             }
                             break;
                         case 3: // Underline
@@ -2267,7 +2266,7 @@ public class arabicSync {
                 if (style.shadowEnabled) {
                     g2d.setColor(new Color(style.shadowColor.getRed(), style.shadowColor.getGreen(),
                                           style.shadowColor.getBlue(), 150));
-                    g2d.drawString(lineText, x + style.shadowOffset, currentY + style.shadowOffset);
+                    drawParaModePreviewTextRTL(g2d, lineText, x + style.shadowOffset, currentY + style.shadowOffset, scaledWordSpacing);
                 }
 
                 // Draw outline
@@ -2276,7 +2275,7 @@ public class arabicSync {
                     for (int ox = -style.outlineThickness; ox <= style.outlineThickness; ox++) {
                         for (int oy = -style.outlineThickness; oy <= style.outlineThickness; oy++) {
                             if (ox != 0 || oy != 0) {
-                                g2d.drawString(lineText, x + ox, currentY + oy);
+                                drawParaModePreviewTextRTL(g2d, lineText, x + ox, currentY + oy, scaledWordSpacing);
                             }
                         }
                     }
@@ -2287,16 +2286,16 @@ public class arabicSync {
                     g2d.setColor(new Color(style.glowColor.getRed(), style.glowColor.getGreen(),
                                           style.glowColor.getBlue(), 80));
                     for (int glow = 4; glow > 0; glow--) {
-                        g2d.drawString(lineText, x - glow, currentY);
-                        g2d.drawString(lineText, x + glow, currentY);
-                        g2d.drawString(lineText, x, currentY - glow);
-                        g2d.drawString(lineText, x, currentY + glow);
+                        drawParaModePreviewTextRTL(g2d, lineText, x - glow, currentY, scaledWordSpacing);
+                        drawParaModePreviewTextRTL(g2d, lineText, x + glow, currentY, scaledWordSpacing);
+                        drawParaModePreviewTextRTL(g2d, lineText, x, currentY - glow, scaledWordSpacing);
+                        drawParaModePreviewTextRTL(g2d, lineText, x, currentY + glow, scaledWordSpacing);
                     }
                 }
 
-                // Draw main text
+                // Draw main text (RTL)
                 g2d.setColor(textColor);
-                g2d.drawString(lineText, x, currentY);
+                drawParaModePreviewTextRTL(g2d, lineText, x, currentY, scaledWordSpacing);
 
                 // Draw underline decoration if enabled
                 if (style.underline) {
@@ -2304,13 +2303,46 @@ public class arabicSync {
                 }
 
                 // Move to next line
-                currentY += fm.getHeight() + config.paramodeGlobalLineSpacing;
+                currentY += fm.getHeight() + (int)(config.paramodeGlobalLineSpacing * 0.4);
             }
 
             // Draw active line indicator
             g2d.setColor(new Color(255, 255, 255, 100));
             g2d.setFont(new Font("SansSerif", Font.PLAIN, 10));
             g2d.drawString("Active Line: " + (simulatedActiveLine + 1) + " of " + paraModeCurrentLines.size(), 5, previewHeight - 5);
+        }
+
+        // Helper method to calculate text width for preview with word spacing
+        private int getParaModePreviewTextWidth(String text, FontMetrics fm, int wordSpacing) {
+            String[] words = text.split(" ");
+            int totalWidth = 0;
+            for (int i = 0; i < words.length; i++) {
+                totalWidth += fm.stringWidth(words[i]);
+                if (i < words.length - 1) {
+                    totalWidth += fm.stringWidth(" ") + wordSpacing;
+                }
+            }
+            return totalWidth;
+        }
+
+        // Helper method to draw text RTL with word spacing for preview
+        private void drawParaModePreviewTextRTL(Graphics2D g2d, String text, int x, int y, int wordSpacing) {
+            String[] words = text.split(" ");
+            FontMetrics fm = g2d.getFontMetrics();
+
+            // Calculate total width first
+            int totalWidth = getParaModePreviewTextWidth(text, fm, wordSpacing);
+
+            // Start from the right side and draw words right-to-left
+            int currentX = x + totalWidth;
+            for (int i = 0; i < words.length; i++) {
+                int wordWidth = fm.stringWidth(words[i]);
+                currentX -= wordWidth;
+                g2d.drawString(words[i], currentX, y);
+                if (i < words.length - 1) {
+                    currentX -= fm.stringWidth(" ") + wordSpacing;
+                }
+            }
         }
 
 
@@ -13304,11 +13336,11 @@ public class arabicSync {
             // Calculate text width with word spacing
             int textWidth = getParaModeTextWidth(lineText, fm, style.wordSpacing);
 
-            // Calculate X based on alignment
+            // Calculate X based on alignment (RTL aware - Arabic text)
             int x;
             switch (style.alignment) {
-                case 0: x = 30; break; // Left
-                case 2: x = width - textWidth - 30; break; // Right
+                case 0: x = width - textWidth - 30; break; // Left in RTL = right side of screen
+                case 2: x = 30; break; // Right in RTL = left side of screen
                 default: x = (width - textWidth) / 2; break; // Center
             }
 
@@ -13433,30 +13465,34 @@ public class arabicSync {
     // Helper method to calculate text width with word spacing
     private int getParaModeTextWidth(String text, FontMetrics fm, int wordSpacing) {
         int width = fm.stringWidth(text);
-        if (wordSpacing > 0) {
+        if (wordSpacing != 0) {
             int spaceCount = text.split(" ").length - 1;
             width += spaceCount * wordSpacing;
         }
-        return width;
+        return Math.max(width, 0); // Ensure width is never negative
     }
 
-    // Helper method to draw text with word spacing
+    // Helper method to draw text with word spacing (RTL - Right to Left for Arabic)
     private void drawParaModeText(Graphics2D g2d, String text, int x, int y, int wordSpacing) {
-        if (wordSpacing == 0) {
-            g2d.drawString(text, x, y);
-        } else {
-            // Draw words with custom spacing
-            String[] words = text.split(" ");
-            FontMetrics fm = g2d.getFontMetrics();
-            int currentX = x;
-            for (int i = 0; i < words.length; i++) {
-                g2d.drawString(words[i], currentX, y);
-                currentX += fm.stringWidth(words[i]) + fm.stringWidth(" ") + wordSpacing;
+        String[] words = text.split(" ");
+        FontMetrics fm = g2d.getFontMetrics();
+
+        // Calculate total width
+        int totalWidth = getParaModeTextWidth(text, fm, wordSpacing);
+
+        // Draw RTL: start from right side and move left
+        int currentX = x + totalWidth;
+        for (int i = 0; i < words.length; i++) {
+            int wordWidth = fm.stringWidth(words[i]);
+            currentX -= wordWidth;
+            g2d.drawString(words[i], currentX, y);
+            if (i < words.length - 1) {
+                currentX -= fm.stringWidth(" ") + wordSpacing;
             }
         }
     }
 
-    // Helper method to highlight the currently spoken word
+    // Helper method to highlight the currently spoken word (RTL - Right to Left for Arabic)
     private void highlightActiveWord(Graphics2D g2d, String lineText, int lineX, int lineY,
                                      FontMetrics fm, FormattedLineArabicSync line,
                                      double currentTime, ParaLineStyle style) {
@@ -13478,10 +13514,18 @@ public class arabicSync {
                 int wordIdx = wi - wordStartIdx;
 
                 if (wordIdx >= 0 && wordIdx < words.length) {
-                    // Calculate word position
-                    int currentX = lineX;
-                    for (int w = 0; w < wordIdx; w++) {
-                        currentX += fm.stringWidth(words[w]) + fm.stringWidth(" ") + style.wordSpacing;
+                    // Calculate total text width for RTL positioning
+                    int totalWidth = getParaModeTextWidth(lineText, fm, style.wordSpacing);
+
+                    // Calculate word position for RTL (right to left)
+                    // Start from rightmost position and work backwards
+                    int currentX = lineX + totalWidth;
+                    for (int w = 0; w <= wordIdx; w++) {
+                        int wordWidth = fm.stringWidth(words[w]);
+                        currentX -= wordWidth;
+                        if (w < wordIdx) {
+                            currentX -= fm.stringWidth(" ") + style.wordSpacing;
+                        }
                     }
 
                     String word = words[wordIdx];
