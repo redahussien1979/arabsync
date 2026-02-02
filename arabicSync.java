@@ -2449,12 +2449,15 @@ public class arabicSync {
                 public void mouseDragged(java.awt.event.MouseEvent e) {
                     if (draggingOverlayIndex >= 0 && draggingOverlayIndex < config.textOverlays.size()) {
                         TextOverlay overlay = config.textOverlays.get(draggingOverlayIndex);
-                        int previewWidth = paraModePreviewPanel.getWidth();
-                        int previewHeight = paraModePreviewPanel.getHeight();
 
-                        // Calculate new position as percentage
-                        int newXPercent = (int) (e.getX() * 100.0 / previewWidth);
-                        int newYPercent = (int) (e.getY() * 100.0 / previewHeight);
+                        // Convert mouse coordinates to video-space percentage
+                        // Account for offset (letterbox area) and scale
+                        int relX = e.getX() - previewOffsetX;
+                        int relY = e.getY() - previewOffsetY;
+
+                        // Calculate percentage relative to actual video area
+                        int newXPercent = (int) (relX * 100.0 / previewScaledWidth);
+                        int newYPercent = (int) (relY * 100.0 / previewScaledHeight);
 
                         // Clamp to valid range
                         overlay.xPercent = Math.max(0, Math.min(100, newXPercent));
@@ -3084,23 +3087,44 @@ public class arabicSync {
             }
         }
 
-        private void drawParaModePreview(Graphics2D g2d) {
-            int previewWidth = paraModePreviewPanel.getWidth();
-            int previewHeight = paraModePreviewPanel.getHeight();
+        // Preview area dimensions (calculated once and reused)
+        private int previewOffsetX = 0;
+        private int previewOffsetY = 0;
+        private int previewScaledWidth = 0;
+        private int previewScaledHeight = 0;
+        private double previewScale = 1.0;
 
-            // Calculate scale factor based on actual video dimensions (default 1080x1920)
-            double scaleX = (double) previewWidth / config.videoWidth;
-            double scaleY = (double) previewHeight / config.videoHeight;
-            double scale = Math.min(scaleX, scaleY);
+        private void drawParaModePreview(Graphics2D g2d) {
+            int panelWidth = paraModePreviewPanel.getWidth();
+            int panelHeight = paraModePreviewPanel.getHeight();
+
+            // Calculate scale to fit video in panel while maintaining exact aspect ratio
+            double scaleX = (double) panelWidth / config.videoWidth;
+            double scaleY = (double) panelHeight / config.videoHeight;
+            previewScale = Math.min(scaleX, scaleY);
+
+            // Calculate the actual preview area (centered in panel)
+            previewScaledWidth = (int)(config.videoWidth * previewScale);
+            previewScaledHeight = (int)(config.videoHeight * previewScale);
+            previewOffsetX = (panelWidth - previewScaledWidth) / 2;
+            previewOffsetY = (panelHeight - previewScaledHeight) / 2;
 
             // Enable antialiasing
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-            // Always fill background with background color first
+            // Fill entire panel with dark gray (letterbox areas)
+            g2d.setColor(new Color(30, 30, 30));
+            g2d.fillRect(0, 0, panelWidth, panelHeight);
+
+            // Clip to video area and translate
+            g2d.setClip(previewOffsetX, previewOffsetY, previewScaledWidth, previewScaledHeight);
+            g2d.translate(previewOffsetX, previewOffsetY);
+
+            // Fill video area with background color
             g2d.setColor(config.paraModeBackgroundColor);
-            g2d.fillRect(0, 0, previewWidth, previewHeight);
+            g2d.fillRect(0, 0, previewScaledWidth, previewScaledHeight);
 
             // Draw background image if specified (on top of color)
             if (config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
@@ -3108,12 +3132,12 @@ public class arabicSync {
                     File bgFile = new File(config.paraModeBackgroundImage);
                     if (bgFile.exists()) {
                         BufferedImage bgImage = ImageIO.read(bgFile);
-                        g2d.drawImage(bgImage, 0, 0, previewWidth, previewHeight, null);
+                        g2d.drawImage(bgImage, 0, 0, previewScaledWidth, previewScaledHeight, null);
                         // Apply opacity overlay
                         if (config.paraModeBackgroundOpacity < 100) {
                             int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
                             g2d.setColor(new Color(0, 0, 0, alpha));
-                            g2d.fillRect(0, 0, previewWidth, previewHeight);
+                            g2d.fillRect(0, 0, previewScaledWidth, previewScaledHeight);
                         }
                     }
                 } catch (IOException e) {
@@ -3123,11 +3147,11 @@ public class arabicSync {
 
             // === DRAW GLOBAL VIDEO BORDER ===
             if (config.paraModeVideoBorderEnabled) {
-                drawVideoBorder(g2d, previewWidth, previewHeight, scale);
+                drawVideoBorder(g2d, previewScaledWidth, previewScaledHeight, previewScale);
             }
 
             // Draw all lines
-            int currentY = (int) (previewHeight * config.paraModeStartY / 100.0);
+            int currentY = (int) (previewScaledHeight * config.paraModeStartY / 100.0);
             int simulatedActiveLine = paraModeSelectedLineIndex >= 0 ? paraModeSelectedLineIndex : 0;
 
             for (int i = 0; i < paraModeCurrentLines.size() && i < config.paraLineStyles.size(); i++) {
@@ -3136,7 +3160,7 @@ public class arabicSync {
                 boolean isActive = (i == simulatedActiveLine);
 
                 // Add line spacing (scaled)
-                currentY += (int)(style.lineSpacingBefore * scale);
+                currentY += (int)(style.lineSpacingBefore * previewScale);
 
                 // Create font (scaled)
                 int fontStyle = Font.PLAIN;
@@ -3144,35 +3168,35 @@ public class arabicSync {
                 if (style.italic) fontStyle |= Font.ITALIC;
 
                 String fontFamily = style.fontFamily.isEmpty() ? "SansSerif" : style.fontFamily;
-                Font font = new Font(fontFamily, fontStyle, (int)(style.fontSize * scale));
+                Font font = new Font(fontFamily, fontStyle, (int)(style.fontSize * previewScale));
                 g2d.setFont(font);
                 FontMetrics fm = g2d.getFontMetrics();
 
                 // Scale word spacing for preview
-                int scaledWordSpacing = (int)(style.wordSpacing * scale);
+                int scaledWordSpacing = (int)(style.wordSpacing * previewScale);
 
                 // Calculate text width with word spacing (RTL)
                 int textWidth = getParaModePreviewTextWidth(lineText, fm, scaledWordSpacing);
 
                 // Calculate X based on alignment (RTL aware)
                 int x;
-                int margin = (int)(30 * scale);
+                int margin = (int)(30 * previewScale);
                 switch (style.alignment) {
-                    case 0: x = previewWidth - textWidth - margin; break; // Left in RTL = right side
+                    case 0: x = previewScaledWidth - textWidth - margin; break; // Left in RTL = right side
                     case 2: x = margin; break; // Right in RTL = left side
-                    default: x = (previewWidth - textWidth) / 2; break; // Center
+                    default: x = (previewScaledWidth - textWidth) / 2; break; // Center
                 }
 
                 // Apply horizontal offset (scaled for preview)
-                x += (int)(style.horizontalOffset * scale);
+                x += (int)(style.horizontalOffset * previewScale);
 
                 // Use highlight color if active
                 Color textColor = isActive ? style.highlightColor : style.color;
 
                 // === DRAW PER-LINE HIGHLIGHT BACKGROUND (when active) ===
                 if (isActive && style.highlightBgEnabled) {
-                    int hbgPadding = (int)(style.highlightBgPadding * scale);
-                    int hbgRadius = (int)(style.highlightBgRadius * scale);
+                    int hbgPadding = (int)(style.highlightBgPadding * previewScale);
+                    int hbgRadius = (int)(style.highlightBgRadius * previewScale);
                     g2d.setColor(style.highlightBgColor);
                     g2d.fillRoundRect(x - hbgPadding, currentY - fm.getAscent() - hbgPadding/2,
                                      textWidth + hbgPadding * 2, fm.getHeight() + hbgPadding, hbgRadius, hbgRadius);
@@ -3180,19 +3204,19 @@ public class arabicSync {
 
                 // Draw text box background if enabled (global)
                 if (config.paraModeTextBoxOpacity > 0) {
-                    int padding = (int)(config.paraModeTextBoxPadding * scale);
+                    int padding = (int)(config.paraModeTextBoxPadding * previewScale);
                     int alpha = (int) (config.paraModeTextBoxOpacity * 2.55);
                     g2d.setColor(new Color(config.paraModeTextBoxColor.getRed(),
                                           config.paraModeTextBoxColor.getGreen(),
                                           config.paraModeTextBoxColor.getBlue(), alpha));
                     g2d.fillRoundRect(x - padding, currentY - fm.getAscent() - padding/2,
                                      textWidth + padding * 2, fm.getHeight() + padding,
-                                     (int)(8 * scale), (int)(8 * scale));
+                                     (int)(8 * previewScale), (int)(8 * previewScale));
                 }
 
                 // === DRAW PER-LINE BORDER ===
                 if (style.borderEnabled) {
-                    drawLineBorder(g2d, style, x, currentY, textWidth, fm, scale);
+                    drawLineBorder(g2d, style, x, currentY, textWidth, fm, previewScale);
                 }
 
                 // Apply highlight effects
@@ -3203,13 +3227,13 @@ public class arabicSync {
                             g2d.setFont(scaledFont);
                             fm = g2d.getFontMetrics();
                             textWidth = getParaModePreviewTextWidth(lineText, fm, scaledWordSpacing);
-                            x = (previewWidth - textWidth) / 2;
+                            x = (previewScaledWidth - textWidth) / 2;
                             break;
                         case 2: // Glow pulse
                             g2d.setColor(new Color(style.highlightColor.getRed(),
                                                   style.highlightColor.getGreen(),
                                                   style.highlightColor.getBlue(), 100));
-                            int glowSize = (int)(8 * scale);
+                            int glowSize = (int)(8 * previewScale);
                             for (int glow = glowSize; glow > 0; glow -= 2) {
                                 drawParaModePreviewTextRTL(g2d, lineText, x - glow, currentY, scaledWordSpacing);
                                 drawParaModePreviewTextRTL(g2d, lineText, x + glow, currentY, scaledWordSpacing);
@@ -3219,8 +3243,8 @@ public class arabicSync {
                             break;
                         case 3: // Underline
                             g2d.setColor(textColor);
-                            g2d.setStroke(new BasicStroke((float)(3 * scale)));
-                            g2d.drawLine(x, currentY + (int)(5 * scale), x + textWidth, currentY + (int)(5 * scale));
+                            g2d.setStroke(new BasicStroke((float)(3 * previewScale)));
+                            g2d.drawLine(x, currentY + (int)(5 * previewScale), x + textWidth, currentY + (int)(5 * previewScale));
                             g2d.setStroke(new BasicStroke(1));
                             break;
                     }
@@ -3228,7 +3252,7 @@ public class arabicSync {
 
                 // Draw shadow
                 if (style.shadowEnabled) {
-                    int shadowOff = (int)(style.shadowOffset * scale);
+                    int shadowOff = (int)(style.shadowOffset * previewScale);
                     g2d.setColor(new Color(style.shadowColor.getRed(), style.shadowColor.getGreen(),
                                           style.shadowColor.getBlue(), 180));
                     drawParaModePreviewTextRTL(g2d, lineText, x + shadowOff, currentY + shadowOff, scaledWordSpacing);
@@ -3236,7 +3260,7 @@ public class arabicSync {
 
                 // Draw outline
                 if (style.outlineEnabled) {
-                    int outlineT = Math.max(1, (int)(style.outlineThickness * scale));
+                    int outlineT = Math.max(1, (int)(style.outlineThickness * previewScale));
                     g2d.setColor(style.outlineColor);
                     for (int ox = -outlineT; ox <= outlineT; ox++) {
                         for (int oy = -outlineT; oy <= outlineT; oy++) {
@@ -3251,8 +3275,8 @@ public class arabicSync {
                 if (style.glowEnabled) {
                     g2d.setColor(new Color(style.glowColor.getRed(), style.glowColor.getGreen(),
                                           style.glowColor.getBlue(), 100));
-                    int glowSize = (int)(5 * scale);
-                    for (int glow = glowSize; glow > 0; glow--) {
+                    int glowSz = (int)(5 * previewScale);
+                    for (int glow = glowSz; glow > 0; glow--) {
                         drawParaModePreviewTextRTL(g2d, lineText, x - glow, currentY, scaledWordSpacing);
                         drawParaModePreviewTextRTL(g2d, lineText, x + glow, currentY, scaledWordSpacing);
                         drawParaModePreviewTextRTL(g2d, lineText, x, currentY - glow, scaledWordSpacing);
@@ -3266,22 +3290,26 @@ public class arabicSync {
 
                 // Draw underline decoration if enabled
                 if (style.underline) {
-                    g2d.setStroke(new BasicStroke((float)(2 * scale)));
-                    g2d.drawLine(x, currentY + (int)(3 * scale), x + textWidth, currentY + (int)(3 * scale));
+                    g2d.setStroke(new BasicStroke((float)(2 * previewScale)));
+                    g2d.drawLine(x, currentY + (int)(3 * previewScale), x + textWidth, currentY + (int)(3 * previewScale));
                     g2d.setStroke(new BasicStroke(1));
                 }
 
                 // Move to next line
-                currentY += fm.getHeight() + (int)(config.paramodeGlobalLineSpacing * scale);
+                currentY += fm.getHeight() + (int)(config.paramodeGlobalLineSpacing * previewScale);
             }
 
             // === DRAW TEXT OVERLAYS IN PREVIEW ===
-            drawTextOverlaysPreview(g2d, previewWidth, previewHeight, scale);
+            drawTextOverlaysPreview(g2d, previewScaledWidth, previewScaledHeight, previewScale);
 
-            // Draw active line indicator
+            // Draw active line indicator at bottom of video area
             g2d.setColor(new Color(255, 255, 255, 100));
             g2d.setFont(new Font("SansSerif", Font.PLAIN, 10));
-            g2d.drawString("Active Line: " + (simulatedActiveLine + 1) + " of " + paraModeCurrentLines.size(), 5, previewHeight - 5);
+            g2d.drawString("Active Line: " + (simulatedActiveLine + 1) + " of " + paraModeCurrentLines.size(), 5, previewScaledHeight - 5);
+
+            // Reset transform and clip (restore for any subsequent drawing)
+            g2d.translate(-previewOffsetX, -previewOffsetY);
+            g2d.setClip(null);
         }
 
         // Helper method to draw global video border in preview
@@ -3350,29 +3378,38 @@ public class arabicSync {
                 return -1;
             }
 
-            int previewWidth = paraModePreviewPanel.getWidth();
-            int previewHeight = paraModePreviewPanel.getHeight();
-            double scale = Math.min((double) previewWidth / config.videoWidth,
-                                   (double) previewHeight / config.videoHeight);
+            // Use cached preview dimensions (set during drawParaModePreview)
+            if (previewScaledWidth <= 0 || previewScaledHeight <= 0) {
+                return -1; // Preview not yet rendered
+            }
+
+            // Convert panel coordinates to video-area relative coordinates
+            int relX = px - previewOffsetX;
+            int relY = py - previewOffsetY;
+
+            // Check if point is within video area
+            if (relX < 0 || relX > previewScaledWidth || relY < 0 || relY > previewScaledHeight) {
+                return -1;
+            }
 
             // Check overlays in reverse order (top-most first)
             for (int i = config.textOverlays.size() - 1; i >= 0; i--) {
                 TextOverlay overlay = config.textOverlays.get(i);
                 if (overlay.text == null || overlay.text.isEmpty()) continue;
 
-                // Calculate overlay position in preview coordinates
-                int x = (int)(previewWidth * overlay.xPercent / 100.0);
-                int y = (int)(previewHeight * overlay.yPercent / 100.0);
+                // Calculate overlay position in preview video-area coordinates
+                int x = (int)(previewScaledWidth * overlay.xPercent / 100.0);
+                int y = (int)(previewScaledHeight * overlay.yPercent / 100.0);
 
                 // Estimate text bounds (approximate)
-                int fontSize = Math.max(8, (int)(overlay.fontSize * scale));
+                int fontSize = Math.max(8, (int)(overlay.fontSize * previewScale));
                 int textWidth = overlay.text.length() * fontSize / 2; // Rough estimate
                 int textHeight = fontSize;
 
                 // Check if point is within text bounds (with some padding)
-                int padding = 10;
-                if (px >= x - textWidth/2 - padding && px <= x + textWidth/2 + padding &&
-                    py >= y - textHeight - padding && py <= y + padding) {
+                int padding = 15;
+                if (relX >= x - textWidth/2 - padding && relX <= x + textWidth/2 + padding &&
+                    relY >= y - textHeight - padding && relY <= y + padding) {
                     return i;
                 }
             }
@@ -3403,8 +3440,18 @@ public class arabicSync {
 
                 // Calculate position (center point for rotation)
                 int textWidth = fm.stringWidth(overlay.text);
+                int textHeight = fm.getHeight();
                 int centerX = (int)(width * overlay.xPercent / 100.0);
                 int centerY = (int)(height * overlay.yPercent / 100.0);
+
+                // Apply bounds checking - keep text within frame with scaled margin
+                int margin = (int)(20 * scale);
+                int halfWidth = textWidth / 2;
+                int halfHeight = textHeight / 2;
+
+                // Clamp center position to keep text fully visible
+                centerX = Math.max(halfWidth + margin, Math.min(width - halfWidth - margin, centerX));
+                centerY = Math.max(halfHeight + margin, Math.min(height - halfHeight - margin, centerY));
 
                 int alpha = (int)(255 * overlay.opacity / 100.0);
 
@@ -14724,8 +14771,18 @@ public class arabicSync {
 
             // Calculate center position for rotation
             int textWidth = fm.stringWidth(overlay.text);
+            int textHeight = fm.getHeight();
             int centerX = (int) (width * overlay.xPercent / 100.0);
             int centerY = (int) (height * overlay.yPercent / 100.0);
+
+            // Apply bounds checking - keep text within frame with margin
+            int margin = 20;
+            int halfWidth = textWidth / 2;
+            int halfHeight = textHeight / 2;
+
+            // Clamp center position to keep text fully visible
+            centerX = Math.max(halfWidth + margin, Math.min(width - halfWidth - margin, centerX));
+            centerY = Math.max(halfHeight + margin, Math.min(height - halfHeight - margin, centerY));
 
             // Apply opacity
             int alpha = (int) (255 * overlay.opacity / 100.0);
