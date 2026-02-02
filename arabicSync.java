@@ -181,9 +181,11 @@ public class arabicSync {
         boolean shadowEnabled = true;
         int shadowOffset = 3;
         String fontFamily = ""; // Empty = use default Arabic font
+        String fontFilePath = ""; // Path to custom font file (.ttf, .otf)
         boolean bold = false;
         boolean italic = false;
         int opacity = 100; // 0-100%
+        int tiltAngle = 0; // Rotation angle in degrees (-180 to 180)
 
         TextOverlay() {}
 
@@ -206,9 +208,11 @@ public class arabicSync {
             c.shadowEnabled = this.shadowEnabled;
             c.shadowOffset = this.shadowOffset;
             c.fontFamily = this.fontFamily;
+            c.fontFilePath = this.fontFilePath;
             c.bold = this.bold;
             c.italic = this.italic;
             c.opacity = this.opacity;
+            c.tiltAngle = this.tiltAngle;
             return c;
         }
     }
@@ -1724,6 +1728,9 @@ public class arabicSync {
         private DefaultListModel<String> paraModeLineListModel;
         private int paraModeSelectedLineIndex = -1;
         private boolean paraModeUpdatingControls = false; // Flag to prevent applying changes while updating controls
+        // Overlay dragging state
+        private int draggingOverlayIndex = -1;
+        private int dragStartX, dragStartY;
         private JSpinner paraModeFontSizeSpinner;
         private JComboBox<String> paraModeFontStyleCombo;
         private JComboBox<String> paraModeAlignmentCombo;
@@ -2397,6 +2404,60 @@ public class arabicSync {
             };
             paraModePreviewPanel.setBackground(Color.BLACK);
             paraModePreviewPanel.setPreferredSize(new Dimension(270, 480)); // YouTube Short aspect ratio (9:16)
+
+            // Add mouse listeners for dragging text overlays
+            paraModePreviewPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mousePressed(java.awt.event.MouseEvent e) {
+                    draggingOverlayIndex = findOverlayAtPoint(e.getX(), e.getY());
+                    if (draggingOverlayIndex >= 0) {
+                        dragStartX = e.getX();
+                        dragStartY = e.getY();
+                        paraModePreviewPanel.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+                    }
+                }
+
+                @Override
+                public void mouseReleased(java.awt.event.MouseEvent e) {
+                    if (draggingOverlayIndex >= 0) {
+                        draggingOverlayIndex = -1;
+                        paraModePreviewPanel.setCursor(Cursor.getDefaultCursor());
+                    }
+                }
+            });
+
+            paraModePreviewPanel.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+                @Override
+                public void mouseDragged(java.awt.event.MouseEvent e) {
+                    if (draggingOverlayIndex >= 0 && draggingOverlayIndex < config.textOverlays.size()) {
+                        TextOverlay overlay = config.textOverlays.get(draggingOverlayIndex);
+                        int previewWidth = paraModePreviewPanel.getWidth();
+                        int previewHeight = paraModePreviewPanel.getHeight();
+
+                        // Calculate new position as percentage
+                        int newXPercent = (int) (e.getX() * 100.0 / previewWidth);
+                        int newYPercent = (int) (e.getY() * 100.0 / previewHeight);
+
+                        // Clamp to valid range
+                        overlay.xPercent = Math.max(0, Math.min(100, newXPercent));
+                        overlay.yPercent = Math.max(0, Math.min(100, newYPercent));
+
+                        updateParaModePreview();
+                    }
+                }
+
+                @Override
+                public void mouseMoved(java.awt.event.MouseEvent e) {
+                    // Change cursor when hovering over an overlay
+                    int idx = findOverlayAtPoint(e.getX(), e.getY());
+                    if (idx >= 0) {
+                        paraModePreviewPanel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    } else {
+                        paraModePreviewPanel.setCursor(Cursor.getDefaultCursor());
+                    }
+                }
+            });
+
             rightPanel.add(paraModePreviewPanel, BorderLayout.CENTER);
 
             // Preview controls
@@ -2783,7 +2844,7 @@ public class arabicSync {
             JPanel formPanel = new JPanel(new GridBagLayout());
             formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
             GridBagConstraints gbc = new GridBagConstraints();
-            gbc.insets = new Insets(5, 5, 5, 5);
+            gbc.insets = new Insets(4, 5, 4, 5);
             gbc.anchor = GridBagConstraints.WEST;
             gbc.fill = GridBagConstraints.HORIZONTAL;
 
@@ -2795,29 +2856,63 @@ public class arabicSync {
             formPanel.add(textField, gbc);
             gbc.gridwidth = 1;
 
-            // X Position
+            // Font selection from current directory
             gbc.gridx = 0; gbc.gridy = 1;
+            formPanel.add(new JLabel("Font:"), gbc);
+            gbc.gridx = 1; gbc.gridwidth = 2;
+            java.util.List<String> fontFiles = scanFontFiles();
+            String[] fontOptions = new String[fontFiles.size() + 1];
+            fontOptions[0] = "Default (Arabic)";
+            for (int i = 0; i < fontFiles.size(); i++) {
+                fontOptions[i + 1] = fontFiles.get(i);
+            }
+            JComboBox<String> fontCombo = new JComboBox<>(fontOptions);
+            // Select current font if exists
+            if (overlay.fontFilePath != null && !overlay.fontFilePath.isEmpty()) {
+                for (int i = 0; i < fontOptions.length; i++) {
+                    if (fontOptions[i].equals(new File(overlay.fontFilePath).getName())) {
+                        fontCombo.setSelectedIndex(i);
+                        break;
+                    }
+                }
+            }
+            formPanel.add(fontCombo, gbc);
+            gbc.gridwidth = 1;
+
+            // X Position
+            gbc.gridx = 0; gbc.gridy = 2;
             formPanel.add(new JLabel("X Position (%):"), gbc);
             gbc.gridx = 1;
-            JSpinner xSpinner = new JSpinner(new SpinnerNumberModel(overlay.xPercent, 0, 100, 5));
+            JSpinner xSpinner = new JSpinner(new SpinnerNumberModel(overlay.xPercent, 0, 100, 1));
             formPanel.add(xSpinner, gbc);
+            gbc.gridx = 2;
+            formPanel.add(new JLabel("(drag in preview)"), gbc);
 
             // Y Position
-            gbc.gridx = 0; gbc.gridy = 2;
+            gbc.gridx = 0; gbc.gridy = 3;
             formPanel.add(new JLabel("Y Position (%):"), gbc);
             gbc.gridx = 1;
-            JSpinner ySpinner = new JSpinner(new SpinnerNumberModel(overlay.yPercent, 0, 100, 5));
+            JSpinner ySpinner = new JSpinner(new SpinnerNumberModel(overlay.yPercent, 0, 100, 1));
             formPanel.add(ySpinner, gbc);
 
             // Font Size
-            gbc.gridx = 0; gbc.gridy = 3;
+            gbc.gridx = 0; gbc.gridy = 4;
             formPanel.add(new JLabel("Font Size:"), gbc);
             gbc.gridx = 1;
-            JSpinner fontSizeSpinner = new JSpinner(new SpinnerNumberModel(overlay.fontSize, 10, 200, 5));
+            JSpinner fontSizeSpinner = new JSpinner(new SpinnerNumberModel(overlay.fontSize, 10, 300, 5));
             formPanel.add(fontSizeSpinner, gbc);
 
+            // Tilt Angle
+            gbc.gridx = 0; gbc.gridy = 5;
+            formPanel.add(new JLabel("Tilt Angle:"), gbc);
+            gbc.gridx = 1;
+            JSpinner tiltSpinner = new JSpinner(new SpinnerNumberModel(overlay.tiltAngle, -180, 180, 5));
+            formPanel.add(tiltSpinner, gbc);
+            gbc.gridx = 2;
+            formPanel.add(new JLabel("degrees"), gbc);
+
             // Color
-            gbc.gridx = 0; gbc.gridy = 4;
+            gbc.gridx = 0; gbc.gridy = 6;
             formPanel.add(new JLabel("Text Color:"), gbc);
             gbc.gridx = 1;
             JPanel colorPanel = new JPanel();
@@ -2833,7 +2928,7 @@ public class arabicSync {
             formPanel.add(colorPanel, gbc);
 
             // Outline enabled
-            gbc.gridx = 0; gbc.gridy = 5;
+            gbc.gridx = 0; gbc.gridy = 7;
             JCheckBox outlineCheck = new JCheckBox("Enable Outline", overlay.outlineEnabled);
             formPanel.add(outlineCheck, gbc);
 
@@ -2843,7 +2938,7 @@ public class arabicSync {
             formPanel.add(shadowCheck, gbc);
 
             // Bold/Italic
-            gbc.gridx = 0; gbc.gridy = 6;
+            gbc.gridx = 0; gbc.gridy = 8;
             JCheckBox boldCheck = new JCheckBox("Bold", overlay.bold);
             formPanel.add(boldCheck, gbc);
             gbc.gridx = 1;
@@ -2860,11 +2955,22 @@ public class arabicSync {
                 overlay.xPercent = (Integer) xSpinner.getValue();
                 overlay.yPercent = (Integer) ySpinner.getValue();
                 overlay.fontSize = (Integer) fontSizeSpinner.getValue();
+                overlay.tiltAngle = (Integer) tiltSpinner.getValue();
                 overlay.color = colorPanel.getBackground();
                 overlay.outlineEnabled = outlineCheck.isSelected();
                 overlay.shadowEnabled = shadowCheck.isSelected();
                 overlay.bold = boldCheck.isSelected();
                 overlay.italic = italicCheck.isSelected();
+
+                // Set font file path
+                int fontIdx = fontCombo.getSelectedIndex();
+                if (fontIdx > 0) {
+                    overlay.fontFilePath = fontFiles.get(fontIdx - 1);
+                    overlay.fontFamily = "";
+                } else {
+                    overlay.fontFilePath = "";
+                    overlay.fontFamily = "";
+                }
 
                 if (editIndex >= 0) {
                     config.textOverlays.set(editIndex, overlay);
@@ -2885,6 +2991,30 @@ public class arabicSync {
             dialog.pack();
             dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
+        }
+
+        // Scan for font files in current directory and subdirectories
+        private java.util.List<String> scanFontFiles() {
+            java.util.List<String> fonts = new java.util.ArrayList<>();
+            File currentDir = new File(".");
+            scanFontFilesRecursive(currentDir, fonts, 2); // Max depth 2
+            return fonts;
+        }
+
+        private void scanFontFilesRecursive(File dir, java.util.List<String> fonts, int depth) {
+            if (depth < 0 || !dir.isDirectory()) return;
+            File[] files = dir.listFiles();
+            if (files == null) return;
+            for (File file : files) {
+                if (file.isFile()) {
+                    String name = file.getName().toLowerCase();
+                    if (name.endsWith(".ttf") || name.endsWith(".otf")) {
+                        fonts.add(file.getAbsolutePath());
+                    }
+                } else if (file.isDirectory() && !file.getName().startsWith(".")) {
+                    scanFontFilesRecursive(file, fonts, depth - 1);
+                }
+            }
         }
 
         private void drawParaModePreview(Graphics2D g2d) {
@@ -3147,33 +3277,81 @@ public class arabicSync {
             g2d.setStroke(new BasicStroke(1));
         }
 
+        // Find which overlay is at the given preview panel coordinates
+        private int findOverlayAtPoint(int px, int py) {
+            if (config.textOverlays == null || config.textOverlays.isEmpty()) {
+                return -1;
+            }
+
+            int previewWidth = paraModePreviewPanel.getWidth();
+            int previewHeight = paraModePreviewPanel.getHeight();
+            double scale = Math.min((double) previewWidth / config.videoWidth,
+                                   (double) previewHeight / config.videoHeight);
+
+            // Check overlays in reverse order (top-most first)
+            for (int i = config.textOverlays.size() - 1; i >= 0; i--) {
+                TextOverlay overlay = config.textOverlays.get(i);
+                if (overlay.text == null || overlay.text.isEmpty()) continue;
+
+                // Calculate overlay position in preview coordinates
+                int x = (int)(previewWidth * overlay.xPercent / 100.0);
+                int y = (int)(previewHeight * overlay.yPercent / 100.0);
+
+                // Estimate text bounds (approximate)
+                int fontSize = Math.max(8, (int)(overlay.fontSize * scale));
+                int textWidth = overlay.text.length() * fontSize / 2; // Rough estimate
+                int textHeight = fontSize;
+
+                // Check if point is within text bounds (with some padding)
+                int padding = 10;
+                if (px >= x - textWidth/2 - padding && px <= x + textWidth/2 + padding &&
+                    py >= y - textHeight - padding && py <= y + padding) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
         // Helper method to draw text overlays in preview
         private void drawTextOverlaysPreview(Graphics2D g2d, int width, int height, double scale) {
             if (config.textOverlays == null || config.textOverlays.isEmpty()) {
                 return;
             }
 
-            for (TextOverlay overlay : config.textOverlays) {
+            for (int idx = 0; idx < config.textOverlays.size(); idx++) {
+                TextOverlay overlay = config.textOverlays.get(idx);
                 if (overlay.text == null || overlay.text.isEmpty()) {
                     continue;
                 }
 
-                // Create scaled font
+                // Create font (from file if specified)
                 int fontStyle = Font.PLAIN;
                 if (overlay.bold) fontStyle |= Font.BOLD;
                 if (overlay.italic) fontStyle |= Font.ITALIC;
 
                 int scaledFontSize = Math.max(8, (int)(overlay.fontSize * scale));
-                Font overlayFont = new Font(overlay.fontFamily.isEmpty() ? "SansSerif" : overlay.fontFamily, fontStyle, scaledFontSize);
+                Font overlayFont = loadOverlayFont(overlay, scaledFontSize, fontStyle);
                 g2d.setFont(overlayFont);
                 FontMetrics fm = g2d.getFontMetrics();
 
-                // Calculate position
+                // Calculate position (center point for rotation)
                 int textWidth = fm.stringWidth(overlay.text);
-                int x = (int)(width * overlay.xPercent / 100.0) - textWidth / 2;
-                int y = (int)(height * overlay.yPercent / 100.0);
+                int centerX = (int)(width * overlay.xPercent / 100.0);
+                int centerY = (int)(height * overlay.yPercent / 100.0);
 
                 int alpha = (int)(255 * overlay.opacity / 100.0);
+
+                // Save original transform
+                AffineTransform originalTransform = g2d.getTransform();
+
+                // Apply rotation around center point
+                if (overlay.tiltAngle != 0) {
+                    g2d.rotate(Math.toRadians(overlay.tiltAngle), centerX, centerY);
+                }
+
+                // Adjust drawing position (text is drawn from left baseline)
+                int x = centerX - textWidth / 2;
+                int y = centerY;
 
                 // Draw shadow
                 if (overlay.shadowEnabled) {
@@ -3200,7 +3378,35 @@ public class arabicSync {
                 g2d.setColor(new Color(overlay.color.getRed(), overlay.color.getGreen(),
                                       overlay.color.getBlue(), alpha));
                 g2d.drawString(overlay.text, x, y);
+
+                // Draw selection indicator if this is the dragging overlay
+                if (idx == draggingOverlayIndex) {
+                    g2d.setColor(new Color(255, 255, 0, 150));
+                    g2d.drawRect(x - 3, y - fm.getAscent() - 3, textWidth + 6, fm.getHeight() + 6);
+                }
+
+                // Restore original transform
+                g2d.setTransform(originalTransform);
             }
+        }
+
+        // Load font for overlay (from file or system)
+        private Font loadOverlayFont(TextOverlay overlay, int size, int style) {
+            if (overlay.fontFilePath != null && !overlay.fontFilePath.isEmpty()) {
+                try {
+                    File fontFile = new File(overlay.fontFilePath);
+                    if (fontFile.exists()) {
+                        Font customFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
+                        return customFont.deriveFont(style, (float) size);
+                    }
+                } catch (Exception e) {
+                    // Fall back to system font
+                }
+            }
+            // Default font
+            String family = (overlay.fontFamily != null && !overlay.fontFamily.isEmpty())
+                           ? overlay.fontFamily : "SansSerif";
+            return new Font(family, style, size);
         }
 
         // Helper method to draw per-line border in preview
@@ -14440,27 +14646,34 @@ public class arabicSync {
                 continue;
             }
 
-            // Create font
+            // Create font (from file if specified, or from base font)
             int fontStyle = Font.PLAIN;
             if (overlay.bold) fontStyle |= Font.BOLD;
             if (overlay.italic) fontStyle |= Font.ITALIC;
 
-            Font overlayFont;
-            if (overlay.fontFamily == null || overlay.fontFamily.isEmpty()) {
-                overlayFont = baseFont.deriveFont(fontStyle, (float) overlay.fontSize);
-            } else {
-                overlayFont = new Font(overlay.fontFamily, fontStyle, overlay.fontSize);
-            }
+            Font overlayFont = loadOverlayFontForFrame(overlay, overlay.fontSize, fontStyle, baseFont);
             g2d.setFont(overlayFont);
             FontMetrics fm = g2d.getFontMetrics();
 
-            // Calculate position
+            // Calculate center position for rotation
             int textWidth = fm.stringWidth(overlay.text);
-            int x = (int) (width * overlay.xPercent / 100.0) - textWidth / 2;
-            int y = (int) (height * overlay.yPercent / 100.0);
+            int centerX = (int) (width * overlay.xPercent / 100.0);
+            int centerY = (int) (height * overlay.yPercent / 100.0);
 
             // Apply opacity
             int alpha = (int) (255 * overlay.opacity / 100.0);
+
+            // Save original transform
+            AffineTransform originalTransform = g2d.getTransform();
+
+            // Apply rotation around center point
+            if (overlay.tiltAngle != 0) {
+                g2d.rotate(Math.toRadians(overlay.tiltAngle), centerX, centerY);
+            }
+
+            // Adjust drawing position (text is drawn from left baseline)
+            int x = centerX - textWidth / 2;
+            int y = centerY;
 
             // Draw shadow
             if (overlay.shadowEnabled) {
@@ -14485,7 +14698,27 @@ public class arabicSync {
             g2d.setColor(new Color(overlay.color.getRed(), overlay.color.getGreen(),
                                   overlay.color.getBlue(), alpha));
             g2d.drawString(overlay.text, x, y);
+
+            // Restore original transform
+            g2d.setTransform(originalTransform);
         }
+    }
+
+    // Load font for overlay in frame generation (from file or base font)
+    private Font loadOverlayFontForFrame(TextOverlay overlay, int size, int style, Font baseFont) {
+        if (overlay.fontFilePath != null && !overlay.fontFilePath.isEmpty()) {
+            try {
+                File fontFile = new File(overlay.fontFilePath);
+                if (fontFile.exists()) {
+                    Font customFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
+                    return customFont.deriveFont(style, (float) size);
+                }
+            } catch (Exception e) {
+                // Fall back to base font
+            }
+        }
+        // Use base font if no custom font
+        return baseFont.deriveFont(style, (float) size);
     }
 
     // Helper method to calculate text width with word spacing
