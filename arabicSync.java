@@ -2038,7 +2038,7 @@ public class arabicSync {
             // Add overlay button
             gbc.gridy = 19; gbc.gridwidth = 1;
             gbc.gridx = 0;
-            JButton addOverlayBtn = new JButton("Add Overlay");
+            JButton addOverlayBtn = new JButton("Add");
             addOverlayBtn.addActionListener(e -> {
                 showTextOverlayDialog(null, -1, refreshOverlayList);
             });
@@ -2055,8 +2055,25 @@ public class arabicSync {
             });
             globalPanel.add(editOverlayBtn, gbc);
 
-            // Remove overlay button
+            // Copy overlay button
             gbc.gridy = 20; gbc.gridx = 0;
+            JButton copyOverlayBtn = new JButton("Copy");
+            copyOverlayBtn.addActionListener(e -> {
+                int idx = overlayList.getSelectedIndex();
+                if (idx >= 0 && idx < config.textOverlays.size()) {
+                    TextOverlay original = config.textOverlays.get(idx);
+                    TextOverlay copy = original.copy();
+                    copy.text = copy.text + " (copy)";
+                    copy.xPercent = Math.min(100, copy.xPercent + 5); // Offset slightly
+                    copy.yPercent = Math.min(100, copy.yPercent + 5);
+                    config.textOverlays.add(copy);
+                    refreshOverlayList.run();
+                }
+            });
+            globalPanel.add(copyOverlayBtn, gbc);
+
+            // Remove overlay button
+            gbc.gridx = 1;
             JButton removeOverlayBtn = new JButton("Remove");
             removeOverlayBtn.addActionListener(e -> {
                 int idx = overlayList.getSelectedIndex();
@@ -2068,13 +2085,14 @@ public class arabicSync {
             globalPanel.add(removeOverlayBtn, gbc);
 
             // Clear all overlays button
-            gbc.gridx = 1;
+            gbc.gridy = 21; gbc.gridx = 0; gbc.gridwidth = 2;
             JButton clearOverlaysBtn = new JButton("Clear All");
             clearOverlaysBtn.addActionListener(e -> {
                 config.textOverlays.clear();
                 refreshOverlayList.run();
             });
             globalPanel.add(clearOverlaysBtn, gbc);
+            gbc.gridwidth = 1;
 
             // Wrap global panel in scroll pane
             JScrollPane globalScrollPane = new JScrollPane(globalPanel);
@@ -2834,12 +2852,29 @@ public class arabicSync {
             updateParaModePreview();
         }
 
-        // === TEXT OVERLAY DIALOG ===
+        // === TEXT OVERLAY DIALOG WITH LIVE PREVIEW ===
         private void showTextOverlayDialog(TextOverlay existing, int editIndex, Runnable onSave) {
-            JDialog dialog = new JDialog((Frame) null, existing == null ? "Add Text Overlay" : "Edit Text Overlay", true);
+            JDialog dialog = new JDialog((Frame) null, existing == null ? "Add Text Overlay" : "Edit Text Overlay", false); // Non-modal for live preview
             dialog.setLayout(new BorderLayout(10, 10));
 
-            TextOverlay overlay = existing != null ? existing.copy() : new TextOverlay();
+            // Use the actual overlay for editing (for live preview), keep a backup for cancel
+            final TextOverlay overlay;
+            final TextOverlay backup;
+            final boolean isNewOverlay = (existing == null);
+
+            if (isNewOverlay) {
+                overlay = new TextOverlay();
+                overlay.text = "New Text";
+                config.textOverlays.add(overlay); // Add immediately for live preview
+                backup = null;
+            } else {
+                overlay = existing;
+                backup = existing.copy(); // Backup for cancel
+            }
+            final int actualIndex = isNewOverlay ? config.textOverlays.size() - 1 : editIndex;
+
+            // Runnable to apply changes and update preview
+            Runnable applyChanges = () -> updateParaModePreview();
 
             JPanel formPanel = new JPanel(new GridBagLayout());
             formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -2853,6 +2888,12 @@ public class arabicSync {
             formPanel.add(new JLabel("Text:"), gbc);
             gbc.gridx = 1; gbc.gridwidth = 2;
             JTextField textField = new JTextField(overlay.text, 25);
+            textField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+                public void changedUpdate(javax.swing.event.DocumentEvent e) { update(); }
+                public void removeUpdate(javax.swing.event.DocumentEvent e) { update(); }
+                public void insertUpdate(javax.swing.event.DocumentEvent e) { update(); }
+                private void update() { overlay.text = textField.getText(); applyChanges.run(); }
+            });
             formPanel.add(textField, gbc);
             gbc.gridwidth = 1;
 
@@ -2864,18 +2905,28 @@ public class arabicSync {
             String[] fontOptions = new String[fontFiles.size() + 1];
             fontOptions[0] = "Default (Arabic)";
             for (int i = 0; i < fontFiles.size(); i++) {
-                fontOptions[i + 1] = fontFiles.get(i);
+                // Display just the filename for readability
+                fontOptions[i + 1] = new File(fontFiles.get(i)).getName();
             }
             JComboBox<String> fontCombo = new JComboBox<>(fontOptions);
-            // Select current font if exists
+            // Select current font if exists - compare full paths
             if (overlay.fontFilePath != null && !overlay.fontFilePath.isEmpty()) {
-                for (int i = 0; i < fontOptions.length; i++) {
-                    if (fontOptions[i].equals(new File(overlay.fontFilePath).getName())) {
-                        fontCombo.setSelectedIndex(i);
+                for (int i = 0; i < fontFiles.size(); i++) {
+                    if (fontFiles.get(i).equals(overlay.fontFilePath)) {
+                        fontCombo.setSelectedIndex(i + 1);
                         break;
                     }
                 }
             }
+            fontCombo.addActionListener(e -> {
+                int idx = fontCombo.getSelectedIndex();
+                if (idx > 0) {
+                    overlay.fontFilePath = fontFiles.get(idx - 1);
+                } else {
+                    overlay.fontFilePath = "";
+                }
+                applyChanges.run();
+            });
             formPanel.add(fontCombo, gbc);
             gbc.gridwidth = 1;
 
@@ -2884,6 +2935,7 @@ public class arabicSync {
             formPanel.add(new JLabel("X Position (%):"), gbc);
             gbc.gridx = 1;
             JSpinner xSpinner = new JSpinner(new SpinnerNumberModel(overlay.xPercent, 0, 100, 1));
+            xSpinner.addChangeListener(e -> { overlay.xPercent = (Integer) xSpinner.getValue(); applyChanges.run(); });
             formPanel.add(xSpinner, gbc);
             gbc.gridx = 2;
             formPanel.add(new JLabel("(drag in preview)"), gbc);
@@ -2893,6 +2945,7 @@ public class arabicSync {
             formPanel.add(new JLabel("Y Position (%):"), gbc);
             gbc.gridx = 1;
             JSpinner ySpinner = new JSpinner(new SpinnerNumberModel(overlay.yPercent, 0, 100, 1));
+            ySpinner.addChangeListener(e -> { overlay.yPercent = (Integer) ySpinner.getValue(); applyChanges.run(); });
             formPanel.add(ySpinner, gbc);
 
             // Font Size
@@ -2900,6 +2953,7 @@ public class arabicSync {
             formPanel.add(new JLabel("Font Size:"), gbc);
             gbc.gridx = 1;
             JSpinner fontSizeSpinner = new JSpinner(new SpinnerNumberModel(overlay.fontSize, 10, 300, 5));
+            fontSizeSpinner.addChangeListener(e -> { overlay.fontSize = (Integer) fontSizeSpinner.getValue(); applyChanges.run(); });
             formPanel.add(fontSizeSpinner, gbc);
 
             // Tilt Angle
@@ -2907,6 +2961,7 @@ public class arabicSync {
             formPanel.add(new JLabel("Tilt Angle:"), gbc);
             gbc.gridx = 1;
             JSpinner tiltSpinner = new JSpinner(new SpinnerNumberModel(overlay.tiltAngle, -180, 180, 5));
+            tiltSpinner.addChangeListener(e -> { overlay.tiltAngle = (Integer) tiltSpinner.getValue(); applyChanges.run(); });
             formPanel.add(tiltSpinner, gbc);
             gbc.gridx = 2;
             formPanel.add(new JLabel("degrees"), gbc);
@@ -2922,7 +2977,11 @@ public class arabicSync {
             colorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
                 public void mouseClicked(java.awt.event.MouseEvent e) {
                     Color c = JColorChooser.showDialog(dialog, "Text Color", colorPanel.getBackground());
-                    if (c != null) colorPanel.setBackground(c);
+                    if (c != null) {
+                        colorPanel.setBackground(c);
+                        overlay.color = c;
+                        applyChanges.run();
+                    }
                 }
             });
             formPanel.add(colorPanel, gbc);
@@ -2930,19 +2989,23 @@ public class arabicSync {
             // Outline enabled
             gbc.gridx = 0; gbc.gridy = 7;
             JCheckBox outlineCheck = new JCheckBox("Enable Outline", overlay.outlineEnabled);
+            outlineCheck.addActionListener(e -> { overlay.outlineEnabled = outlineCheck.isSelected(); applyChanges.run(); });
             formPanel.add(outlineCheck, gbc);
 
             // Shadow enabled
             gbc.gridx = 1;
             JCheckBox shadowCheck = new JCheckBox("Enable Shadow", overlay.shadowEnabled);
+            shadowCheck.addActionListener(e -> { overlay.shadowEnabled = shadowCheck.isSelected(); applyChanges.run(); });
             formPanel.add(shadowCheck, gbc);
 
             // Bold/Italic
             gbc.gridx = 0; gbc.gridy = 8;
             JCheckBox boldCheck = new JCheckBox("Bold", overlay.bold);
+            boldCheck.addActionListener(e -> { overlay.bold = boldCheck.isSelected(); applyChanges.run(); });
             formPanel.add(boldCheck, gbc);
             gbc.gridx = 1;
             JCheckBox italicCheck = new JCheckBox("Italic", overlay.italic);
+            italicCheck.addActionListener(e -> { overlay.italic = italicCheck.isSelected(); applyChanges.run(); });
             formPanel.add(italicCheck, gbc);
 
             // Buttons
@@ -2951,37 +3014,37 @@ public class arabicSync {
             JButton cancelBtn = new JButton("Cancel");
 
             saveBtn.addActionListener(e -> {
-                overlay.text = textField.getText();
-                overlay.xPercent = (Integer) xSpinner.getValue();
-                overlay.yPercent = (Integer) ySpinner.getValue();
-                overlay.fontSize = (Integer) fontSizeSpinner.getValue();
-                overlay.tiltAngle = (Integer) tiltSpinner.getValue();
-                overlay.color = colorPanel.getBackground();
-                overlay.outlineEnabled = outlineCheck.isSelected();
-                overlay.shadowEnabled = shadowCheck.isSelected();
-                overlay.bold = boldCheck.isSelected();
-                overlay.italic = italicCheck.isSelected();
-
-                // Set font file path
-                int fontIdx = fontCombo.getSelectedIndex();
-                if (fontIdx > 0) {
-                    overlay.fontFilePath = fontFiles.get(fontIdx - 1);
-                    overlay.fontFamily = "";
-                } else {
-                    overlay.fontFilePath = "";
-                    overlay.fontFamily = "";
-                }
-
-                if (editIndex >= 0) {
-                    config.textOverlays.set(editIndex, overlay);
-                } else {
-                    config.textOverlays.add(overlay);
-                }
                 onSave.run();
                 dialog.dispose();
             });
 
-            cancelBtn.addActionListener(e -> dialog.dispose());
+            cancelBtn.addActionListener(e -> {
+                if (isNewOverlay) {
+                    // Remove the newly added overlay
+                    config.textOverlays.remove(actualIndex);
+                } else {
+                    // Restore from backup
+                    overlay.text = backup.text;
+                    overlay.xPercent = backup.xPercent;
+                    overlay.yPercent = backup.yPercent;
+                    overlay.fontSize = backup.fontSize;
+                    overlay.tiltAngle = backup.tiltAngle;
+                    overlay.color = backup.color;
+                    overlay.outlineEnabled = backup.outlineEnabled;
+                    overlay.shadowEnabled = backup.shadowEnabled;
+                    overlay.bold = backup.bold;
+                    overlay.italic = backup.italic;
+                    overlay.fontFilePath = backup.fontFilePath;
+                    overlay.fontFamily = backup.fontFamily;
+                    overlay.opacity = backup.opacity;
+                    overlay.outlineColor = backup.outlineColor;
+                    overlay.outlineThickness = backup.outlineThickness;
+                    overlay.shadowOffset = backup.shadowOffset;
+                }
+                updateParaModePreview();
+                onSave.run();
+                dialog.dispose();
+            });
 
             buttonPanel.add(saveBtn);
             buttonPanel.add(cancelBtn);
@@ -2990,6 +3053,10 @@ public class arabicSync {
             dialog.add(buttonPanel, BorderLayout.SOUTH);
             dialog.pack();
             dialog.setLocationRelativeTo(null);
+
+            // Initial preview update
+            updateParaModePreview();
+
             dialog.setVisible(true);
         }
 
