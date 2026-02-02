@@ -168,6 +168,51 @@ public class arabicSync {
         }
     }
 
+    // === TEXT OVERLAY: Static text overlay for video (not synced to audio) ===
+    private static class TextOverlay implements Serializable {
+        String text = ""; // The overlay text
+        int xPercent = 50; // X position as percentage (0-100, 50=center)
+        int yPercent = 90; // Y position as percentage (0-100, 90=near bottom)
+        int fontSize = 40; // Font size
+        Color color = new Color(255, 255, 255); // Text color
+        boolean outlineEnabled = true;
+        Color outlineColor = new Color(0, 0, 0);
+        int outlineThickness = 2;
+        boolean shadowEnabled = true;
+        int shadowOffset = 3;
+        String fontFamily = ""; // Empty = use default Arabic font
+        boolean bold = false;
+        boolean italic = false;
+        int opacity = 100; // 0-100%
+
+        TextOverlay() {}
+
+        TextOverlay(String text, int xPercent, int yPercent) {
+            this.text = text;
+            this.xPercent = xPercent;
+            this.yPercent = yPercent;
+        }
+
+        TextOverlay copy() {
+            TextOverlay c = new TextOverlay();
+            c.text = this.text;
+            c.xPercent = this.xPercent;
+            c.yPercent = this.yPercent;
+            c.fontSize = this.fontSize;
+            c.color = this.color;
+            c.outlineEnabled = this.outlineEnabled;
+            c.outlineColor = this.outlineColor;
+            c.outlineThickness = this.outlineThickness;
+            c.shadowEnabled = this.shadowEnabled;
+            c.shadowOffset = this.shadowOffset;
+            c.fontFamily = this.fontFamily;
+            c.bold = this.bold;
+            c.italic = this.italic;
+            c.opacity = this.opacity;
+            return c;
+        }
+    }
+
     ////////////////////////////Add batch mode flag to VideoConfig////
     ///
     /////
@@ -439,6 +484,9 @@ public class arabicSync {
         Color paraModeVideoBorderColor2 = new Color(255, 165, 0); // Orange (for gradient)
         int paraModeVideoBorderPadding = 20; // Distance from edge
         int paraModeVideoBorderRadius = 30; // Corner radius for rounded style
+
+        // === TEXT OVERLAYS (static text on video, not synced to audio) ===
+        java.util.List<TextOverlay> textOverlays = new java.util.ArrayList<>();
     }
 
 
@@ -1949,6 +1997,78 @@ public class arabicSync {
             });
             globalPanel.add(videoBorderRadiusSpinner, gbc);
 
+            // === TEXT OVERLAYS SECTION ===
+            gbc.gridx = 0; gbc.gridy = 16; gbc.gridwidth = 2;
+            JSeparator sep = new JSeparator();
+            globalPanel.add(sep, gbc);
+
+            gbc.gridy = 17;
+            JLabel overlayTitle = new JLabel("── Text Overlays ──");
+            overlayTitle.setFont(overlayTitle.getFont().deriveFont(Font.BOLD));
+            globalPanel.add(overlayTitle, gbc);
+            gbc.gridwidth = 1;
+
+            // Overlay list
+            gbc.gridy = 18; gbc.gridwidth = 2;
+            DefaultListModel<String> overlayListModel = new DefaultListModel<>();
+            JList<String> overlayList = new JList<>(overlayListModel);
+            overlayList.setVisibleRowCount(3);
+            JScrollPane overlayScrollPane = new JScrollPane(overlayList);
+            overlayScrollPane.setPreferredSize(new Dimension(200, 60));
+            globalPanel.add(overlayScrollPane, gbc);
+
+            // Refresh overlay list display
+            Runnable refreshOverlayList = () -> {
+                overlayListModel.clear();
+                for (int i = 0; i < config.textOverlays.size(); i++) {
+                    TextOverlay ov = config.textOverlays.get(i);
+                    String display = (i + 1) + ": " + (ov.text.length() > 20 ? ov.text.substring(0, 20) + "..." : ov.text);
+                    overlayListModel.addElement(display);
+                }
+                updateParaModePreview();
+            };
+
+            // Add overlay button
+            gbc.gridy = 19; gbc.gridwidth = 1;
+            gbc.gridx = 0;
+            JButton addOverlayBtn = new JButton("Add Overlay");
+            addOverlayBtn.addActionListener(e -> {
+                showTextOverlayDialog(null, -1, refreshOverlayList);
+            });
+            globalPanel.add(addOverlayBtn, gbc);
+
+            // Edit overlay button
+            gbc.gridx = 1;
+            JButton editOverlayBtn = new JButton("Edit");
+            editOverlayBtn.addActionListener(e -> {
+                int idx = overlayList.getSelectedIndex();
+                if (idx >= 0 && idx < config.textOverlays.size()) {
+                    showTextOverlayDialog(config.textOverlays.get(idx), idx, refreshOverlayList);
+                }
+            });
+            globalPanel.add(editOverlayBtn, gbc);
+
+            // Remove overlay button
+            gbc.gridy = 20; gbc.gridx = 0;
+            JButton removeOverlayBtn = new JButton("Remove");
+            removeOverlayBtn.addActionListener(e -> {
+                int idx = overlayList.getSelectedIndex();
+                if (idx >= 0 && idx < config.textOverlays.size()) {
+                    config.textOverlays.remove(idx);
+                    refreshOverlayList.run();
+                }
+            });
+            globalPanel.add(removeOverlayBtn, gbc);
+
+            // Clear all overlays button
+            gbc.gridx = 1;
+            JButton clearOverlaysBtn = new JButton("Clear All");
+            clearOverlaysBtn.addActionListener(e -> {
+                config.textOverlays.clear();
+                refreshOverlayList.run();
+            });
+            globalPanel.add(clearOverlaysBtn, gbc);
+
             // Wrap global panel in scroll pane
             JScrollPane globalScrollPane = new JScrollPane(globalPanel);
             globalScrollPane.setBorder(BorderFactory.createTitledBorder("Global Settings"));
@@ -2653,6 +2773,120 @@ public class arabicSync {
             updateParaModePreview();
         }
 
+        // === TEXT OVERLAY DIALOG ===
+        private void showTextOverlayDialog(TextOverlay existing, int editIndex, Runnable onSave) {
+            JDialog dialog = new JDialog((Frame) null, existing == null ? "Add Text Overlay" : "Edit Text Overlay", true);
+            dialog.setLayout(new BorderLayout(10, 10));
+
+            TextOverlay overlay = existing != null ? existing.copy() : new TextOverlay();
+
+            JPanel formPanel = new JPanel(new GridBagLayout());
+            formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(5, 5, 5, 5);
+            gbc.anchor = GridBagConstraints.WEST;
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+
+            // Text input
+            gbc.gridx = 0; gbc.gridy = 0;
+            formPanel.add(new JLabel("Text:"), gbc);
+            gbc.gridx = 1; gbc.gridwidth = 2;
+            JTextField textField = new JTextField(overlay.text, 25);
+            formPanel.add(textField, gbc);
+            gbc.gridwidth = 1;
+
+            // X Position
+            gbc.gridx = 0; gbc.gridy = 1;
+            formPanel.add(new JLabel("X Position (%):"), gbc);
+            gbc.gridx = 1;
+            JSpinner xSpinner = new JSpinner(new SpinnerNumberModel(overlay.xPercent, 0, 100, 5));
+            formPanel.add(xSpinner, gbc);
+
+            // Y Position
+            gbc.gridx = 0; gbc.gridy = 2;
+            formPanel.add(new JLabel("Y Position (%):"), gbc);
+            gbc.gridx = 1;
+            JSpinner ySpinner = new JSpinner(new SpinnerNumberModel(overlay.yPercent, 0, 100, 5));
+            formPanel.add(ySpinner, gbc);
+
+            // Font Size
+            gbc.gridx = 0; gbc.gridy = 3;
+            formPanel.add(new JLabel("Font Size:"), gbc);
+            gbc.gridx = 1;
+            JSpinner fontSizeSpinner = new JSpinner(new SpinnerNumberModel(overlay.fontSize, 10, 200, 5));
+            formPanel.add(fontSizeSpinner, gbc);
+
+            // Color
+            gbc.gridx = 0; gbc.gridy = 4;
+            formPanel.add(new JLabel("Text Color:"), gbc);
+            gbc.gridx = 1;
+            JPanel colorPanel = new JPanel();
+            colorPanel.setBackground(overlay.color);
+            colorPanel.setPreferredSize(new Dimension(60, 25));
+            colorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            colorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    Color c = JColorChooser.showDialog(dialog, "Text Color", colorPanel.getBackground());
+                    if (c != null) colorPanel.setBackground(c);
+                }
+            });
+            formPanel.add(colorPanel, gbc);
+
+            // Outline enabled
+            gbc.gridx = 0; gbc.gridy = 5;
+            JCheckBox outlineCheck = new JCheckBox("Enable Outline", overlay.outlineEnabled);
+            formPanel.add(outlineCheck, gbc);
+
+            // Shadow enabled
+            gbc.gridx = 1;
+            JCheckBox shadowCheck = new JCheckBox("Enable Shadow", overlay.shadowEnabled);
+            formPanel.add(shadowCheck, gbc);
+
+            // Bold/Italic
+            gbc.gridx = 0; gbc.gridy = 6;
+            JCheckBox boldCheck = new JCheckBox("Bold", overlay.bold);
+            formPanel.add(boldCheck, gbc);
+            gbc.gridx = 1;
+            JCheckBox italicCheck = new JCheckBox("Italic", overlay.italic);
+            formPanel.add(italicCheck, gbc);
+
+            // Buttons
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            JButton saveBtn = new JButton("Save");
+            JButton cancelBtn = new JButton("Cancel");
+
+            saveBtn.addActionListener(e -> {
+                overlay.text = textField.getText();
+                overlay.xPercent = (Integer) xSpinner.getValue();
+                overlay.yPercent = (Integer) ySpinner.getValue();
+                overlay.fontSize = (Integer) fontSizeSpinner.getValue();
+                overlay.color = colorPanel.getBackground();
+                overlay.outlineEnabled = outlineCheck.isSelected();
+                overlay.shadowEnabled = shadowCheck.isSelected();
+                overlay.bold = boldCheck.isSelected();
+                overlay.italic = italicCheck.isSelected();
+
+                if (editIndex >= 0) {
+                    config.textOverlays.set(editIndex, overlay);
+                } else {
+                    config.textOverlays.add(overlay);
+                }
+                onSave.run();
+                dialog.dispose();
+            });
+
+            cancelBtn.addActionListener(e -> dialog.dispose());
+
+            buttonPanel.add(saveBtn);
+            buttonPanel.add(cancelBtn);
+
+            dialog.add(formPanel, BorderLayout.CENTER);
+            dialog.add(buttonPanel, BorderLayout.SOUTH);
+            dialog.pack();
+            dialog.setLocationRelativeTo(null);
+            dialog.setVisible(true);
+        }
+
         private void drawParaModePreview(Graphics2D g2d) {
             int previewWidth = paraModePreviewPanel.getWidth();
             int previewHeight = paraModePreviewPanel.getHeight();
@@ -2844,6 +3078,9 @@ public class arabicSync {
                 currentY += fm.getHeight() + (int)(config.paramodeGlobalLineSpacing * scale);
             }
 
+            // === DRAW TEXT OVERLAYS IN PREVIEW ===
+            drawTextOverlaysPreview(g2d, previewWidth, previewHeight, scale);
+
             // Draw active line indicator
             g2d.setColor(new Color(255, 255, 255, 100));
             g2d.setFont(new Font("SansSerif", Font.PLAIN, 10));
@@ -2908,6 +3145,62 @@ public class arabicSync {
                     break;
             }
             g2d.setStroke(new BasicStroke(1));
+        }
+
+        // Helper method to draw text overlays in preview
+        private void drawTextOverlaysPreview(Graphics2D g2d, int width, int height, double scale) {
+            if (config.textOverlays == null || config.textOverlays.isEmpty()) {
+                return;
+            }
+
+            for (TextOverlay overlay : config.textOverlays) {
+                if (overlay.text == null || overlay.text.isEmpty()) {
+                    continue;
+                }
+
+                // Create scaled font
+                int fontStyle = Font.PLAIN;
+                if (overlay.bold) fontStyle |= Font.BOLD;
+                if (overlay.italic) fontStyle |= Font.ITALIC;
+
+                int scaledFontSize = Math.max(8, (int)(overlay.fontSize * scale));
+                Font overlayFont = new Font(overlay.fontFamily.isEmpty() ? "SansSerif" : overlay.fontFamily, fontStyle, scaledFontSize);
+                g2d.setFont(overlayFont);
+                FontMetrics fm = g2d.getFontMetrics();
+
+                // Calculate position
+                int textWidth = fm.stringWidth(overlay.text);
+                int x = (int)(width * overlay.xPercent / 100.0) - textWidth / 2;
+                int y = (int)(height * overlay.yPercent / 100.0);
+
+                int alpha = (int)(255 * overlay.opacity / 100.0);
+
+                // Draw shadow
+                if (overlay.shadowEnabled) {
+                    int shadowOff = Math.max(1, (int)(overlay.shadowOffset * scale));
+                    g2d.setColor(new Color(0, 0, 0, (int)(alpha * 0.7)));
+                    g2d.drawString(overlay.text, x + shadowOff, y + shadowOff);
+                }
+
+                // Draw outline
+                if (overlay.outlineEnabled) {
+                    int outThick = Math.max(1, (int)(overlay.outlineThickness * scale));
+                    g2d.setColor(new Color(overlay.outlineColor.getRed(), overlay.outlineColor.getGreen(),
+                                          overlay.outlineColor.getBlue(), alpha));
+                    for (int ox = -outThick; ox <= outThick; ox++) {
+                        for (int oy = -outThick; oy <= outThick; oy++) {
+                            if (ox != 0 || oy != 0) {
+                                g2d.drawString(overlay.text, x + ox, y + oy);
+                            }
+                        }
+                    }
+                }
+
+                // Draw main text
+                g2d.setColor(new Color(overlay.color.getRed(), overlay.color.getGreen(),
+                                      overlay.color.getBlue(), alpha));
+                g2d.drawString(overlay.text, x, y);
+            }
         }
 
         // Helper method to draw per-line border in preview
@@ -14129,8 +14422,70 @@ public class arabicSync {
             g2d.fillRoundRect(barX, barY, (int) (barWidth * progress), 8, 4, 4);
         }
 
+        // === DRAW TEXT OVERLAYS (static text, not synced to audio) ===
+        drawTextOverlays(g2d, width, height, arabicFont);
+
         g2d.dispose();
         ImageIO.write(image, "JPEG", new File(outputPath));
+    }
+
+    // Helper method to draw text overlays on the video frame
+    private void drawTextOverlays(Graphics2D g2d, int width, int height, Font baseFont) {
+        if (config.textOverlays == null || config.textOverlays.isEmpty()) {
+            return;
+        }
+
+        for (TextOverlay overlay : config.textOverlays) {
+            if (overlay.text == null || overlay.text.isEmpty()) {
+                continue;
+            }
+
+            // Create font
+            int fontStyle = Font.PLAIN;
+            if (overlay.bold) fontStyle |= Font.BOLD;
+            if (overlay.italic) fontStyle |= Font.ITALIC;
+
+            Font overlayFont;
+            if (overlay.fontFamily == null || overlay.fontFamily.isEmpty()) {
+                overlayFont = baseFont.deriveFont(fontStyle, (float) overlay.fontSize);
+            } else {
+                overlayFont = new Font(overlay.fontFamily, fontStyle, overlay.fontSize);
+            }
+            g2d.setFont(overlayFont);
+            FontMetrics fm = g2d.getFontMetrics();
+
+            // Calculate position
+            int textWidth = fm.stringWidth(overlay.text);
+            int x = (int) (width * overlay.xPercent / 100.0) - textWidth / 2;
+            int y = (int) (height * overlay.yPercent / 100.0);
+
+            // Apply opacity
+            int alpha = (int) (255 * overlay.opacity / 100.0);
+
+            // Draw shadow
+            if (overlay.shadowEnabled) {
+                g2d.setColor(new Color(0, 0, 0, (int)(alpha * 0.7)));
+                g2d.drawString(overlay.text, x + overlay.shadowOffset, y + overlay.shadowOffset);
+            }
+
+            // Draw outline
+            if (overlay.outlineEnabled) {
+                g2d.setColor(new Color(overlay.outlineColor.getRed(), overlay.outlineColor.getGreen(),
+                                      overlay.outlineColor.getBlue(), alpha));
+                for (int ox = -overlay.outlineThickness; ox <= overlay.outlineThickness; ox++) {
+                    for (int oy = -overlay.outlineThickness; oy <= overlay.outlineThickness; oy++) {
+                        if (ox != 0 || oy != 0) {
+                            g2d.drawString(overlay.text, x + ox, y + oy);
+                        }
+                    }
+                }
+            }
+
+            // Draw main text
+            g2d.setColor(new Color(overlay.color.getRed(), overlay.color.getGreen(),
+                                  overlay.color.getBlue(), alpha));
+            g2d.drawString(overlay.text, x, y);
+        }
     }
 
     // Helper method to calculate text width with word spacing
