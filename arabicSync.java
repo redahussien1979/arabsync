@@ -3155,49 +3155,56 @@ public class arabicSync {
             previewOffsetX = (panelWidth - previewScaledWidth) / 2;
             previewOffsetY = (panelHeight - previewScaledHeight) / 2;
 
-            // Enable antialiasing
+            // Enable antialiasing for panel
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
             // Fill entire panel with dark gray (letterbox areas)
             g2d.setColor(new Color(30, 30, 30));
             g2d.fillRect(0, 0, panelWidth, panelHeight);
 
-            // Clip to video area and translate
-            g2d.setClip(previewOffsetX, previewOffsetY, previewScaledWidth, previewScaledHeight);
-            g2d.translate(previewOffsetX, previewOffsetY);
+            // === RENDER AT FULL VIDEO RESOLUTION ===
+            // This guarantees preview matches video output EXACTLY
+            int videoWidth = config.videoWidth;
+            int videoHeight = config.videoHeight;
+            BufferedImage fullResImage = new BufferedImage(videoWidth, videoHeight, BufferedImage.TYPE_INT_RGB);
+            Graphics2D vg = fullResImage.createGraphics();
 
-            // Fill video area with background color
-            g2d.setColor(config.paraModeBackgroundColor);
-            g2d.fillRect(0, 0, previewScaledWidth, previewScaledHeight);
+            // High-quality rendering (same as video generation)
+            vg.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            vg.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            vg.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            vg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
-            // Draw background image if specified (on top of color)
+            // Fill with background color
+            vg.setColor(config.paraModeBackgroundColor);
+            vg.fillRect(0, 0, videoWidth, videoHeight);
+
+            // Draw background image if specified
             if (config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
                 try {
                     File bgFile = new File(config.paraModeBackgroundImage);
                     if (bgFile.exists()) {
                         BufferedImage bgImage = ImageIO.read(bgFile);
-                        g2d.drawImage(bgImage, 0, 0, previewScaledWidth, previewScaledHeight, null);
-                        // Apply opacity overlay
+                        vg.drawImage(bgImage, 0, 0, videoWidth, videoHeight, null);
                         if (config.paraModeBackgroundOpacity < 100) {
                             int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
-                            g2d.setColor(new Color(0, 0, 0, alpha));
-                            g2d.fillRect(0, 0, previewScaledWidth, previewScaledHeight);
+                            vg.setColor(new Color(0, 0, 0, alpha));
+                            vg.fillRect(0, 0, videoWidth, videoHeight);
                         }
                     }
                 } catch (IOException e) {
-                    // Background image failed to load, background color already drawn
+                    // Background image failed to load
                 }
             }
 
-            // === DRAW GLOBAL VIDEO BORDER ===
+            // Draw video border at full resolution
             if (config.paraModeVideoBorderEnabled) {
-                drawVideoBorder(g2d, previewScaledWidth, previewScaledHeight, previewScale);
+                drawVideoBorderFullRes(vg, videoWidth, videoHeight);
             }
 
-            // Draw all lines
-            int currentY = (int) (previewScaledHeight * config.paraModeStartY / 100.0);
+            // Draw all lines at full resolution
+            int currentY = (int) (videoHeight * config.paraModeStartY / 100.0);
             int simulatedActiveLine = paraModeSelectedLineIndex >= 0 ? paraModeSelectedLineIndex : 0;
 
             for (int i = 0; i < paraModeCurrentLines.size() && i < config.paraLineStyles.size(); i++) {
@@ -3205,64 +3212,53 @@ public class arabicSync {
                 ParaLineStyle style = config.paraLineStyles.get(i);
                 boolean isActive = (i == simulatedActiveLine);
 
-                // Add line spacing (scaled)
-                currentY += (int)(style.lineSpacingBefore * previewScale);
+                currentY += style.lineSpacingBefore;
 
-                // Create font (scaled)
                 int fontStyle = Font.PLAIN;
                 if (style.bold) fontStyle |= Font.BOLD;
                 if (style.italic) fontStyle |= Font.ITALIC;
 
-                String fontFamily = style.fontFamily.isEmpty() ? "SansSerif" : style.fontFamily;
-                Font font = new Font(fontFamily, fontStyle, (int)(style.fontSize * previewScale));
-                g2d.setFont(font);
-                FontMetrics fm = g2d.getFontMetrics();
+                // Load font at full size (same as video)
+                Font font = loadPreviewFont(style.fontFamily, fontStyle, style.fontSize);
+                vg.setFont(font);
+                FontMetrics fm = vg.getFontMetrics();
 
-                // Scale word spacing for preview
-                int scaledWordSpacing = (int)(style.wordSpacing * previewScale);
+                int textWidth = getParaModePreviewTextWidth(lineText, fm, style.wordSpacing);
 
-                // Calculate text width with word spacing (RTL)
-                int textWidth = getParaModePreviewTextWidth(lineText, fm, scaledWordSpacing);
-
-                // Calculate X based on alignment (RTL aware)
                 int x;
-                int margin = (int)(30 * previewScale);
+                int margin = 30;
                 switch (style.alignment) {
-                    case 0: x = previewScaledWidth - textWidth - margin; break; // Left in RTL = right side
-                    case 2: x = margin; break; // Right in RTL = left side
-                    default: x = (previewScaledWidth - textWidth) / 2; break; // Center
+                    case 0: x = videoWidth - textWidth - margin; break;
+                    case 2: x = margin; break;
+                    default: x = (videoWidth - textWidth) / 2; break;
                 }
+                x += style.horizontalOffset;
 
-                // Apply horizontal offset (scaled for preview)
-                x += (int)(style.horizontalOffset * previewScale);
-
-                // Use highlight color if active
                 Color textColor = isActive ? style.highlightColor : style.color;
 
-                // === DRAW PER-LINE HIGHLIGHT BACKGROUND (when active) ===
+                // Draw highlight background
                 if (isActive && style.highlightBgEnabled) {
-                    int hbgPadding = (int)(style.highlightBgPadding * previewScale);
-                    int hbgRadius = (int)(style.highlightBgRadius * previewScale);
-                    g2d.setColor(style.highlightBgColor);
-                    g2d.fillRoundRect(x - hbgPadding, currentY - fm.getAscent() - hbgPadding/2,
+                    int hbgPadding = style.highlightBgPadding;
+                    int hbgRadius = style.highlightBgRadius;
+                    vg.setColor(style.highlightBgColor);
+                    vg.fillRoundRect(x - hbgPadding, currentY - fm.getAscent() - hbgPadding/2,
                                      textWidth + hbgPadding * 2, fm.getHeight() + hbgPadding, hbgRadius, hbgRadius);
                 }
 
-                // Draw text box background if enabled (global)
+                // Draw text box background
                 if (config.paraModeTextBoxOpacity > 0) {
-                    int padding = (int)(config.paraModeTextBoxPadding * previewScale);
+                    int padding = config.paraModeTextBoxPadding;
                     int alpha = (int) (config.paraModeTextBoxOpacity * 2.55);
-                    g2d.setColor(new Color(config.paraModeTextBoxColor.getRed(),
+                    vg.setColor(new Color(config.paraModeTextBoxColor.getRed(),
                                           config.paraModeTextBoxColor.getGreen(),
                                           config.paraModeTextBoxColor.getBlue(), alpha));
-                    g2d.fillRoundRect(x - padding, currentY - fm.getAscent() - padding/2,
-                                     textWidth + padding * 2, fm.getHeight() + padding,
-                                     (int)(8 * previewScale), (int)(8 * previewScale));
+                    vg.fillRoundRect(x - padding, currentY - fm.getAscent() - padding/2,
+                                     textWidth + padding * 2, fm.getHeight() + padding, 8, 8);
                 }
 
-                // === DRAW PER-LINE BORDER ===
+                // Draw border
                 if (style.borderEnabled) {
-                    drawLineBorder(g2d, style, x, currentY, textWidth, fm, previewScale);
+                    drawLineBorderFullRes(vg, style, x, currentY, textWidth, fm);
                 }
 
                 // Apply highlight effects
@@ -3270,48 +3266,45 @@ public class arabicSync {
                     switch (config.paraModeHighlightMode) {
                         case 1: // Scale up
                             Font scaledFont = font.deriveFont(font.getSize() * 1.2f);
-                            g2d.setFont(scaledFont);
-                            fm = g2d.getFontMetrics();
-                            textWidth = getParaModePreviewTextWidth(lineText, fm, scaledWordSpacing);
-                            x = (previewScaledWidth - textWidth) / 2;
+                            vg.setFont(scaledFont);
+                            fm = vg.getFontMetrics();
+                            textWidth = getParaModePreviewTextWidth(lineText, fm, style.wordSpacing);
+                            x = (videoWidth - textWidth) / 2;
                             break;
                         case 2: // Glow pulse
-                            g2d.setColor(new Color(style.highlightColor.getRed(),
+                            vg.setColor(new Color(style.highlightColor.getRed(),
                                                   style.highlightColor.getGreen(),
                                                   style.highlightColor.getBlue(), 100));
-                            int glowSize = (int)(8 * previewScale);
-                            for (int glow = glowSize; glow > 0; glow -= 2) {
-                                drawParaModePreviewTextRTL(g2d, lineText, x - glow, currentY, scaledWordSpacing);
-                                drawParaModePreviewTextRTL(g2d, lineText, x + glow, currentY, scaledWordSpacing);
-                                drawParaModePreviewTextRTL(g2d, lineText, x, currentY - glow, scaledWordSpacing);
-                                drawParaModePreviewTextRTL(g2d, lineText, x, currentY + glow, scaledWordSpacing);
+                            for (int glow = 8; glow > 0; glow -= 2) {
+                                drawParaModePreviewTextRTL(vg, lineText, x - glow, currentY, style.wordSpacing);
+                                drawParaModePreviewTextRTL(vg, lineText, x + glow, currentY, style.wordSpacing);
+                                drawParaModePreviewTextRTL(vg, lineText, x, currentY - glow, style.wordSpacing);
+                                drawParaModePreviewTextRTL(vg, lineText, x, currentY + glow, style.wordSpacing);
                             }
                             break;
                         case 3: // Underline
-                            g2d.setColor(textColor);
-                            g2d.setStroke(new BasicStroke((float)(3 * previewScale)));
-                            g2d.drawLine(x, currentY + (int)(5 * previewScale), x + textWidth, currentY + (int)(5 * previewScale));
-                            g2d.setStroke(new BasicStroke(1));
+                            vg.setColor(textColor);
+                            vg.setStroke(new BasicStroke(3));
+                            vg.drawLine(x, currentY + 5, x + textWidth, currentY + 5);
+                            vg.setStroke(new BasicStroke(1));
                             break;
                     }
                 }
 
                 // Draw shadow
                 if (style.shadowEnabled) {
-                    int shadowOff = (int)(style.shadowOffset * previewScale);
-                    g2d.setColor(new Color(style.shadowColor.getRed(), style.shadowColor.getGreen(),
+                    vg.setColor(new Color(style.shadowColor.getRed(), style.shadowColor.getGreen(),
                                           style.shadowColor.getBlue(), 180));
-                    drawParaModePreviewTextRTL(g2d, lineText, x + shadowOff, currentY + shadowOff, scaledWordSpacing);
+                    drawParaModePreviewTextRTL(vg, lineText, x + style.shadowOffset, currentY + style.shadowOffset, style.wordSpacing);
                 }
 
                 // Draw outline
                 if (style.outlineEnabled) {
-                    int outlineT = Math.max(1, (int)(style.outlineThickness * previewScale));
-                    g2d.setColor(style.outlineColor);
-                    for (int ox = -outlineT; ox <= outlineT; ox++) {
-                        for (int oy = -outlineT; oy <= outlineT; oy++) {
+                    vg.setColor(style.outlineColor);
+                    for (int ox = -style.outlineThickness; ox <= style.outlineThickness; ox++) {
+                        for (int oy = -style.outlineThickness; oy <= style.outlineThickness; oy++) {
                             if (ox != 0 || oy != 0) {
-                                drawParaModePreviewTextRTL(g2d, lineText, x + ox, currentY + oy, scaledWordSpacing);
+                                drawParaModePreviewTextRTL(vg, lineText, x + ox, currentY + oy, style.wordSpacing);
                             }
                         }
                     }
@@ -3319,41 +3312,206 @@ public class arabicSync {
 
                 // Draw glow
                 if (style.glowEnabled) {
-                    g2d.setColor(new Color(style.glowColor.getRed(), style.glowColor.getGreen(),
+                    vg.setColor(new Color(style.glowColor.getRed(), style.glowColor.getGreen(),
                                           style.glowColor.getBlue(), 100));
-                    int glowSz = (int)(5 * previewScale);
-                    for (int glow = glowSz; glow > 0; glow--) {
-                        drawParaModePreviewTextRTL(g2d, lineText, x - glow, currentY, scaledWordSpacing);
-                        drawParaModePreviewTextRTL(g2d, lineText, x + glow, currentY, scaledWordSpacing);
-                        drawParaModePreviewTextRTL(g2d, lineText, x, currentY - glow, scaledWordSpacing);
-                        drawParaModePreviewTextRTL(g2d, lineText, x, currentY + glow, scaledWordSpacing);
+                    for (int glow = 5; glow > 0; glow--) {
+                        drawParaModePreviewTextRTL(vg, lineText, x - glow, currentY, style.wordSpacing);
+                        drawParaModePreviewTextRTL(vg, lineText, x + glow, currentY, style.wordSpacing);
+                        drawParaModePreviewTextRTL(vg, lineText, x, currentY - glow, style.wordSpacing);
+                        drawParaModePreviewTextRTL(vg, lineText, x, currentY + glow, style.wordSpacing);
                     }
                 }
 
-                // Draw main text (RTL)
-                g2d.setColor(textColor);
-                drawParaModePreviewTextRTL(g2d, lineText, x, currentY, scaledWordSpacing);
+                // Draw main text
+                vg.setColor(textColor);
+                drawParaModePreviewTextRTL(vg, lineText, x, currentY, style.wordSpacing);
 
-                // Draw underline decoration if enabled
+                // Draw underline
                 if (style.underline) {
-                    g2d.setStroke(new BasicStroke((float)(2 * previewScale)));
-                    g2d.drawLine(x, currentY + (int)(3 * previewScale), x + textWidth, currentY + (int)(3 * previewScale));
+                    vg.setStroke(new BasicStroke(2));
+                    vg.drawLine(x, currentY + 3, x + textWidth, currentY + 3);
+                    vg.setStroke(new BasicStroke(1));
+                }
+
+                currentY += fm.getHeight() + config.paramodeGlobalLineSpacing;
+            }
+
+            // Draw text overlays at full resolution (same as video)
+            drawTextOverlaysFullRes(vg, videoWidth, videoHeight);
+
+            vg.dispose();
+
+            // === SCALE DOWN AND DRAW TO PREVIEW PANEL ===
+            g2d.drawImage(fullResImage, previewOffsetX, previewOffsetY,
+                          previewScaledWidth, previewScaledHeight, null);
+
+            // Draw active line indicator on top
+            g2d.setColor(new Color(255, 255, 255, 150));
+            g2d.setFont(new Font("SansSerif", Font.PLAIN, 10));
+            g2d.drawString("Line: " + (simulatedActiveLine + 1) + "/" + paraModeCurrentLines.size(),
+                          previewOffsetX + 5, previewOffsetY + previewScaledHeight - 5);
+        }
+
+        // Load font for preview (matching video generation)
+        private Font loadPreviewFont(String fontFamily, int style, int size) {
+            // Try to load from config.fontPath2 (same as video)
+            if (config.fontPath2 != null && !config.fontPath2.isEmpty()) {
+                try {
+                    File fontFile = new File(config.fontPath2);
+                    if (fontFile.exists()) {
+                        Font customFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
+                        return customFont.deriveFont(style, (float) size);
+                    }
+                } catch (Exception e) {
+                    // Fall back
+                }
+            }
+            // Use font family or default
+            String family = (fontFamily != null && !fontFamily.isEmpty()) ? fontFamily : "SansSerif";
+            return new Font(family, style, size);
+        }
+
+        // Draw video border at full resolution
+        private void drawVideoBorderFullRes(Graphics2D g2d, int width, int height) {
+            int thickness = config.paraModeVideoBorderThickness;
+            int padding = config.paraModeVideoBorderPadding;
+            Color color1 = config.paraModeVideoBorderColor;
+            Color color2 = config.paraModeVideoBorderColor2;
+
+            g2d.setStroke(new BasicStroke(thickness));
+
+            switch (config.paraModeVideoBorderStyle) {
+                case 0: // Solid
+                    g2d.setColor(color1);
+                    g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                    break;
+                case 1: // Double
+                    g2d.setColor(color1);
+                    g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                    g2d.drawRect(padding + thickness + 3, padding + thickness + 3,
+                                width - (padding + thickness + 3) * 2, height - (padding + thickness + 3) * 2);
+                    break;
+                case 2: // Dashed
+                    g2d.setColor(color1);
+                    g2d.setStroke(new BasicStroke(thickness, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
+                                                 10.0f, new float[]{10.0f, 5.0f}, 0.0f));
+                    g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                    break;
+                case 3: // Gradient
+                    java.awt.GradientPaint gradient = new java.awt.GradientPaint(
+                        0, 0, color1, width, height, color2);
+                    g2d.setPaint(gradient);
+                    g2d.setStroke(new BasicStroke(thickness));
+                    g2d.drawRect(padding, padding, width - padding * 2, height - padding * 2);
+                    break;
+                case 4: // Rounded
+                    g2d.setColor(color1);
+                    int radius = config.paraModeVideoBorderRadius;
+                    g2d.drawRoundRect(padding, padding, width - padding * 2, height - padding * 2, radius, radius);
+                    break;
+            }
+            g2d.setStroke(new BasicStroke(1));
+        }
+
+        // Draw line border at full resolution
+        private void drawLineBorderFullRes(Graphics2D g2d, ParaLineStyle style, int x, int y, int textWidth, FontMetrics fm) {
+            int thickness = style.borderThickness;
+            int padding = style.borderPadding;
+            int radius = style.borderRadius;
+
+            g2d.setStroke(new BasicStroke(thickness));
+            g2d.setColor(style.borderColor);
+
+            int bx = x - padding;
+            int by = y - fm.getAscent() - padding;
+            int bw = textWidth + padding * 2;
+            int bh = fm.getHeight() + padding * 2;
+
+            if (radius > 0) {
+                g2d.drawRoundRect(bx, by, bw, bh, radius, radius);
+            } else {
+                g2d.drawRect(bx, by, bw, bh);
+            }
+            g2d.setStroke(new BasicStroke(1));
+        }
+
+        // Draw text overlays at full resolution (matching video output exactly)
+        private void drawTextOverlaysFullRes(Graphics2D g2d, int width, int height) {
+            if (config.textOverlays == null || config.textOverlays.isEmpty()) {
+                return;
+            }
+
+            for (int idx = 0; idx < config.textOverlays.size(); idx++) {
+                TextOverlay overlay = config.textOverlays.get(idx);
+                if (overlay.text == null || overlay.text.isEmpty()) {
+                    continue;
+                }
+
+                int fontStyle = Font.PLAIN;
+                if (overlay.bold) fontStyle |= Font.BOLD;
+                if (overlay.italic) fontStyle |= Font.ITALIC;
+
+                Font overlayFont = loadOverlayFont(overlay, overlay.fontSize, fontStyle);
+                g2d.setFont(overlayFont);
+                FontMetrics fm = g2d.getFontMetrics();
+
+                int textWidth = fm.stringWidth(overlay.text);
+                int textHeight = fm.getHeight();
+                int centerX = (int) (width * overlay.xPercent / 100.0);
+                int centerY = (int) (height * overlay.yPercent / 100.0);
+
+                // Apply bounds checking (same as video output)
+                int margin = 20;
+                int halfWidth = textWidth / 2;
+                int halfHeight = textHeight / 2;
+                centerX = Math.max(halfWidth + margin, Math.min(width - halfWidth - margin, centerX));
+                centerY = Math.max(halfHeight + margin, Math.min(height - halfHeight - margin, centerY));
+
+                int alpha = (int) (255 * overlay.opacity / 100.0);
+
+                AffineTransform originalTransform = g2d.getTransform();
+
+                if (overlay.tiltAngle != 0) {
+                    g2d.rotate(Math.toRadians(overlay.tiltAngle), centerX, centerY);
+                }
+
+                int x = centerX - textWidth / 2;
+                int y = centerY;
+
+                // Draw shadow
+                if (overlay.shadowEnabled) {
+                    g2d.setColor(new Color(0, 0, 0, (int)(alpha * 0.7)));
+                    g2d.drawString(overlay.text, x + overlay.shadowOffset, y + overlay.shadowOffset);
+                }
+
+                // Draw outline
+                if (overlay.outlineEnabled) {
+                    g2d.setColor(new Color(overlay.outlineColor.getRed(), overlay.outlineColor.getGreen(),
+                                          overlay.outlineColor.getBlue(), alpha));
+                    for (int ox = -overlay.outlineThickness; ox <= overlay.outlineThickness; ox++) {
+                        for (int oy = -overlay.outlineThickness; oy <= overlay.outlineThickness; oy++) {
+                            if (ox != 0 || oy != 0) {
+                                g2d.drawString(overlay.text, x + ox, y + oy);
+                            }
+                        }
+                    }
+                }
+
+                // Draw main text
+                g2d.setColor(new Color(overlay.color.getRed(), overlay.color.getGreen(),
+                                      overlay.color.getBlue(), alpha));
+                g2d.drawString(overlay.text, x, y);
+
+                // Draw selection indicator
+                if (idx == draggingOverlayIndex) {
+                    g2d.setColor(new Color(255, 255, 0, 200));
+                    g2d.setStroke(new BasicStroke(3));
+                    g2d.drawRect(x - 5, y - fm.getAscent() - 5, textWidth + 10, fm.getHeight() + 10);
                     g2d.setStroke(new BasicStroke(1));
                 }
 
-                // Move to next line
-                currentY += fm.getHeight() + (int)(config.paramodeGlobalLineSpacing * previewScale);
+                g2d.setTransform(originalTransform);
             }
-
-            // === DRAW TEXT OVERLAYS IN PREVIEW ===
-            drawTextOverlaysPreview(g2d, previewScaledWidth, previewScaledHeight, previewScale);
-
-            // Draw active line indicator at bottom of video area
-            g2d.setColor(new Color(255, 255, 255, 100));
-            g2d.setFont(new Font("SansSerif", Font.PLAIN, 10));
-            g2d.drawString("Active Line: " + (simulatedActiveLine + 1) + " of " + paraModeCurrentLines.size(), 5, previewScaledHeight - 5);
-
-            // Note: clip and transform are restored by the calling paintComponent method
         }
 
         // Helper method to draw global video border in preview
