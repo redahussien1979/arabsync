@@ -2455,11 +2455,44 @@ public class arabicSync {
                         int relX = e.getX() - previewOffsetX;
                         int relY = e.getY() - previewOffsetY;
 
-                        // Calculate percentage relative to actual video area
-                        int newXPercent = (int) (relX * 100.0 / previewScaledWidth);
-                        int newYPercent = (int) (relY * 100.0 / previewScaledHeight);
+                        // Convert to video coordinates for proper positioning
+                        int videoX = (int)(relX / previewScale);
+                        int videoY = (int)(relY / previewScale);
 
-                        // Clamp to valid range
+                        // Get text dimensions for bounds calculation (same as rendering)
+                        int fontStyle = Font.PLAIN;
+                        if (overlay.bold) fontStyle |= Font.BOLD;
+                        if (overlay.italic) fontStyle |= Font.ITALIC;
+
+                        Font videoFont = loadOverlayFont(overlay, overlay.fontSize, fontStyle);
+                        BufferedImage tempImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+                        Graphics2D tempG = tempImg.createGraphics();
+                        tempG.setFont(videoFont);
+                        FontMetrics videoFm = tempG.getFontMetrics();
+                        int videoTextWidth = videoFm.stringWidth(overlay.text != null ? overlay.text : "");
+                        int videoTextHeight = videoFm.getHeight();
+                        tempG.dispose();
+
+                        // Apply bounds checking in video coordinates to prevent text going off-screen
+                        int videoMargin = 20;
+                        int halfWidth = videoTextWidth / 2;
+                        int halfHeight = videoTextHeight / 2;
+
+                        // Calculate the valid range for center position
+                        int minX = halfWidth + videoMargin;
+                        int maxX = config.videoWidth - halfWidth - videoMargin;
+                        int minY = halfHeight + videoMargin;
+                        int maxY = config.videoHeight - halfHeight - videoMargin;
+
+                        // Clamp video coordinates to valid range
+                        videoX = Math.max(minX, Math.min(maxX, videoX));
+                        videoY = Math.max(minY, Math.min(maxY, videoY));
+
+                        // Convert back to percentage
+                        int newXPercent = (int)(videoX * 100.0 / config.videoWidth);
+                        int newYPercent = (int)(videoY * 100.0 / config.videoHeight);
+
+                        // Store clamped percentage (ensures stored value matches visual position)
                         overlay.xPercent = Math.max(0, Math.min(100, newXPercent));
                         overlay.yPercent = Math.max(0, Math.min(100, newYPercent));
 
@@ -3392,24 +3425,51 @@ public class arabicSync {
                 return -1;
             }
 
+            // Get video dimensions for consistent calculations
+            int videoWidth = config.videoWidth;
+            int videoHeight = config.videoHeight;
+
             // Check overlays in reverse order (top-most first)
             for (int i = config.textOverlays.size() - 1; i >= 0; i--) {
                 TextOverlay overlay = config.textOverlays.get(i);
                 if (overlay.text == null || overlay.text.isEmpty()) continue;
 
-                // Calculate overlay position in preview video-area coordinates
-                int x = (int)(previewScaledWidth * overlay.xPercent / 100.0);
-                int y = (int)(previewScaledHeight * overlay.yPercent / 100.0);
+                // Calculate in VIDEO coordinates first (same as rendering)
+                int fontStyle = Font.PLAIN;
+                if (overlay.bold) fontStyle |= Font.BOLD;
+                if (overlay.italic) fontStyle |= Font.ITALIC;
 
-                // Estimate text bounds (approximate)
-                int fontSize = Math.max(8, (int)(overlay.fontSize * previewScale));
-                int textWidth = overlay.text.length() * fontSize / 2; // Rough estimate
-                int textHeight = fontSize;
+                // Get font metrics at video resolution for accurate text width
+                Font videoFont = loadOverlayFont(overlay, overlay.fontSize, fontStyle);
+                BufferedImage tempImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D tempG = tempImg.createGraphics();
+                tempG.setFont(videoFont);
+                FontMetrics videoFm = tempG.getFontMetrics();
+                int videoTextWidth = videoFm.stringWidth(overlay.text);
+                int videoTextHeight = videoFm.getHeight();
+                tempG.dispose();
+
+                // Calculate center position in VIDEO coordinates
+                int videoCenterX = (int)(videoWidth * overlay.xPercent / 100.0);
+                int videoCenterY = (int)(videoHeight * overlay.yPercent / 100.0);
+
+                // Apply same bounds clamping as rendering
+                int videoMargin = 20;
+                int halfWidth = videoTextWidth / 2;
+                int halfHeight = videoTextHeight / 2;
+                videoCenterX = Math.max(halfWidth + videoMargin, Math.min(videoWidth - halfWidth - videoMargin, videoCenterX));
+                videoCenterY = Math.max(halfHeight + videoMargin, Math.min(videoHeight - halfHeight - videoMargin, videoCenterY));
+
+                // Convert to preview coordinates
+                int centerX = (int)(videoCenterX * previewScale);
+                int centerY = (int)(videoCenterY * previewScale);
+                int scaledTextWidth = (int)(videoTextWidth * previewScale);
+                int scaledTextHeight = (int)(videoTextHeight * previewScale);
 
                 // Check if point is within text bounds (with some padding)
                 int padding = 15;
-                if (relX >= x - textWidth/2 - padding && relX <= x + textWidth/2 + padding &&
-                    relY >= y - textHeight - padding && relY <= y + padding) {
+                if (relX >= centerX - scaledTextWidth/2 - padding && relX <= centerX + scaledTextWidth/2 + padding &&
+                    relY >= centerY - scaledTextHeight - padding && relY <= centerY + padding) {
                     return i;
                 }
             }
@@ -3422,36 +3482,66 @@ public class arabicSync {
                 return;
             }
 
+            // CRITICAL: Calculate everything in VIDEO coordinates first, then scale to preview
+            // This ensures preview matches video output EXACTLY
+            int videoWidth = config.videoWidth;
+            int videoHeight = config.videoHeight;
+
             for (int idx = 0; idx < config.textOverlays.size(); idx++) {
                 TextOverlay overlay = config.textOverlays.get(idx);
                 if (overlay.text == null || overlay.text.isEmpty()) {
                     continue;
                 }
 
-                // Create font (from file if specified)
+                // Create font at VIDEO size for accurate measurement
                 int fontStyle = Font.PLAIN;
                 if (overlay.bold) fontStyle |= Font.BOLD;
                 if (overlay.italic) fontStyle |= Font.ITALIC;
 
+                // Use actual video font size for calculations (not scaled)
+                Font videoFont = loadOverlayFont(overlay, overlay.fontSize, fontStyle);
+
+                // Create a temporary graphics context at video resolution for accurate font metrics
+                BufferedImage tempImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D tempG = tempImg.createGraphics();
+                tempG.setFont(videoFont);
+                FontMetrics videoFm = tempG.getFontMetrics();
+
+                // Calculate text dimensions in VIDEO coordinates
+                int videoTextWidth = videoFm.stringWidth(overlay.text);
+                int videoTextHeight = videoFm.getHeight();
+                int videoAscent = videoFm.getAscent();
+                tempG.dispose();
+
+                // Calculate center position in VIDEO coordinates
+                int videoCenterX = (int)(videoWidth * overlay.xPercent / 100.0);
+                int videoCenterY = (int)(videoHeight * overlay.yPercent / 100.0);
+
+                // Apply bounds checking in VIDEO coordinates (same as video output)
+                int videoMargin = 20;
+                int halfWidth = videoTextWidth / 2;
+                int halfHeight = videoTextHeight / 2;
+
+                // Clamp center position in VIDEO coordinates
+                videoCenterX = Math.max(halfWidth + videoMargin, Math.min(videoWidth - halfWidth - videoMargin, videoCenterX));
+                videoCenterY = Math.max(halfHeight + videoMargin, Math.min(videoHeight - halfHeight - videoMargin, videoCenterY));
+
+                // NOW convert to preview coordinates
+                int centerX = (int)(videoCenterX * scale);
+                int centerY = (int)(videoCenterY * scale);
+                int scaledTextWidth = (int)(videoTextWidth * scale);
+                int scaledTextHeight = (int)(videoTextHeight * scale);
+                int scaledAscent = (int)(videoAscent * scale);
+
+                // Create scaled font for actual drawing
                 int scaledFontSize = Math.max(8, (int)(overlay.fontSize * scale));
-                Font overlayFont = loadOverlayFont(overlay, scaledFontSize, fontStyle);
-                g2d.setFont(overlayFont);
+                Font scaledFont = loadOverlayFont(overlay, scaledFontSize, fontStyle);
+                g2d.setFont(scaledFont);
                 FontMetrics fm = g2d.getFontMetrics();
 
-                // Calculate position (center point for rotation)
-                int textWidth = fm.stringWidth(overlay.text);
-                int textHeight = fm.getHeight();
-                int centerX = (int)(width * overlay.xPercent / 100.0);
-                int centerY = (int)(height * overlay.yPercent / 100.0);
-
-                // Apply bounds checking - keep text within frame with scaled margin
-                int margin = (int)(20 * scale);
-                int halfWidth = textWidth / 2;
-                int halfHeight = textHeight / 2;
-
-                // Clamp center position to keep text fully visible
-                centerX = Math.max(halfWidth + margin, Math.min(width - halfWidth - margin, centerX));
-                centerY = Math.max(halfHeight + margin, Math.min(height - halfHeight - margin, centerY));
+                // Use actual scaled font metrics for drawing
+                int actualTextWidth = fm.stringWidth(overlay.text);
+                int actualAscent = fm.getAscent();
 
                 int alpha = (int)(255 * overlay.opacity / 100.0);
 
@@ -3464,7 +3554,7 @@ public class arabicSync {
                 }
 
                 // Adjust drawing position (text is drawn from left baseline)
-                int x = centerX - textWidth / 2;
+                int x = centerX - actualTextWidth / 2;
                 int y = centerY;
 
                 // Draw shadow
@@ -3496,7 +3586,7 @@ public class arabicSync {
                 // Draw selection indicator if this is the dragging overlay
                 if (idx == draggingOverlayIndex) {
                     g2d.setColor(new Color(255, 255, 0, 150));
-                    g2d.drawRect(x - 3, y - fm.getAscent() - 3, textWidth + 6, fm.getHeight() + 6);
+                    g2d.drawRect(x - 3, y - actualAscent - 3, actualTextWidth + 6, fm.getHeight() + 6);
                 }
 
                 // Restore original transform
