@@ -2416,11 +2416,24 @@ public class arabicSync {
             paraModePreviewPanel = new JPanel() {
                 @Override
                 protected void paintComponent(Graphics g) {
+                    // Ensure complete repaint by clearing entire component
                     super.paintComponent(g);
-                    drawParaModePreview((Graphics2D) g);
+                    Graphics2D g2d = (Graphics2D) g;
+                    // Save original clip and transform
+                    java.awt.Shape originalClip = g2d.getClip();
+                    AffineTransform originalTransform = g2d.getTransform();
+                    try {
+                        drawParaModePreview(g2d);
+                    } finally {
+                        // Restore original clip and transform to prevent rendering artifacts
+                        g2d.setTransform(originalTransform);
+                        g2d.setClip(originalClip);
+                    }
                 }
             };
             paraModePreviewPanel.setBackground(Color.BLACK);
+            paraModePreviewPanel.setOpaque(true);
+            paraModePreviewPanel.setDoubleBuffered(true);
             paraModePreviewPanel.setPreferredSize(new Dimension(270, 480)); // YouTube Short aspect ratio (9:16)
 
             // Add mouse listeners for dragging text overlays
@@ -3340,9 +3353,7 @@ public class arabicSync {
             g2d.setFont(new Font("SansSerif", Font.PLAIN, 10));
             g2d.drawString("Active Line: " + (simulatedActiveLine + 1) + " of " + paraModeCurrentLines.size(), 5, previewScaledHeight - 5);
 
-            // Reset transform and clip (restore for any subsequent drawing)
-            g2d.translate(-previewOffsetX, -previewOffsetY);
-            g2d.setClip(null);
+            // Note: clip and transform are restored by the calling paintComponent method
         }
 
         // Helper method to draw global video border in preview
@@ -3594,8 +3605,9 @@ public class arabicSync {
             }
         }
 
-        // Load font for overlay (from file or system)
+        // Load font for overlay (from file or system) - MUST match loadOverlayFontForFrame
         private Font loadOverlayFont(TextOverlay overlay, int size, int style) {
+            // First try custom font file for this overlay
             if (overlay.fontFilePath != null && !overlay.fontFilePath.isEmpty()) {
                 try {
                     File fontFile = new File(overlay.fontFilePath);
@@ -3604,13 +3616,31 @@ public class arabicSync {
                         return customFont.deriveFont(style, (float) size);
                     }
                 } catch (Exception e) {
+                    // Fall back to next option
+                }
+            }
+
+            // Try overlay's font family
+            if (overlay.fontFamily != null && !overlay.fontFamily.isEmpty()) {
+                return new Font(overlay.fontFamily, style, size);
+            }
+
+            // Use the SAME fallback font as video generation (config.fontPath2)
+            // This ensures preview matches video output exactly
+            if (config.fontPath2 != null && !config.fontPath2.isEmpty()) {
+                try {
+                    File fontFile = new File(config.fontPath2);
+                    if (fontFile.exists()) {
+                        Font customFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
+                        return customFont.deriveFont(style, (float) size);
+                    }
+                } catch (Exception e) {
                     // Fall back to system font
                 }
             }
-            // Default font
-            String family = (overlay.fontFamily != null && !overlay.fontFamily.isEmpty())
-                           ? overlay.fontFamily : "SansSerif";
-            return new Font(family, style, size);
+
+            // Final fallback to system font
+            return new Font("SansSerif", style, size);
         }
 
         // Helper method to draw per-line border in preview
@@ -14918,8 +14948,9 @@ public class arabicSync {
         }
     }
 
-    // Load font for overlay in frame generation (from file or base font)
+    // Load font for overlay in frame generation (from file or base font) - MUST match loadOverlayFont
     private Font loadOverlayFontForFrame(TextOverlay overlay, int size, int style, Font baseFont) {
+        // First try custom font file for this overlay
         if (overlay.fontFilePath != null && !overlay.fontFilePath.isEmpty()) {
             try {
                 File fontFile = new File(overlay.fontFilePath);
@@ -14928,10 +14959,16 @@ public class arabicSync {
                     return customFont.deriveFont(style, (float) size);
                 }
             } catch (Exception e) {
-                // Fall back to base font
+                // Fall back to next option
             }
         }
-        // Use base font if no custom font
+
+        // Try overlay's font family (for consistency with preview)
+        if (overlay.fontFamily != null && !overlay.fontFamily.isEmpty()) {
+            return new Font(overlay.fontFamily, style, size);
+        }
+
+        // Use base font (loaded from config.fontPath2) as final fallback
         return baseFont.deriveFont(style, (float) size);
     }
 
