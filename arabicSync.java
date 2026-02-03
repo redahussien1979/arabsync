@@ -1800,7 +1800,7 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 2;
             globalPanel.add(new JLabel("Line Spacing (px):"), gbc);
             gbc.gridx = 1;
-            JSpinner globalLineSpacingSpinner = new JSpinner(new SpinnerNumberModel(config.paramodeGlobalLineSpacing, 5, 100, 5));
+            JSpinner globalLineSpacingSpinner = new JSpinner(new SpinnerNumberModel(config.paramodeGlobalLineSpacing, -200, 200, 5));
             globalLineSpacingSpinner.addChangeListener(e -> {
                 config.paramodeGlobalLineSpacing = (Integer) globalLineSpacingSpinner.getValue();
                 updateParaModePreview();
@@ -2250,7 +2250,7 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 7;
             lineStylePanel.add(new JLabel("Space Before (px):"), gbc);
             gbc.gridx = 1;
-            paraModeLineSpacingSpinner = new JSpinner(new SpinnerNumberModel(20, 0, 200, 5));
+            paraModeLineSpacingSpinner = new JSpinner(new SpinnerNumberModel(20, -200, 200, 5));
             paraModeLineSpacingSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeLineSpacingSpinner, gbc);
 
@@ -3354,7 +3354,23 @@ public class arabicSync {
 
         // Load font for preview (matching video generation)
         private Font loadPreviewFont(String fontFamily, int style, int size) {
-            // Try to load from config.fontPath2 (same as video)
+            // FIRST: Try the per-line font family if specified
+            if (fontFamily != null && !fontFamily.isEmpty()) {
+                // Check if it's a file path (custom font)
+                File fontFile = new File(fontFamily);
+                if (fontFile.exists() && (fontFamily.endsWith(".ttf") || fontFamily.endsWith(".otf") || fontFamily.endsWith(".TTF") || fontFamily.endsWith(".OTF"))) {
+                    try {
+                        Font customFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
+                        return customFont.deriveFont(style, (float) size);
+                    } catch (Exception e) {
+                        // Fall through
+                    }
+                }
+                // Try as system font family name
+                return new Font(fontFamily, style, size);
+            }
+
+            // SECOND: Fall back to config.fontPath2 (default Arabic font)
             if (config.fontPath2 != null && !config.fontPath2.isEmpty()) {
                 try {
                     File fontFile = new File(config.fontPath2);
@@ -3366,9 +3382,9 @@ public class arabicSync {
                     // Fall back
                 }
             }
-            // Use font family or default
-            String family = (fontFamily != null && !fontFamily.isEmpty()) ? fontFamily : "SansSerif";
-            return new Font(family, style, size);
+
+            // FINAL: Use SansSerif as last resort
+            return new Font("SansSerif", style, size);
         }
 
         // Draw video border at full resolution
