@@ -3699,14 +3699,21 @@ public class arabicSync {
 
                 int textWidth = getParaModePreviewTextWidth(lineText, fm, style.wordSpacing);
 
+                // Calculate X position - horizontalOffset is absolute from edge, not relative to text
+                // This ensures same offset value = same position for all lines regardless of text width
                 int x;
                 int margin = 30;
                 switch (style.alignment) {
-                    case 0: x = videoWidth - textWidth - margin; break;
-                    case 2: x = margin; break;
-                    default: x = (videoWidth - textWidth) / 2; break;
+                    case 0: // Right side (RTL left) - offset from right edge, text right-aligned to that point
+                        x = videoWidth - margin - style.horizontalOffset - textWidth;
+                        break;
+                    case 2: // Left side (RTL right) - offset from left edge, text left-aligned to that point
+                        x = margin + style.horizontalOffset;
+                        break;
+                    default: // Center - offset shifts center point, text centered on that point
+                        x = (videoWidth / 2) + style.horizontalOffset - (textWidth / 2);
+                        break;
                 }
-                x += style.horizontalOffset;
 
                 Color textColor = isActive ? style.highlightColor : style.color;
 
@@ -15371,16 +15378,21 @@ public class arabicSync {
             // Calculate text width with word spacing
             int textWidth = getParaModeTextWidth(lineText, fm, style.wordSpacing);
 
-            // Calculate X based on alignment (RTL aware - Arabic text)
+            // Calculate X position - horizontalOffset is absolute from edge, not relative to text
+            // This ensures same offset value = same position for all lines regardless of text width
             int x;
+            int margin = 30;
             switch (style.alignment) {
-                case 0: x = width - textWidth - 30; break; // Left in RTL = right side of screen
-                case 2: x = 30; break; // Right in RTL = left side of screen
-                default: x = (width - textWidth) / 2; break; // Center
+                case 0: // Right side (RTL left) - offset from right edge, text right-aligned to that point
+                    x = width - margin - style.horizontalOffset - textWidth;
+                    break;
+                case 2: // Left side (RTL right) - offset from left edge, text left-aligned to that point
+                    x = margin + style.horizontalOffset;
+                    break;
+                default: // Center - offset shifts center point, text centered on that point
+                    x = (width / 2) + style.horizontalOffset - (textWidth / 2);
+                    break;
             }
-
-            // Apply horizontal offset
-            x += style.horizontalOffset;
 
             // Use highlight color if active
             Color textColor = isActive ? style.highlightColor : style.color;
