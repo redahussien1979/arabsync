@@ -1896,6 +1896,7 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 8;
             globalPanel.add(new JLabel("Background Image:"), gbc);
             gbc.gridx = 1;
+            JPanel bgImagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
             JButton bgImageBtn = new JButton("Select...");
             bgImageBtn.addActionListener(e -> {
                 JFileChooser fc = new JFileChooser();
@@ -1905,7 +1906,14 @@ public class arabicSync {
                     updateParaModePreview();
                 }
             });
-            globalPanel.add(bgImageBtn, gbc);
+            bgImagePanel.add(bgImageBtn);
+            JButton bgImageClearBtn = new JButton("Clear");
+            bgImageClearBtn.addActionListener(e -> {
+                config.paraModeBackgroundImage = "";
+                updateParaModePreview();
+            });
+            bgImagePanel.add(bgImageClearBtn);
+            globalPanel.add(bgImagePanel, gbc);
 
             // === VIDEO BORDER SETTINGS (collapsible section) ===
             gbc.gridx = 0; gbc.gridy = 9; gbc.gridwidth = 2;
@@ -2084,8 +2092,28 @@ public class arabicSync {
             });
             globalPanel.add(removeOverlayBtn, gbc);
 
+            // Add Multiple overlays button
+            gbc.gridy = 21; gbc.gridx = 0;
+            JButton addMultipleOverlaysBtn = new JButton("Add Multiple");
+            addMultipleOverlaysBtn.addActionListener(e -> {
+                showAddMultipleOverlaysDialog(refreshOverlayList);
+            });
+            globalPanel.add(addMultipleOverlaysBtn, gbc);
+
+            // Edit All overlays button (bulk formatting)
+            gbc.gridx = 1;
+            JButton editAllOverlaysBtn = new JButton("Edit All");
+            editAllOverlaysBtn.addActionListener(e -> {
+                if (config.textOverlays.isEmpty()) {
+                    JOptionPane.showMessageDialog(mainPanel, "No text overlays to edit.", "Info", JOptionPane.INFORMATION_MESSAGE);
+                    return;
+                }
+                showBulkEditOverlaysDialog(refreshOverlayList);
+            });
+            globalPanel.add(editAllOverlaysBtn, gbc);
+
             // Clear all overlays button
-            gbc.gridy = 21; gbc.gridx = 0; gbc.gridwidth = 2;
+            gbc.gridy = 22; gbc.gridx = 0; gbc.gridwidth = 2;
             JButton clearOverlaysBtn = new JButton("Clear All");
             clearOverlaysBtn.addActionListener(e -> {
                 config.textOverlays.clear();
@@ -2397,9 +2425,15 @@ public class arabicSync {
 
             // Apply to All Lines button
             gbc.gridx = 0; gbc.gridy = 22; gbc.gridwidth = 2;
-            JButton applyToAllBtn = new JButton("Apply This Style to All Lines");
+            JButton applyToAllBtn = new JButton("Apply Style to All Lines");
             applyToAllBtn.addActionListener(e -> applyStyleToAllLines());
             lineStylePanel.add(applyToAllBtn, gbc);
+
+            // Apply to Selected Lines button (opens dialog to choose which lines)
+            gbc.gridx = 0; gbc.gridy = 23; gbc.gridwidth = 2;
+            JButton applyToSelectedBtn = new JButton("Apply Style to Selected Lines...");
+            applyToSelectedBtn.addActionListener(e -> showApplyStyleToLinesDialog());
+            lineStylePanel.add(applyToSelectedBtn, gbc);
 
             // Wrap line style panel in scroll pane
             JScrollPane lineStyleScrollPane = new JScrollPane(lineStylePanel);
@@ -2776,6 +2810,128 @@ public class arabicSync {
             JOptionPane.showMessageDialog(null, "Style applied to all lines!", "Success", JOptionPane.INFORMATION_MESSAGE);
         }
 
+        // Show dialog to select which lines to apply the current style to
+        private void showApplyStyleToLinesDialog() {
+            if (paraModeSelectedLineIndex < 0 || paraModeSelectedLineIndex >= config.paraLineStyles.size()) {
+                JOptionPane.showMessageDialog(null, "Please select a source line first!", "No Line Selected", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            if (config.paraLineStyles.size() < 2) {
+                JOptionPane.showMessageDialog(null, "Need at least 2 lines to apply style.", "Info", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+
+            JDialog dialog = new JDialog((Frame) null, "Apply Style to Lines", true);
+            dialog.setLayout(new BorderLayout(10, 10));
+
+            JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+            mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+            // Instructions
+            JLabel instructions = new JLabel("<html>Select the lines to apply the style from Line " +
+                                             (paraModeSelectedLineIndex + 1) + " to:</html>");
+            mainPanel.add(instructions, BorderLayout.NORTH);
+
+            // Create checkboxes for each line
+            JPanel linesPanel = new JPanel();
+            linesPanel.setLayout(new BoxLayout(linesPanel, BoxLayout.Y_AXIS));
+            java.util.List<JCheckBox> lineCheckboxes = new java.util.ArrayList<>();
+
+            for (int i = 0; i < config.paraLineStyles.size(); i++) {
+                String lineText = i < paraModeCurrentLines.size() ? paraModeCurrentLines.get(i) : "Line " + (i + 1);
+                String displayText = "Line " + (i + 1) + ": " + (lineText.length() > 30 ? lineText.substring(0, 30) + "..." : lineText);
+                JCheckBox cb = new JCheckBox(displayText);
+                cb.setEnabled(i != paraModeSelectedLineIndex); // Disable source line
+                if (i == paraModeSelectedLineIndex) {
+                    cb.setSelected(true);
+                    cb.setToolTipText("This is the source style line");
+                }
+                lineCheckboxes.add(cb);
+                linesPanel.add(cb);
+            }
+
+            JScrollPane scrollPane = new JScrollPane(linesPanel);
+            scrollPane.setPreferredSize(new Dimension(350, 200));
+            mainPanel.add(scrollPane, BorderLayout.CENTER);
+
+            // Quick select buttons
+            JPanel quickSelectPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JButton selectAllBtn = new JButton("Select All");
+            JButton selectNoneBtn = new JButton("Select None");
+            selectAllBtn.addActionListener(e -> {
+                for (int i = 0; i < lineCheckboxes.size(); i++) {
+                    if (i != paraModeSelectedLineIndex) lineCheckboxes.get(i).setSelected(true);
+                }
+            });
+            selectNoneBtn.addActionListener(e -> {
+                for (int i = 0; i < lineCheckboxes.size(); i++) {
+                    if (i != paraModeSelectedLineIndex) lineCheckboxes.get(i).setSelected(false);
+                }
+            });
+            quickSelectPanel.add(selectAllBtn);
+            quickSelectPanel.add(selectNoneBtn);
+            mainPanel.add(quickSelectPanel, BorderLayout.SOUTH);
+
+            // Buttons
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            JButton applyBtn = new JButton("Apply");
+            JButton cancelBtn = new JButton("Cancel");
+
+            applyBtn.addActionListener(e -> {
+                ParaLineStyle sourceStyle = config.paraLineStyles.get(paraModeSelectedLineIndex);
+                int appliedCount = 0;
+
+                for (int i = 0; i < lineCheckboxes.size(); i++) {
+                    if (i != paraModeSelectedLineIndex && lineCheckboxes.get(i).isSelected()) {
+                        ParaLineStyle style = config.paraLineStyles.get(i);
+                        // Copy all style properties
+                        style.fontSize = sourceStyle.fontSize;
+                        style.fontFamily = sourceStyle.fontFamily;
+                        style.color = sourceStyle.color;
+                        style.highlightColor = sourceStyle.highlightColor;
+                        style.bold = sourceStyle.bold;
+                        style.italic = sourceStyle.italic;
+                        style.underline = sourceStyle.underline;
+                        style.shadowEnabled = sourceStyle.shadowEnabled;
+                        style.outlineEnabled = sourceStyle.outlineEnabled;
+                        style.glowEnabled = sourceStyle.glowEnabled;
+                        style.lineSpacingBefore = sourceStyle.lineSpacingBefore;
+                        style.wordSpacing = sourceStyle.wordSpacing;
+                        style.horizontalOffset = sourceStyle.horizontalOffset;
+                        style.alignment = sourceStyle.alignment;
+                        style.borderEnabled = sourceStyle.borderEnabled;
+                        style.borderStyle = sourceStyle.borderStyle;
+                        style.borderThickness = sourceStyle.borderThickness;
+                        style.borderColor = sourceStyle.borderColor;
+                        style.borderColor2 = sourceStyle.borderColor2;
+                        style.borderPadding = sourceStyle.borderPadding;
+                        style.borderRadius = sourceStyle.borderRadius;
+                        style.highlightBgEnabled = sourceStyle.highlightBgEnabled;
+                        style.highlightBgColor = sourceStyle.highlightBgColor;
+                        style.highlightBgPadding = sourceStyle.highlightBgPadding;
+                        style.highlightBgRadius = sourceStyle.highlightBgRadius;
+                        appliedCount++;
+                    }
+                }
+
+                updateParaModePreview();
+                dialog.dispose();
+                JOptionPane.showMessageDialog(null, "Style applied to " + appliedCount + " line(s)!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            });
+
+            cancelBtn.addActionListener(e -> dialog.dispose());
+
+            buttonPanel.add(applyBtn);
+            buttonPanel.add(cancelBtn);
+
+            dialog.add(mainPanel, BorderLayout.CENTER);
+            dialog.add(buttonPanel, BorderLayout.SOUTH);
+            dialog.pack();
+            dialog.setLocationRelativeTo(null);
+            dialog.setVisible(true);
+        }
+
         private void updateParaModePreview() {
             if (paraModePreviewPanel != null) {
                 paraModePreviewPanel.repaint();
@@ -3106,6 +3262,324 @@ public class arabicSync {
             // Initial preview update
             updateParaModePreview();
 
+            dialog.setVisible(true);
+        }
+
+        // === ADD MULTIPLE TEXT OVERLAYS DIALOG ===
+        private void showAddMultipleOverlaysDialog(Runnable onSave) {
+            JDialog dialog = new JDialog((Frame) null, "Add Multiple Text Overlays", true);
+            dialog.setLayout(new BorderLayout(10, 10));
+
+            JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+            mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+            // Instructions
+            JLabel instructions = new JLabel("<html>Enter multiple text overlays, one per line.<br>They will all use the same formatting settings below.</html>");
+            mainPanel.add(instructions, BorderLayout.NORTH);
+
+            // Text area for multiple lines
+            JTextArea textArea = new JTextArea(10, 40);
+            textArea.setLineWrap(true);
+            textArea.setWrapStyleWord(true);
+            JScrollPane textScrollPane = new JScrollPane(textArea);
+            textScrollPane.setBorder(BorderFactory.createTitledBorder("Text (one overlay per line)"));
+            mainPanel.add(textScrollPane, BorderLayout.CENTER);
+
+            // Formatting options panel
+            JPanel formatPanel = new JPanel(new GridBagLayout());
+            formatPanel.setBorder(BorderFactory.createTitledBorder("Formatting (applies to all)"));
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(3, 5, 3, 5);
+            gbc.anchor = GridBagConstraints.WEST;
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+
+            // Font Size
+            gbc.gridx = 0; gbc.gridy = 0;
+            formatPanel.add(new JLabel("Font Size:"), gbc);
+            gbc.gridx = 1;
+            JSpinner fontSizeSpinner = new JSpinner(new SpinnerNumberModel(40, 10, 300, 5));
+            formatPanel.add(fontSizeSpinner, gbc);
+
+            // Color
+            gbc.gridx = 2;
+            formatPanel.add(new JLabel("Color:"), gbc);
+            gbc.gridx = 3;
+            JPanel colorPanel = new JPanel();
+            colorPanel.setBackground(Color.WHITE);
+            colorPanel.setPreferredSize(new Dimension(30, 20));
+            colorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            final Color[] selectedColor = {Color.WHITE};
+            colorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    Color c = JColorChooser.showDialog(dialog, "Text Color", selectedColor[0]);
+                    if (c != null) { selectedColor[0] = c; colorPanel.setBackground(c); }
+                }
+            });
+            formatPanel.add(colorPanel, gbc);
+
+            // Opacity
+            gbc.gridx = 0; gbc.gridy = 1;
+            formatPanel.add(new JLabel("Opacity:"), gbc);
+            gbc.gridx = 1;
+            JSpinner opacitySpinner = new JSpinner(new SpinnerNumberModel(100, 0, 100, 5));
+            formatPanel.add(opacitySpinner, gbc);
+
+            // Bold/Italic
+            gbc.gridx = 2;
+            JCheckBox boldCheck = new JCheckBox("Bold");
+            formatPanel.add(boldCheck, gbc);
+            gbc.gridx = 3;
+            JCheckBox italicCheck = new JCheckBox("Italic");
+            formatPanel.add(italicCheck, gbc);
+
+            // Outline
+            gbc.gridx = 0; gbc.gridy = 2;
+            JCheckBox outlineCheck = new JCheckBox("Outline");
+            formatPanel.add(outlineCheck, gbc);
+            gbc.gridx = 1;
+            JSpinner outlineThicknessSpinner = new JSpinner(new SpinnerNumberModel(2, 1, 10, 1));
+            formatPanel.add(outlineThicknessSpinner, gbc);
+
+            // Shadow
+            gbc.gridx = 2;
+            JCheckBox shadowCheck = new JCheckBox("Shadow");
+            formatPanel.add(shadowCheck, gbc);
+            gbc.gridx = 3;
+            JSpinner shadowOffsetSpinner = new JSpinner(new SpinnerNumberModel(3, 1, 20, 1));
+            formatPanel.add(shadowOffsetSpinner, gbc);
+
+            // Starting position
+            gbc.gridx = 0; gbc.gridy = 3;
+            formatPanel.add(new JLabel("Start X%:"), gbc);
+            gbc.gridx = 1;
+            JSpinner startXSpinner = new JSpinner(new SpinnerNumberModel(50, 0, 100, 5));
+            formatPanel.add(startXSpinner, gbc);
+            gbc.gridx = 2;
+            formatPanel.add(new JLabel("Start Y%:"), gbc);
+            gbc.gridx = 3;
+            JSpinner startYSpinner = new JSpinner(new SpinnerNumberModel(20, 0, 100, 5));
+            formatPanel.add(startYSpinner, gbc);
+
+            // Y offset between overlays
+            gbc.gridx = 0; gbc.gridy = 4;
+            formatPanel.add(new JLabel("Y Spacing:"), gbc);
+            gbc.gridx = 1;
+            JSpinner ySpacingSpinner = new JSpinner(new SpinnerNumberModel(8, -20, 50, 2));
+            formatPanel.add(ySpacingSpinner, gbc);
+
+            mainPanel.add(formatPanel, BorderLayout.SOUTH);
+
+            // Buttons
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            JButton addBtn = new JButton("Add All");
+            JButton cancelBtn = new JButton("Cancel");
+
+            addBtn.addActionListener(e -> {
+                String[] lines = textArea.getText().split("\n");
+                int startX = (Integer) startXSpinner.getValue();
+                int startY = (Integer) startYSpinner.getValue();
+                int ySpacing = (Integer) ySpacingSpinner.getValue();
+                int currentY = startY;
+
+                for (String line : lines) {
+                    if (line.trim().isEmpty()) continue;
+                    TextOverlay overlay = new TextOverlay();
+                    overlay.text = line.trim();
+                    overlay.fontSize = (Integer) fontSizeSpinner.getValue();
+                    overlay.color = selectedColor[0];
+                    overlay.opacity = (Integer) opacitySpinner.getValue();
+                    overlay.bold = boldCheck.isSelected();
+                    overlay.italic = italicCheck.isSelected();
+                    overlay.outlineEnabled = outlineCheck.isSelected();
+                    overlay.outlineThickness = (Integer) outlineThicknessSpinner.getValue();
+                    overlay.shadowEnabled = shadowCheck.isSelected();
+                    overlay.shadowOffset = (Integer) shadowOffsetSpinner.getValue();
+                    overlay.xPercent = startX;
+                    overlay.yPercent = currentY;
+                    config.textOverlays.add(overlay);
+                    currentY += ySpacing;
+                }
+                onSave.run();
+                dialog.dispose();
+            });
+
+            cancelBtn.addActionListener(e -> dialog.dispose());
+
+            buttonPanel.add(addBtn);
+            buttonPanel.add(cancelBtn);
+
+            dialog.add(mainPanel, BorderLayout.CENTER);
+            dialog.add(buttonPanel, BorderLayout.SOUTH);
+            dialog.pack();
+            dialog.setLocationRelativeTo(null);
+            dialog.setVisible(true);
+        }
+
+        // === BULK EDIT ALL OVERLAYS DIALOG ===
+        private void showBulkEditOverlaysDialog(Runnable onSave) {
+            JDialog dialog = new JDialog((Frame) null, "Edit All Text Overlays", true);
+            dialog.setLayout(new BorderLayout(10, 10));
+
+            JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+            mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+            // Instructions
+            JLabel instructions = new JLabel("<html>Check the properties you want to change.<br>Changes will apply to ALL " + config.textOverlays.size() + " text overlays.</html>");
+            mainPanel.add(instructions, BorderLayout.NORTH);
+
+            // Properties panel
+            JPanel propsPanel = new JPanel(new GridBagLayout());
+            propsPanel.setBorder(BorderFactory.createTitledBorder("Properties to Change"));
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(3, 5, 3, 5);
+            gbc.anchor = GridBagConstraints.WEST;
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+
+            // Font Size
+            gbc.gridx = 0; gbc.gridy = 0;
+            JCheckBox changeFontSize = new JCheckBox("Font Size:");
+            propsPanel.add(changeFontSize, gbc);
+            gbc.gridx = 1;
+            JSpinner fontSizeSpinner = new JSpinner(new SpinnerNumberModel(40, 10, 300, 5));
+            fontSizeSpinner.setEnabled(false);
+            changeFontSize.addActionListener(e -> fontSizeSpinner.setEnabled(changeFontSize.isSelected()));
+            propsPanel.add(fontSizeSpinner, gbc);
+
+            // Color
+            gbc.gridx = 0; gbc.gridy = 1;
+            JCheckBox changeColor = new JCheckBox("Color:");
+            propsPanel.add(changeColor, gbc);
+            gbc.gridx = 1;
+            JPanel colorPanel = new JPanel();
+            colorPanel.setBackground(Color.WHITE);
+            colorPanel.setPreferredSize(new Dimension(60, 20));
+            colorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            final Color[] selectedColor = {Color.WHITE};
+            colorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (changeColor.isSelected()) {
+                        Color c = JColorChooser.showDialog(dialog, "Text Color", selectedColor[0]);
+                        if (c != null) { selectedColor[0] = c; colorPanel.setBackground(c); }
+                    }
+                }
+            });
+            propsPanel.add(colorPanel, gbc);
+
+            // Opacity
+            gbc.gridx = 0; gbc.gridy = 2;
+            JCheckBox changeOpacity = new JCheckBox("Opacity:");
+            propsPanel.add(changeOpacity, gbc);
+            gbc.gridx = 1;
+            JSpinner opacitySpinner = new JSpinner(new SpinnerNumberModel(100, 0, 100, 5));
+            opacitySpinner.setEnabled(false);
+            changeOpacity.addActionListener(e -> opacitySpinner.setEnabled(changeOpacity.isSelected()));
+            propsPanel.add(opacitySpinner, gbc);
+
+            // Bold
+            gbc.gridx = 0; gbc.gridy = 3;
+            JCheckBox changeBold = new JCheckBox("Bold:");
+            propsPanel.add(changeBold, gbc);
+            gbc.gridx = 1;
+            JCheckBox boldValue = new JCheckBox("Enable");
+            boldValue.setEnabled(false);
+            changeBold.addActionListener(e -> boldValue.setEnabled(changeBold.isSelected()));
+            propsPanel.add(boldValue, gbc);
+
+            // Italic
+            gbc.gridx = 0; gbc.gridy = 4;
+            JCheckBox changeItalic = new JCheckBox("Italic:");
+            propsPanel.add(changeItalic, gbc);
+            gbc.gridx = 1;
+            JCheckBox italicValue = new JCheckBox("Enable");
+            italicValue.setEnabled(false);
+            changeItalic.addActionListener(e -> italicValue.setEnabled(changeItalic.isSelected()));
+            propsPanel.add(italicValue, gbc);
+
+            // Outline
+            gbc.gridx = 0; gbc.gridy = 5;
+            JCheckBox changeOutline = new JCheckBox("Outline:");
+            propsPanel.add(changeOutline, gbc);
+            gbc.gridx = 1;
+            JPanel outlinePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+            JCheckBox outlineEnabled = new JCheckBox("Enable");
+            JSpinner outlineThickness = new JSpinner(new SpinnerNumberModel(2, 1, 10, 1));
+            outlineEnabled.setEnabled(false);
+            outlineThickness.setEnabled(false);
+            changeOutline.addActionListener(e -> {
+                outlineEnabled.setEnabled(changeOutline.isSelected());
+                outlineThickness.setEnabled(changeOutline.isSelected());
+            });
+            outlinePanel.add(outlineEnabled);
+            outlinePanel.add(new JLabel("Thickness:"));
+            outlinePanel.add(outlineThickness);
+            propsPanel.add(outlinePanel, gbc);
+
+            // Shadow
+            gbc.gridx = 0; gbc.gridy = 6;
+            JCheckBox changeShadow = new JCheckBox("Shadow:");
+            propsPanel.add(changeShadow, gbc);
+            gbc.gridx = 1;
+            JPanel shadowPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+            JCheckBox shadowEnabled = new JCheckBox("Enable");
+            JSpinner shadowOffset = new JSpinner(new SpinnerNumberModel(3, 1, 20, 1));
+            shadowEnabled.setEnabled(false);
+            shadowOffset.setEnabled(false);
+            changeShadow.addActionListener(e -> {
+                shadowEnabled.setEnabled(changeShadow.isSelected());
+                shadowOffset.setEnabled(changeShadow.isSelected());
+            });
+            shadowPanel.add(shadowEnabled);
+            shadowPanel.add(new JLabel("Offset:"));
+            shadowPanel.add(shadowOffset);
+            propsPanel.add(shadowPanel, gbc);
+
+            // Tilt Angle
+            gbc.gridx = 0; gbc.gridy = 7;
+            JCheckBox changeTilt = new JCheckBox("Tilt Angle:");
+            propsPanel.add(changeTilt, gbc);
+            gbc.gridx = 1;
+            JSpinner tiltSpinner = new JSpinner(new SpinnerNumberModel(0, -180, 180, 5));
+            tiltSpinner.setEnabled(false);
+            changeTilt.addActionListener(e -> tiltSpinner.setEnabled(changeTilt.isSelected()));
+            propsPanel.add(tiltSpinner, gbc);
+
+            mainPanel.add(propsPanel, BorderLayout.CENTER);
+
+            // Buttons
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            JButton applyBtn = new JButton("Apply to All");
+            JButton cancelBtn = new JButton("Cancel");
+
+            applyBtn.addActionListener(e -> {
+                for (TextOverlay overlay : config.textOverlays) {
+                    if (changeFontSize.isSelected()) overlay.fontSize = (Integer) fontSizeSpinner.getValue();
+                    if (changeColor.isSelected()) overlay.color = selectedColor[0];
+                    if (changeOpacity.isSelected()) overlay.opacity = (Integer) opacitySpinner.getValue();
+                    if (changeBold.isSelected()) overlay.bold = boldValue.isSelected();
+                    if (changeItalic.isSelected()) overlay.italic = italicValue.isSelected();
+                    if (changeOutline.isSelected()) {
+                        overlay.outlineEnabled = outlineEnabled.isSelected();
+                        overlay.outlineThickness = (Integer) outlineThickness.getValue();
+                    }
+                    if (changeShadow.isSelected()) {
+                        overlay.shadowEnabled = shadowEnabled.isSelected();
+                        overlay.shadowOffset = (Integer) shadowOffset.getValue();
+                    }
+                    if (changeTilt.isSelected()) overlay.tiltAngle = (Integer) tiltSpinner.getValue();
+                }
+                onSave.run();
+                dialog.dispose();
+            });
+
+            cancelBtn.addActionListener(e -> dialog.dispose());
+
+            buttonPanel.add(applyBtn);
+            buttonPanel.add(cancelBtn);
+
+            dialog.add(mainPanel, BorderLayout.CENTER);
+            dialog.add(buttonPanel, BorderLayout.SOUTH);
+            dialog.pack();
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
         }
 
