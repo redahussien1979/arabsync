@@ -1759,6 +1759,8 @@ public class arabicSync {
         private JSpinner paraModeHighlightBgPaddingSpinner;
         private JSpinner paraModeHighlightBgRadiusSpinner;
         private java.util.List<String> paraModeCurrentLines = new java.util.ArrayList<>();
+        // Font file map for paragraph mode per-line font selection
+        private java.util.Map<String, File> paraModeFontFileMap = new java.util.HashMap<>();
 
         private JPanel createParaModePanel() {
             JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
@@ -1780,7 +1782,18 @@ public class arabicSync {
             gbc.gridx = 1;
             JSpinner globalFontSizeSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeDefaultFontSize, 20, 150, 2));
             globalFontSizeSpinner.addChangeListener(e -> {
-                config.paraModeDefaultFontSize = (Integer) globalFontSizeSpinner.getValue();
+                int newSize = (Integer) globalFontSizeSpinner.getValue();
+                config.paraModeDefaultFontSize = newSize;
+                // Apply to ALL existing lines at once
+                for (ParaLineStyle lineStyle : config.paraLineStyles) {
+                    lineStyle.fontSize = newSize;
+                }
+                // Update the per-line spinner to reflect the new size if a line is selected
+                if (paraModeSelectedLineIndex >= 0 && paraModeSelectedLineIndex < config.paraLineStyles.size()) {
+                    paraModeUpdatingControls = true;
+                    paraModeFontSizeSpinner.setValue(newSize);
+                    paraModeUpdatingControls = false;
+                }
                 updateParaModePreview();
             });
             globalPanel.add(globalFontSizeSpinner, gbc);
@@ -2179,15 +2192,31 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 1;
             lineStylePanel.add(new JLabel("Font Style:"), gbc);
             gbc.gridx = 1;
-            paraModeFontStyleCombo = new JComboBox<>(new String[]{
-                    "Default", "Serif", "SansSerif", "Monospaced",
+            // Scan fonts from directory and combine with system fonts
+            paraModeFontFileMap.clear();
+            String[] scannedFonts = scanFontsInDirectoryWithMap(paraModeFontFileMap);
+            java.util.List<String> allFontItems = new java.util.ArrayList<>();
+            allFontItems.add("Default");
+            // Add scanned fonts from directory
+            if (scannedFonts.length > 0 && !scannedFonts[0].equals("No fonts found")) {
+                for (String f : scannedFonts) {
+                    allFontItems.add(f);
+                }
+            }
+            // Add system fonts as fallback
+            String[] systemFonts = {"Serif", "SansSerif", "Monospaced",
                     "Dialog", "DialogInput", "Arial", "Times New Roman",
                     "Courier New", "Georgia", "Verdana", "Tahoma",
                     "Trebuchet MS", "Impact", "Comic Sans MS",
                     "Arial Black", "Palatino Linotype", "Lucida Console",
                     "Traditional Arabic", "Simplified Arabic", "Arabic Typesetting",
-                    "Sakkal Majalla", "Noto Naskh Arabic", "Amiri", "Scheherazade"
-            });
+                    "Sakkal Majalla", "Noto Naskh Arabic", "Amiri", "Scheherazade"};
+            for (String sf : systemFonts) {
+                if (!allFontItems.contains(sf)) {
+                    allFontItems.add(sf);
+                }
+            }
+            paraModeFontStyleCombo = new JComboBox<>(allFontItems.toArray(new String[0]));
             paraModeFontStyleCombo.addActionListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeFontStyleCombo, gbc);
 
@@ -2684,13 +2713,30 @@ public class arabicSync {
                 if (family == null || family.isEmpty()) {
                     paraModeFontStyleCombo.setSelectedIndex(0);
                 } else {
-                    // Try to find exact match in combo box
+                    // Try to find exact match in combo box (by name or by file path)
                     boolean found = false;
-                    for (int i = 0; i < paraModeFontStyleCombo.getItemCount(); i++) {
-                        if (family.equals(paraModeFontStyleCombo.getItemAt(i))) {
-                            paraModeFontStyleCombo.setSelectedIndex(i);
-                            found = true;
+                    // First check if family is a file path that maps to a scanned font
+                    for (java.util.Map.Entry<String, File> entry : paraModeFontFileMap.entrySet()) {
+                        if (entry.getValue().getAbsolutePath().equals(family)) {
+                            // Find this font name in the combo box
+                            for (int i = 0; i < paraModeFontStyleCombo.getItemCount(); i++) {
+                                if (entry.getKey().equals(paraModeFontStyleCombo.getItemAt(i))) {
+                                    paraModeFontStyleCombo.setSelectedIndex(i);
+                                    found = true;
+                                    break;
+                                }
+                            }
                             break;
+                        }
+                    }
+                    // If not found as file path, try as system font name
+                    if (!found) {
+                        for (int i = 0; i < paraModeFontStyleCombo.getItemCount(); i++) {
+                            if (family.equals(paraModeFontStyleCombo.getItemAt(i))) {
+                                paraModeFontStyleCombo.setSelectedIndex(i);
+                                found = true;
+                                break;
+                            }
                         }
                     }
                     if (!found) {
@@ -2742,12 +2788,18 @@ public class arabicSync {
             style.wordSpacing = (Integer) paraModeWordSpacingSpinner.getValue();
             style.horizontalOffset = (Integer) paraModeHorizontalOffsetSpinner.getValue();
 
-            // Font family - use actual font name from combo box
+            // Font family - use file path for scanned fonts, name for system fonts
             String selectedFont = (String) paraModeFontStyleCombo.getSelectedItem();
             if (selectedFont == null || selectedFont.equals("Default")) {
                 style.fontFamily = "";
             } else {
-                style.fontFamily = selectedFont;
+                // Check if it's a scanned font file (store absolute path)
+                File fontFile = paraModeFontFileMap.get(selectedFont);
+                if (fontFile != null) {
+                    style.fontFamily = fontFile.getAbsolutePath();
+                } else {
+                    style.fontFamily = selectedFont;
+                }
             }
 
             // Save border settings
@@ -3717,13 +3769,14 @@ public class arabicSync {
 
                 Color textColor = isActive ? style.highlightColor : style.color;
 
-                // Draw highlight background
+                // Draw highlight background (tight to text)
                 if (isActive && style.highlightBgEnabled) {
                     int hbgPadding = style.highlightBgPadding;
                     int hbgRadius = style.highlightBgRadius;
+                    int tightHeight = fm.getAscent() + fm.getDescent();
                     vg.setColor(style.highlightBgColor);
-                    vg.fillRoundRect(x - hbgPadding, currentY - fm.getAscent() - hbgPadding/2,
-                            textWidth + hbgPadding * 2, fm.getHeight() + hbgPadding, hbgRadius, hbgRadius);
+                    vg.fillRoundRect(x - hbgPadding, currentY - fm.getAscent() - hbgPadding,
+                            textWidth + hbgPadding * 2, tightHeight + hbgPadding * 2, hbgRadius, hbgRadius);
                 }
 
                 // Draw text box background
@@ -3905,6 +3958,23 @@ public class arabicSync {
                     g2d.setColor(color1);
                     int radius = config.paraModeVideoBorderRadius;
                     g2d.drawRoundRect(padding, padding, width - padding * 2, height - padding * 2, radius, radius);
+                    break;
+                case 5: // Ornamental (decorative corners)
+                    g2d.setColor(color1);
+                    g2d.setStroke(new BasicStroke(thickness));
+                    int cornerSize = 80;
+                    // Top-left corner
+                    g2d.drawLine(padding, padding + cornerSize, padding, padding);
+                    g2d.drawLine(padding, padding, padding + cornerSize, padding);
+                    // Top-right corner
+                    g2d.drawLine(width - padding - cornerSize, padding, width - padding, padding);
+                    g2d.drawLine(width - padding, padding, width - padding, padding + cornerSize);
+                    // Bottom-left corner
+                    g2d.drawLine(padding, height - padding - cornerSize, padding, height - padding);
+                    g2d.drawLine(padding, height - padding, padding + cornerSize, height - padding);
+                    // Bottom-right corner
+                    g2d.drawLine(width - padding - cornerSize, height - padding, width - padding, height - padding);
+                    g2d.drawLine(width - padding, height - padding - cornerSize, width - padding, height - padding);
                     break;
             }
             g2d.setStroke(new BasicStroke(1));
@@ -15369,7 +15439,19 @@ public class arabicSync {
             if (style.fontFamily == null || style.fontFamily.isEmpty()) {
                 lineFont = arabicFont.deriveFont(fontStyle, (float) style.fontSize);
             } else {
-                lineFont = new Font(style.fontFamily, fontStyle, style.fontSize);
+                // Check if fontFamily is a file path to a custom font
+                File fontFile = new File(style.fontFamily);
+                if (fontFile.exists() && (style.fontFamily.endsWith(".ttf") || style.fontFamily.endsWith(".otf")
+                        || style.fontFamily.endsWith(".TTF") || style.fontFamily.endsWith(".OTF"))) {
+                    try {
+                        Font customFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
+                        lineFont = customFont.deriveFont(fontStyle, (float) style.fontSize);
+                    } catch (Exception ex) {
+                        lineFont = new Font(style.fontFamily, fontStyle, style.fontSize);
+                    }
+                } else {
+                    lineFont = new Font(style.fontFamily, fontStyle, style.fontSize);
+                }
             }
 
             g2d.setFont(lineFont);
@@ -15397,13 +15479,14 @@ public class arabicSync {
             // Use highlight color if active
             Color textColor = isActive ? style.highlightColor : style.color;
 
-            // === DRAW PER-LINE HIGHLIGHT BACKGROUND (when active) ===
+            // === DRAW PER-LINE HIGHLIGHT BACKGROUND (when active, tight to text) ===
             if (isActive && style.highlightBgEnabled) {
                 int hbgPadding = style.highlightBgPadding;
                 int hbgRadius = style.highlightBgRadius;
+                int tightHeight = fm.getAscent() + fm.getDescent();
                 g2d.setColor(style.highlightBgColor);
-                g2d.fillRoundRect(x - hbgPadding, currentY - fm.getAscent() - hbgPadding/2,
-                        textWidth + hbgPadding * 2, fm.getHeight() + hbgPadding, hbgRadius, hbgRadius);
+                g2d.fillRoundRect(x - hbgPadding, currentY - fm.getAscent() - hbgPadding,
+                        textWidth + hbgPadding * 2, tightHeight + hbgPadding * 2, hbgRadius, hbgRadius);
             }
 
             // Draw text box background if enabled (global)
