@@ -2487,14 +2487,14 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 19;
             lineStylePanel.add(new JLabel("Highlight Padding:"), gbc);
             gbc.gridx = 1;
-            paraModeHighlightBgPaddingSpinner = new JSpinner(new SpinnerNumberModel(8, 0, 50, 2));
+            paraModeHighlightBgPaddingSpinner = new JSpinner(new SpinnerNumberModel(8, -50, 200, 2));
             paraModeHighlightBgPaddingSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeHighlightBgPaddingSpinner, gbc);
 
             gbc.gridx = 0; gbc.gridy = 20;
             lineStylePanel.add(new JLabel("Highlight Radius:"), gbc);
             gbc.gridx = 1;
-            paraModeHighlightBgRadiusSpinner = new JSpinner(new SpinnerNumberModel(6, 0, 50, 2));
+            paraModeHighlightBgRadiusSpinner = new JSpinner(new SpinnerNumberModel(6, 0, 500, 5));
             paraModeHighlightBgRadiusSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeHighlightBgRadiusSpinner, gbc);
 
@@ -3822,8 +3822,8 @@ public class arabicSync {
 
                 Color textColor = isActive ? style.highlightColor : style.color;
 
-                // Draw highlight background (tight to text)
-                if (isActive && style.highlightBgEnabled) {
+                // Draw highlight background (tight to text, always shown when enabled)
+                if (style.highlightBgEnabled) {
                     int hbgPadding = style.highlightBgPadding;
                     int hbgRadius = style.highlightBgRadius;
                     int tightHeight = fm.getAscent() + fm.getDescent();
@@ -15532,8 +15532,8 @@ public class arabicSync {
             // Use highlight color if active
             Color textColor = isActive ? style.highlightColor : style.color;
 
-            // === DRAW PER-LINE HIGHLIGHT BACKGROUND (when active, tight to text) ===
-            if (isActive && style.highlightBgEnabled) {
+            // === DRAW PER-LINE HIGHLIGHT BACKGROUND (always shown when enabled, tight to text) ===
+            if (style.highlightBgEnabled) {
                 int hbgPadding = style.highlightBgPadding;
                 int hbgRadius = style.highlightBgRadius;
                 int tightHeight = fm.getAscent() + fm.getDescent();
