@@ -1820,9 +1820,9 @@ public class arabicSync {
             });
             globalPanel.add(globalLineSpacingSpinner, gbc);
 
-            // Default Text Color
+            // Default Text Color (applies to all lines)
             gbc.gridx = 0; gbc.gridy = 3;
-            globalPanel.add(new JLabel("Default Color:"), gbc);
+            globalPanel.add(new JLabel("Font Color (All):"), gbc);
             gbc.gridx = 1;
             JPanel defaultColorPanel = new JPanel();
             defaultColorPanel.setBackground(config.paraModeDefaultColor);
@@ -1830,10 +1830,20 @@ public class arabicSync {
             defaultColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
             defaultColorPanel.addMouseListener(new java.awt.event.MouseAdapter() {
                 public void mouseClicked(java.awt.event.MouseEvent e) {
-                    Color c = JColorChooser.showDialog(mainPanel, "Default Text Color", config.paraModeDefaultColor);
+                    Color c = JColorChooser.showDialog(mainPanel, "Font Color (All Lines)", config.paraModeDefaultColor);
                     if (c != null) {
                         config.paraModeDefaultColor = c;
                         defaultColorPanel.setBackground(c);
+                        // Apply to ALL existing lines
+                        for (ParaLineStyle lineStyle : config.paraLineStyles) {
+                            lineStyle.color = c;
+                        }
+                        // Update per-line color panel if a line is selected
+                        if (paraModeSelectedLineIndex >= 0 && paraModeSelectedLineIndex < config.paraLineStyles.size()) {
+                            paraModeUpdatingControls = true;
+                            paraModeLineColorPanel.setBackground(c);
+                            paraModeUpdatingControls = false;
+                        }
                         updateParaModePreview();
                     }
                 }
@@ -1880,8 +1890,51 @@ public class arabicSync {
             });
             globalPanel.add(bgColorPanel, gbc);
 
-            // Highlight Mode
+            // Global Alignment (applies to all lines)
             gbc.gridx = 0; gbc.gridy = 6;
+            globalPanel.add(new JLabel("Alignment (All):"), gbc);
+            gbc.gridx = 1;
+            JComboBox<String> globalAlignmentCombo = new JComboBox<>(new String[]{"Left", "Center", "Right"});
+            globalAlignmentCombo.setSelectedIndex(1); // Default center
+            globalAlignmentCombo.addActionListener(e -> {
+                int newAlignment = globalAlignmentCombo.getSelectedIndex();
+                // Apply to ALL existing lines
+                for (ParaLineStyle lineStyle : config.paraLineStyles) {
+                    lineStyle.alignment = newAlignment;
+                }
+                // Update per-line combo if a line is selected
+                if (paraModeSelectedLineIndex >= 0 && paraModeSelectedLineIndex < config.paraLineStyles.size()) {
+                    paraModeUpdatingControls = true;
+                    paraModeAlignmentCombo.setSelectedIndex(newAlignment);
+                    paraModeUpdatingControls = false;
+                }
+                updateParaModePreview();
+            });
+            globalPanel.add(globalAlignmentCombo, gbc);
+
+            // Global Horizontal Shift (applies to all lines)
+            gbc.gridx = 0; gbc.gridy = 7;
+            globalPanel.add(new JLabel("H-Shift (All):"), gbc);
+            gbc.gridx = 1;
+            JSpinner globalHorizontalOffsetSpinner = new JSpinner(new SpinnerNumberModel(0, -500, 500, 5));
+            globalHorizontalOffsetSpinner.addChangeListener(e -> {
+                int newOffset = (Integer) globalHorizontalOffsetSpinner.getValue();
+                // Apply to ALL existing lines
+                for (ParaLineStyle lineStyle : config.paraLineStyles) {
+                    lineStyle.horizontalOffset = newOffset;
+                }
+                // Update per-line spinner if a line is selected
+                if (paraModeSelectedLineIndex >= 0 && paraModeSelectedLineIndex < config.paraLineStyles.size()) {
+                    paraModeUpdatingControls = true;
+                    paraModeHorizontalOffsetSpinner.setValue(newOffset);
+                    paraModeUpdatingControls = false;
+                }
+                updateParaModePreview();
+            });
+            globalPanel.add(globalHorizontalOffsetSpinner, gbc);
+
+            // Highlight Mode
+            gbc.gridx = 0; gbc.gridy = 8;
             globalPanel.add(new JLabel("Highlight Mode:"), gbc);
             gbc.gridx = 1;
             JComboBox<String> highlightModeCombo = new JComboBox<>(new String[]{
@@ -1895,7 +1948,7 @@ public class arabicSync {
             globalPanel.add(highlightModeCombo, gbc);
 
             // Text Box Opacity
-            gbc.gridx = 0; gbc.gridy = 7;
+            gbc.gridx = 0; gbc.gridy = 9;
             globalPanel.add(new JLabel("Text Box Opacity:"), gbc);
             gbc.gridx = 1;
             JSpinner textBoxOpacitySpinner = new JSpinner(new SpinnerNumberModel(config.paraModeTextBoxOpacity, 0, 100, 5));
@@ -1906,13 +1959,13 @@ public class arabicSync {
             globalPanel.add(textBoxOpacitySpinner, gbc);
 
             // Background Image
-            gbc.gridx = 0; gbc.gridy = 8;
+            gbc.gridx = 0; gbc.gridy = 10;
             globalPanel.add(new JLabel("Background Image:"), gbc);
             gbc.gridx = 1;
             JPanel bgImagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
             JButton bgImageBtn = new JButton("Select...");
             bgImageBtn.addActionListener(e -> {
-                JFileChooser fc = new JFileChooser();
+                JFileChooser fc = new JFileChooser(new File(System.getProperty("user.dir")));
                 fc.setFileFilter(new FileNameExtensionFilter("Images", "jpg", "jpeg", "png", "bmp", "gif"));
                 if (fc.showOpenDialog(mainPanel) == JFileChooser.APPROVE_OPTION) {
                     config.paraModeBackgroundImage = fc.getSelectedFile().getAbsolutePath();
@@ -1929,7 +1982,7 @@ public class arabicSync {
             globalPanel.add(bgImagePanel, gbc);
 
             // === VIDEO BORDER SETTINGS (collapsible section) ===
-            gbc.gridx = 0; gbc.gridy = 9; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 11; gbc.gridwidth = 2;
             JCheckBox videoBorderEnabledCheck = new JCheckBox("Enable Video Border", config.paraModeVideoBorderEnabled);
             videoBorderEnabledCheck.addActionListener(e -> {
                 config.paraModeVideoBorderEnabled = videoBorderEnabledCheck.isSelected();
@@ -1939,7 +1992,7 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // Border Style
-            gbc.gridx = 0; gbc.gridy = 10;
+            gbc.gridx = 0; gbc.gridy = 12;
             globalPanel.add(new JLabel("Border Style:"), gbc);
             gbc.gridx = 1;
             JComboBox<String> videoBorderStyleCombo = new JComboBox<>(new String[]{
@@ -1953,7 +2006,7 @@ public class arabicSync {
             globalPanel.add(videoBorderStyleCombo, gbc);
 
             // Border Thickness
-            gbc.gridx = 0; gbc.gridy = 11;
+            gbc.gridx = 0; gbc.gridy = 13;
             globalPanel.add(new JLabel("Border Thickness:"), gbc);
             gbc.gridx = 1;
             JSpinner videoBorderThicknessSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderThickness, 1, 50, 2));
@@ -1964,7 +2017,7 @@ public class arabicSync {
             globalPanel.add(videoBorderThicknessSpinner, gbc);
 
             // Border Color
-            gbc.gridx = 0; gbc.gridy = 12;
+            gbc.gridx = 0; gbc.gridy = 14;
             globalPanel.add(new JLabel("Border Color:"), gbc);
             gbc.gridx = 1;
             JPanel videoBorderColorPanel = new JPanel();
@@ -1984,7 +2037,7 @@ public class arabicSync {
             globalPanel.add(videoBorderColorPanel, gbc);
 
             // Border Color 2 (for gradient)
-            gbc.gridx = 0; gbc.gridy = 13;
+            gbc.gridx = 0; gbc.gridy = 15;
             globalPanel.add(new JLabel("Gradient Color 2:"), gbc);
             gbc.gridx = 1;
             JPanel videoBorderColor2Panel = new JPanel();
@@ -2004,7 +2057,7 @@ public class arabicSync {
             globalPanel.add(videoBorderColor2Panel, gbc);
 
             // Border Padding
-            gbc.gridx = 0; gbc.gridy = 14;
+            gbc.gridx = 0; gbc.gridy = 16;
             globalPanel.add(new JLabel("Border Padding:"), gbc);
             gbc.gridx = 1;
             JSpinner videoBorderPaddingSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderPadding, 0, 100, 5));
@@ -2015,7 +2068,7 @@ public class arabicSync {
             globalPanel.add(videoBorderPaddingSpinner, gbc);
 
             // Border Radius
-            gbc.gridx = 0; gbc.gridy = 15;
+            gbc.gridx = 0; gbc.gridy = 17;
             globalPanel.add(new JLabel("Border Radius:"), gbc);
             gbc.gridx = 1;
             JSpinner videoBorderRadiusSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderRadius, 0, 100, 5));
@@ -2026,18 +2079,18 @@ public class arabicSync {
             globalPanel.add(videoBorderRadiusSpinner, gbc);
 
             // === TEXT OVERLAYS SECTION ===
-            gbc.gridx = 0; gbc.gridy = 16; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 18; gbc.gridwidth = 2;
             JSeparator sep = new JSeparator();
             globalPanel.add(sep, gbc);
 
-            gbc.gridy = 17;
+            gbc.gridy = 19;
             JLabel overlayTitle = new JLabel("── Text Overlays ──");
             overlayTitle.setFont(overlayTitle.getFont().deriveFont(Font.BOLD));
             globalPanel.add(overlayTitle, gbc);
             gbc.gridwidth = 1;
 
             // Overlay list
-            gbc.gridy = 18; gbc.gridwidth = 2;
+            gbc.gridy = 20; gbc.gridwidth = 2;
             DefaultListModel<String> overlayListModel = new DefaultListModel<>();
             JList<String> overlayList = new JList<>(overlayListModel);
             overlayList.setVisibleRowCount(3);
@@ -2057,7 +2110,7 @@ public class arabicSync {
             };
 
             // Add overlay button
-            gbc.gridy = 19; gbc.gridwidth = 1;
+            gbc.gridy = 21; gbc.gridwidth = 1;
             gbc.gridx = 0;
             JButton addOverlayBtn = new JButton("Add");
             addOverlayBtn.addActionListener(e -> {
@@ -2077,7 +2130,7 @@ public class arabicSync {
             globalPanel.add(editOverlayBtn, gbc);
 
             // Copy overlay button
-            gbc.gridy = 20; gbc.gridx = 0;
+            gbc.gridy = 22; gbc.gridx = 0;
             JButton copyOverlayBtn = new JButton("Copy");
             copyOverlayBtn.addActionListener(e -> {
                 int idx = overlayList.getSelectedIndex();
@@ -2106,7 +2159,7 @@ public class arabicSync {
             globalPanel.add(removeOverlayBtn, gbc);
 
             // Add Multiple overlays button
-            gbc.gridy = 21; gbc.gridx = 0;
+            gbc.gridy = 23; gbc.gridx = 0;
             JButton addMultipleOverlaysBtn = new JButton("Add Multiple");
             addMultipleOverlaysBtn.addActionListener(e -> {
                 showAddMultipleOverlaysDialog(refreshOverlayList);
@@ -2126,7 +2179,7 @@ public class arabicSync {
             globalPanel.add(editAllOverlaysBtn, gbc);
 
             // Clear all overlays button
-            gbc.gridy = 22; gbc.gridx = 0; gbc.gridwidth = 2;
+            gbc.gridy = 24; gbc.gridx = 0; gbc.gridwidth = 2;
             JButton clearOverlaysBtn = new JButton("Clear All");
             clearOverlaysBtn.addActionListener(e -> {
                 config.textOverlays.clear();
