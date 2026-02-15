@@ -1812,6 +1812,7 @@ public class arabicSync {
             paraModeGlobalFontSizeSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeDefaultFontSize, 20, 150, 2));
             JSpinner globalFontSizeSpinner = paraModeGlobalFontSizeSpinner;
             globalFontSizeSpinner.addChangeListener(e -> {
+                if (paraModeUpdatingControls) return;
                 int newSize = (Integer) globalFontSizeSpinner.getValue();
                 config.paraModeDefaultFontSize = newSize;
                 // Apply to ALL existing lines at once
@@ -1859,6 +1860,7 @@ public class arabicSync {
             JComboBox<String> globalFontTypeCombo = paraModeGlobalFontTypeCombo;
             globalFontTypeCombo.setPrototypeDisplayValue("MMMMMMMMMMMM");
             globalFontTypeCombo.addActionListener(e -> {
+                if (paraModeUpdatingControls) return;
                 String selectedFont = (String) globalFontTypeCombo.getSelectedItem();
                 String fontFamily = "";
                 if (selectedFont != null && !selectedFont.equals("Default")) {
@@ -1894,6 +1896,7 @@ public class arabicSync {
             globalItalicCheck.setFont(globalItalicCheck.getFont().deriveFont(Font.ITALIC));
             JCheckBox globalUnderlineCheck = new JCheckBox("U");
             ActionListener globalStyleListener = e -> {
+                if (paraModeUpdatingControls) return;
                 boolean b = globalBoldCheck.isSelected();
                 boolean it = globalItalicCheck.isSelected();
                 boolean u = globalUnderlineCheck.isSelected();
@@ -1930,6 +1933,7 @@ public class arabicSync {
             globalOutlineCheck.setSelected(true);
             JCheckBox globalGlowCheck = new JCheckBox("Glow");
             ActionListener globalEffectsListener = e -> {
+                if (paraModeUpdatingControls) return;
                 boolean s = globalShadowCheck.isSelected();
                 boolean o = globalOutlineCheck.isSelected();
                 boolean g = globalGlowCheck.isSelected();
@@ -2060,6 +2064,7 @@ public class arabicSync {
             JComboBox<String> globalAlignmentCombo = paraModeGlobalAlignmentCombo;
             globalAlignmentCombo.setSelectedIndex(1); // Default center
             globalAlignmentCombo.addActionListener(e -> {
+                if (paraModeUpdatingControls) return;
                 int newAlignment = globalAlignmentCombo.getSelectedIndex();
                 // Apply to ALL existing lines
                 for (ParaLineStyle lineStyle : config.paraLineStyles) {
@@ -2082,6 +2087,7 @@ public class arabicSync {
             paraModeGlobalHShiftSpinner = new JSpinner(new SpinnerNumberModel(0, -500, 500, 5));
             JSpinner globalHorizontalOffsetSpinner = paraModeGlobalHShiftSpinner;
             globalHorizontalOffsetSpinner.addChangeListener(e -> {
+                if (paraModeUpdatingControls) return;
                 int newOffset = (Integer) globalHorizontalOffsetSpinner.getValue();
                 // Apply to ALL existing lines
                 for (ParaLineStyle lineStyle : config.paraLineStyles) {
