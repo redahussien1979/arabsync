@@ -1773,6 +1773,10 @@ public class arabicSync {
             // === LEFT PANEL: Line List and Global Settings ===
             JPanel leftPanel = new JPanel(new BorderLayout(5, 5));
 
+            // Scan fonts from directory once (used by both global and per-line font combos)
+            paraModeFontFileMap.clear();
+            String[] scannedFontsForPanel = scanFontsInDirectoryWithMap(paraModeFontFileMap);
+
             // Global Settings Section - make it scrollable
             JPanel globalPanel = new JPanel(new GridBagLayout());
             GridBagConstraints gbc = new GridBagConstraints();
@@ -1807,12 +1811,26 @@ public class arabicSync {
             globalPanel.add(new JLabel("Font Type (All):"), gbc);
             gbc.gridx = 1;
             // Build font list: Default + scanned fonts + system fonts
+            // (must not reference paraModeFontStyleCombo here as it hasn't been created yet)
             java.util.List<String> globalFontItems = new java.util.ArrayList<>();
             globalFontItems.add("Default");
-            for (int fi = 0; fi < paraModeFontStyleCombo.getItemCount(); fi++) {
-                String item = paraModeFontStyleCombo.getItemAt(fi);
-                if (!item.equals("Default") && !globalFontItems.contains(item)) {
-                    globalFontItems.add(item);
+            // Add scanned fonts from directory (already populated by paraModeFontFileMap)
+            String[] globalScannedFonts = paraModeFontFileMap.keySet().toArray(new String[0]);
+            java.util.Arrays.sort(globalScannedFonts);
+            for (String f : globalScannedFonts) {
+                globalFontItems.add(f);
+            }
+            // Add system fonts
+            String[] globalSystemFonts = {"Serif", "SansSerif", "Monospaced",
+                    "Dialog", "DialogInput", "Arial", "Times New Roman",
+                    "Courier New", "Georgia", "Verdana", "Tahoma",
+                    "Trebuchet MS", "Impact", "Comic Sans MS",
+                    "Arial Black", "Palatino Linotype", "Lucida Console",
+                    "Traditional Arabic", "Simplified Arabic", "Arabic Typesetting",
+                    "Sakkal Majalla", "Noto Naskh Arabic", "Amiri", "Scheherazade"};
+            for (String sf : globalSystemFonts) {
+                if (!globalFontItems.contains(sf)) {
+                    globalFontItems.add(sf);
                 }
             }
             JComboBox<String> globalFontTypeCombo = new JComboBox<>(globalFontItems.toArray(new String[0]));
@@ -2370,14 +2388,12 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 1;
             lineStylePanel.add(new JLabel("Font Style:"), gbc);
             gbc.gridx = 1;
-            // Scan fonts from directory and combine with system fonts
-            paraModeFontFileMap.clear();
-            String[] scannedFonts = scanFontsInDirectoryWithMap(paraModeFontFileMap);
+            // Combine scanned fonts with system fonts (scanning already done above)
             java.util.List<String> allFontItems = new java.util.ArrayList<>();
             allFontItems.add("Default");
             // Add scanned fonts from directory
-            if (scannedFonts.length > 0 && !scannedFonts[0].equals("No fonts found")) {
-                for (String f : scannedFonts) {
+            if (scannedFontsForPanel.length > 0 && !scannedFontsForPanel[0].equals("No fonts found")) {
+                for (String f : scannedFontsForPanel) {
                     allFontItems.add(f);
                 }
             }
