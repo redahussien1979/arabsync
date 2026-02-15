@@ -1765,6 +1765,27 @@ public class arabicSync {
         private java.util.List<String> paraModeCurrentLines = new java.util.ArrayList<>();
         // Font file map for paragraph mode per-line font selection
         private java.util.Map<String, File> paraModeFontFileMap = new java.util.HashMap<>();
+        // Global panel controls (for preset load refresh)
+        private JSpinner paraModeGlobalFontSizeSpinner;
+        private JComboBox<String> paraModeGlobalFontTypeCombo;
+        private JSpinner paraModeGlobalStartYSpinner;
+        private JSpinner paraModeGlobalLineSpacingSpinner;
+        private JPanel paraModeGlobalDefaultColorPanel;
+        private JPanel paraModeGlobalHighlightColorPanel;
+        private JPanel paraModeGlobalBgColorPanel;
+        private JComboBox<String> paraModeGlobalAlignmentCombo;
+        private JSpinner paraModeGlobalHShiftSpinner;
+        private JComboBox<String> paraModeGlobalHighlightModeCombo;
+        private JSpinner paraModeGlobalTextBoxOpacitySpinner;
+        private JCheckBox paraModeGlobalShowProgressBarCheck;
+        private JCheckBox paraModeGlobalVideoBorderEnabledCheck;
+        private JComboBox<String> paraModeGlobalVideoBorderStyleCombo;
+        private JSpinner paraModeGlobalVideoBorderThicknessSpinner;
+        private JPanel paraModeGlobalVideoBorderColorPanel;
+        private JPanel paraModeGlobalVideoBorderColor2Panel;
+        private JSpinner paraModeGlobalVideoBorderPaddingSpinner;
+        private JSpinner paraModeGlobalVideoBorderRadiusSpinner;
+        private Runnable paraModeRefreshOverlayList;
 
         private JPanel createParaModePanel() {
             JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
@@ -1780,15 +1801,16 @@ public class arabicSync {
             // Global Settings Section - make it scrollable
             JPanel globalPanel = new JPanel(new GridBagLayout());
             GridBagConstraints gbc = new GridBagConstraints();
-            gbc.insets = new Insets(3, 5, 3, 5);
+            gbc.insets = new Insets(2, 4, 2, 4);
             gbc.anchor = GridBagConstraints.WEST;
             gbc.fill = GridBagConstraints.HORIZONTAL;
 
             // Default Font Size
-            gbc.gridx = 0; gbc.gridy = 0;
-            globalPanel.add(new JLabel("Default Font Size:"), gbc);
-            gbc.gridx = 1;
-            JSpinner globalFontSizeSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeDefaultFontSize, 20, 150, 2));
+            gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("Font Size:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            paraModeGlobalFontSizeSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeDefaultFontSize, 20, 150, 2));
+            JSpinner globalFontSizeSpinner = paraModeGlobalFontSizeSpinner;
             globalFontSizeSpinner.addChangeListener(e -> {
                 int newSize = (Integer) globalFontSizeSpinner.getValue();
                 config.paraModeDefaultFontSize = newSize;
@@ -1807,9 +1829,9 @@ public class arabicSync {
             globalPanel.add(globalFontSizeSpinner, gbc);
 
             // Font Type (All) - applies to all lines
-            gbc.gridx = 0; gbc.gridy = 1;
-            globalPanel.add(new JLabel("Font Type (All):"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("Font:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             // Build font list: Default + scanned fonts + system fonts
             // (must not reference paraModeFontStyleCombo here as it hasn't been created yet)
             java.util.List<String> globalFontItems = new java.util.ArrayList<>();
@@ -1833,7 +1855,9 @@ public class arabicSync {
                     globalFontItems.add(sf);
                 }
             }
-            JComboBox<String> globalFontTypeCombo = new JComboBox<>(globalFontItems.toArray(new String[0]));
+            paraModeGlobalFontTypeCombo = new JComboBox<>(globalFontItems.toArray(new String[0]));
+            JComboBox<String> globalFontTypeCombo = paraModeGlobalFontTypeCombo;
+            globalFontTypeCombo.setPrototypeDisplayValue("MMMMMMMMMMMM");
             globalFontTypeCombo.addActionListener(e -> {
                 String selectedFont = (String) globalFontTypeCombo.getSelectedItem();
                 String fontFamily = "";
@@ -1860,9 +1884,9 @@ public class arabicSync {
             globalPanel.add(globalFontTypeCombo, gbc);
 
             // Bold / Italic / Underline (All) - applies to all lines
-            gbc.gridx = 0; gbc.gridy = 2;
-            globalPanel.add(new JLabel("Style (All):"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("Style:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             JPanel globalStylePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
             JCheckBox globalBoldCheck = new JCheckBox("B");
             globalBoldCheck.setFont(globalBoldCheck.getFont().deriveFont(Font.BOLD));
@@ -1896,9 +1920,9 @@ public class arabicSync {
             globalPanel.add(globalStylePanel, gbc);
 
             // Effects (All) - Shadow / Outline / Glow - applies to all lines
-            gbc.gridx = 0; gbc.gridy = 3;
-            globalPanel.add(new JLabel("Effects (All):"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("Effects:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             JPanel globalEffectsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
             JCheckBox globalShadowCheck = new JCheckBox("Shadow");
             globalShadowCheck.setSelected(true);
@@ -1932,10 +1956,11 @@ public class arabicSync {
             globalPanel.add(globalEffectsPanel, gbc);
 
             // Start Y Position
-            gbc.gridx = 0; gbc.gridy = 4;
-            globalPanel.add(new JLabel("Start Y Position (%):"), gbc);
-            gbc.gridx = 1;
-            JSpinner startYSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeStartY, 0, 50, 1));
+            gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("Start Y %:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            paraModeGlobalStartYSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeStartY, 0, 50, 1));
+            JSpinner startYSpinner = paraModeGlobalStartYSpinner;
             startYSpinner.addChangeListener(e -> {
                 config.paraModeStartY = (Integer) startYSpinner.getValue();
                 updateParaModePreview();
@@ -1943,10 +1968,11 @@ public class arabicSync {
             globalPanel.add(startYSpinner, gbc);
 
             // Global Line Spacing
-            gbc.gridx = 0; gbc.gridy = 5;
-            globalPanel.add(new JLabel("Line Spacing (px):"), gbc);
-            gbc.gridx = 1;
-            JSpinner globalLineSpacingSpinner = new JSpinner(new SpinnerNumberModel(config.paramodeGlobalLineSpacing, -200, 200, 5));
+            gbc.gridx = 0; gbc.gridy = 5; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("Spacing:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            paraModeGlobalLineSpacingSpinner = new JSpinner(new SpinnerNumberModel(config.paramodeGlobalLineSpacing, -200, 200, 5));
+            JSpinner globalLineSpacingSpinner = paraModeGlobalLineSpacingSpinner;
             globalLineSpacingSpinner.addChangeListener(e -> {
                 config.paramodeGlobalLineSpacing = (Integer) globalLineSpacingSpinner.getValue();
                 updateParaModePreview();
@@ -1954,10 +1980,11 @@ public class arabicSync {
             globalPanel.add(globalLineSpacingSpinner, gbc);
 
             // Default Text Color (applies to all lines)
-            gbc.gridx = 0; gbc.gridy = 6;
-            globalPanel.add(new JLabel("Font Color (All):"), gbc);
-            gbc.gridx = 1;
-            JPanel defaultColorPanel = new JPanel();
+            gbc.gridx = 0; gbc.gridy = 6; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("Color:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            paraModeGlobalDefaultColorPanel = new JPanel();
+            JPanel defaultColorPanel = paraModeGlobalDefaultColorPanel;
             defaultColorPanel.setBackground(config.paraModeDefaultColor);
             defaultColorPanel.setPreferredSize(new Dimension(60, 25));
             defaultColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
@@ -1984,10 +2011,11 @@ public class arabicSync {
             globalPanel.add(defaultColorPanel, gbc);
 
             // Highlight Color
-            gbc.gridx = 0; gbc.gridy = 7;
-            globalPanel.add(new JLabel("Highlight Color:"), gbc);
-            gbc.gridx = 1;
-            JPanel highlightColorPanel = new JPanel();
+            gbc.gridx = 0; gbc.gridy = 7; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("Highlight:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            paraModeGlobalHighlightColorPanel = new JPanel();
+            JPanel highlightColorPanel = paraModeGlobalHighlightColorPanel;
             highlightColorPanel.setBackground(config.paraModeHighlightColor);
             highlightColorPanel.setPreferredSize(new Dimension(60, 25));
             highlightColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
@@ -2004,10 +2032,11 @@ public class arabicSync {
             globalPanel.add(highlightColorPanel, gbc);
 
             // Background Color
-            gbc.gridx = 0; gbc.gridy = 8;
-            globalPanel.add(new JLabel("Background Color:"), gbc);
-            gbc.gridx = 1;
-            JPanel bgColorPanel = new JPanel();
+            gbc.gridx = 0; gbc.gridy = 8; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("BG Color:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            paraModeGlobalBgColorPanel = new JPanel();
+            JPanel bgColorPanel = paraModeGlobalBgColorPanel;
             bgColorPanel.setBackground(config.paraModeBackgroundColor);
             bgColorPanel.setPreferredSize(new Dimension(60, 25));
             bgColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
@@ -2024,10 +2053,11 @@ public class arabicSync {
             globalPanel.add(bgColorPanel, gbc);
 
             // Global Alignment (applies to all lines)
-            gbc.gridx = 0; gbc.gridy = 9;
-            globalPanel.add(new JLabel("Alignment (All):"), gbc);
-            gbc.gridx = 1;
-            JComboBox<String> globalAlignmentCombo = new JComboBox<>(new String[]{"Left", "Center", "Right"});
+            gbc.gridx = 0; gbc.gridy = 9; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("Align:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            paraModeGlobalAlignmentCombo = new JComboBox<>(new String[]{"Left", "Center", "Right"});
+            JComboBox<String> globalAlignmentCombo = paraModeGlobalAlignmentCombo;
             globalAlignmentCombo.setSelectedIndex(1); // Default center
             globalAlignmentCombo.addActionListener(e -> {
                 int newAlignment = globalAlignmentCombo.getSelectedIndex();
@@ -2046,10 +2076,11 @@ public class arabicSync {
             globalPanel.add(globalAlignmentCombo, gbc);
 
             // Global Horizontal Shift (applies to all lines)
-            gbc.gridx = 0; gbc.gridy = 10;
-            globalPanel.add(new JLabel("H-Shift (All):"), gbc);
-            gbc.gridx = 1;
-            JSpinner globalHorizontalOffsetSpinner = new JSpinner(new SpinnerNumberModel(0, -500, 500, 5));
+            gbc.gridx = 0; gbc.gridy = 10; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("H-Shift:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            paraModeGlobalHShiftSpinner = new JSpinner(new SpinnerNumberModel(0, -500, 500, 5));
+            JSpinner globalHorizontalOffsetSpinner = paraModeGlobalHShiftSpinner;
             globalHorizontalOffsetSpinner.addChangeListener(e -> {
                 int newOffset = (Integer) globalHorizontalOffsetSpinner.getValue();
                 // Apply to ALL existing lines
@@ -2067,12 +2098,13 @@ public class arabicSync {
             globalPanel.add(globalHorizontalOffsetSpinner, gbc);
 
             // Highlight Mode
-            gbc.gridx = 0; gbc.gridy = 11;
-            globalPanel.add(new JLabel("Highlight Mode:"), gbc);
-            gbc.gridx = 1;
-            JComboBox<String> highlightModeCombo = new JComboBox<>(new String[]{
+            gbc.gridx = 0; gbc.gridy = 11; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("HL Mode:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            paraModeGlobalHighlightModeCombo = new JComboBox<>(new String[]{
                     "Color Change", "Scale Up", "Glow Pulse", "Underline"
             });
+            JComboBox<String> highlightModeCombo = paraModeGlobalHighlightModeCombo;
             highlightModeCombo.setSelectedIndex(config.paraModeHighlightMode);
             highlightModeCombo.addActionListener(e -> {
                 config.paraModeHighlightMode = highlightModeCombo.getSelectedIndex();
@@ -2081,10 +2113,11 @@ public class arabicSync {
             globalPanel.add(highlightModeCombo, gbc);
 
             // Text Box Opacity
-            gbc.gridx = 0; gbc.gridy = 12;
-            globalPanel.add(new JLabel("Text Box Opacity:"), gbc);
-            gbc.gridx = 1;
-            JSpinner textBoxOpacitySpinner = new JSpinner(new SpinnerNumberModel(config.paraModeTextBoxOpacity, 0, 100, 5));
+            gbc.gridx = 0; gbc.gridy = 12; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("Box Alpha:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            paraModeGlobalTextBoxOpacitySpinner = new JSpinner(new SpinnerNumberModel(config.paraModeTextBoxOpacity, 0, 100, 5));
+            JSpinner textBoxOpacitySpinner = paraModeGlobalTextBoxOpacitySpinner;
             textBoxOpacitySpinner.addChangeListener(e -> {
                 config.paraModeTextBoxOpacity = (Integer) textBoxOpacitySpinner.getValue();
                 updateParaModePreview();
@@ -2092,9 +2125,9 @@ public class arabicSync {
             globalPanel.add(textBoxOpacitySpinner, gbc);
 
             // Background Image
-            gbc.gridx = 0; gbc.gridy = 13;
-            globalPanel.add(new JLabel("Background Image:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 13; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("BG Image:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             JPanel bgImagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
             JButton bgImageBtn = new JButton("Select...");
             bgImageBtn.addActionListener(e -> {
@@ -2116,7 +2149,8 @@ public class arabicSync {
 
             // Show/Hide Progress Bar
             gbc.gridx = 0; gbc.gridy = 14; gbc.gridwidth = 2;
-            JCheckBox showProgressBarCheck = new JCheckBox("Show Progress Bar", config.paraModeShowProgressBar);
+            paraModeGlobalShowProgressBarCheck = new JCheckBox("Show Progress Bar", config.paraModeShowProgressBar);
+            JCheckBox showProgressBarCheck = paraModeGlobalShowProgressBarCheck;
             showProgressBarCheck.addActionListener(e -> {
                 config.paraModeShowProgressBar = showProgressBarCheck.isSelected();
                 updateParaModePreview();
@@ -2126,7 +2160,8 @@ public class arabicSync {
 
             // === VIDEO BORDER SETTINGS (collapsible section) ===
             gbc.gridx = 0; gbc.gridy = 15; gbc.gridwidth = 2;
-            JCheckBox videoBorderEnabledCheck = new JCheckBox("Enable Video Border", config.paraModeVideoBorderEnabled);
+            paraModeGlobalVideoBorderEnabledCheck = new JCheckBox("Enable Video Border", config.paraModeVideoBorderEnabled);
+            JCheckBox videoBorderEnabledCheck = paraModeGlobalVideoBorderEnabledCheck;
             videoBorderEnabledCheck.addActionListener(e -> {
                 config.paraModeVideoBorderEnabled = videoBorderEnabledCheck.isSelected();
                 updateParaModePreview();
@@ -2138,9 +2173,10 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 16;
             globalPanel.add(new JLabel("Border Style:"), gbc);
             gbc.gridx = 1;
-            JComboBox<String> videoBorderStyleCombo = new JComboBox<>(new String[]{
+            paraModeGlobalVideoBorderStyleCombo = new JComboBox<>(new String[]{
                     "Solid", "Double", "Dashed", "Gradient", "Rounded", "Ornamental"
             });
+            JComboBox<String> videoBorderStyleCombo = paraModeGlobalVideoBorderStyleCombo;
             videoBorderStyleCombo.setSelectedIndex(config.paraModeVideoBorderStyle);
             videoBorderStyleCombo.addActionListener(e -> {
                 config.paraModeVideoBorderStyle = videoBorderStyleCombo.getSelectedIndex();
@@ -2152,7 +2188,8 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 17;
             globalPanel.add(new JLabel("Border Thickness:"), gbc);
             gbc.gridx = 1;
-            JSpinner videoBorderThicknessSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderThickness, 1, 50, 2));
+            paraModeGlobalVideoBorderThicknessSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderThickness, 1, 50, 2));
+            JSpinner videoBorderThicknessSpinner = paraModeGlobalVideoBorderThicknessSpinner;
             videoBorderThicknessSpinner.addChangeListener(e -> {
                 config.paraModeVideoBorderThickness = (Integer) videoBorderThicknessSpinner.getValue();
                 updateParaModePreview();
@@ -2163,7 +2200,8 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 18;
             globalPanel.add(new JLabel("Border Color:"), gbc);
             gbc.gridx = 1;
-            JPanel videoBorderColorPanel = new JPanel();
+            paraModeGlobalVideoBorderColorPanel = new JPanel();
+            JPanel videoBorderColorPanel = paraModeGlobalVideoBorderColorPanel;
             videoBorderColorPanel.setBackground(config.paraModeVideoBorderColor);
             videoBorderColorPanel.setPreferredSize(new Dimension(60, 25));
             videoBorderColorPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
@@ -2183,7 +2221,8 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 19;
             globalPanel.add(new JLabel("Gradient Color 2:"), gbc);
             gbc.gridx = 1;
-            JPanel videoBorderColor2Panel = new JPanel();
+            paraModeGlobalVideoBorderColor2Panel = new JPanel();
+            JPanel videoBorderColor2Panel = paraModeGlobalVideoBorderColor2Panel;
             videoBorderColor2Panel.setBackground(config.paraModeVideoBorderColor2);
             videoBorderColor2Panel.setPreferredSize(new Dimension(60, 25));
             videoBorderColor2Panel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
@@ -2203,7 +2242,8 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 20;
             globalPanel.add(new JLabel("Border Padding:"), gbc);
             gbc.gridx = 1;
-            JSpinner videoBorderPaddingSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderPadding, 0, 100, 5));
+            paraModeGlobalVideoBorderPaddingSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderPadding, 0, 100, 5));
+            JSpinner videoBorderPaddingSpinner = paraModeGlobalVideoBorderPaddingSpinner;
             videoBorderPaddingSpinner.addChangeListener(e -> {
                 config.paraModeVideoBorderPadding = (Integer) videoBorderPaddingSpinner.getValue();
                 updateParaModePreview();
@@ -2214,7 +2254,8 @@ public class arabicSync {
             gbc.gridx = 0; gbc.gridy = 21;
             globalPanel.add(new JLabel("Border Radius:"), gbc);
             gbc.gridx = 1;
-            JSpinner videoBorderRadiusSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderRadius, 0, 100, 5));
+            paraModeGlobalVideoBorderRadiusSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderRadius, 0, 100, 5));
+            JSpinner videoBorderRadiusSpinner = paraModeGlobalVideoBorderRadiusSpinner;
             videoBorderRadiusSpinner.addChangeListener(e -> {
                 config.paraModeVideoBorderRadius = (Integer) videoBorderRadiusSpinner.getValue();
                 updateParaModePreview();
@@ -2238,11 +2279,11 @@ public class arabicSync {
             JList<String> overlayList = new JList<>(overlayListModel);
             overlayList.setVisibleRowCount(3);
             JScrollPane overlayScrollPane = new JScrollPane(overlayList);
-            overlayScrollPane.setPreferredSize(new Dimension(200, 60));
+            overlayScrollPane.setPreferredSize(new Dimension(160, 60));
             globalPanel.add(overlayScrollPane, gbc);
 
             // Refresh overlay list display
-            Runnable refreshOverlayList = () -> {
+            paraModeRefreshOverlayList = () -> {
                 overlayListModel.clear();
                 for (int i = 0; i < config.textOverlays.size(); i++) {
                     TextOverlay ov = config.textOverlays.get(i);
@@ -2251,6 +2292,7 @@ public class arabicSync {
                 }
                 updateParaModePreview();
             };
+            Runnable refreshOverlayList = paraModeRefreshOverlayList;
 
             // Add overlay button
             gbc.gridy = 25; gbc.gridwidth = 1;
@@ -2331,12 +2373,75 @@ public class arabicSync {
             globalPanel.add(clearOverlaysBtn, gbc);
             gbc.gridwidth = 1;
 
+            // === PRESETS PANEL ===
+            JPanel presetsPanel = new JPanel(new GridBagLayout());
+            presetsPanel.setBorder(BorderFactory.createTitledBorder("Presets"));
+            GridBagConstraints pgbc = new GridBagConstraints();
+            pgbc.insets = new Insets(2, 3, 2, 3);
+            pgbc.fill = GridBagConstraints.HORIZONTAL;
+
+            pgbc.gridx = 0; pgbc.gridy = 0; pgbc.gridwidth = 3; pgbc.weightx = 1.0;
+            JComboBox<String> presetCombo = new JComboBox<>();
+            presetCombo.setPrototypeDisplayValue("MMMMMMMMMMM");
+            // Populate combo
+            Runnable refreshPresets = () -> {
+                presetCombo.removeAllItems();
+                for (String pn : listPresetNames()) {
+                    presetCombo.addItem(pn);
+                }
+            };
+            refreshPresets.run();
+            presetsPanel.add(presetCombo, pgbc);
+
+            pgbc.gridy = 1; pgbc.gridwidth = 1; pgbc.weightx = 0.33;
+            JButton presetSaveBtn = new JButton("Save");
+            presetSaveBtn.setMargin(new Insets(2, 4, 2, 4));
+            presetSaveBtn.addActionListener(e -> {
+                String name = JOptionPane.showInputDialog(this, "Enter preset name:", "Save Preset",
+                        JOptionPane.PLAIN_MESSAGE);
+                if (name != null && !name.trim().isEmpty()) {
+                    name = name.trim().replaceAll("[^a-zA-Z0-9_\\- ]", "");
+                    saveParaModePreset(name);
+                    refreshPresets.run();
+                    presetCombo.setSelectedItem(name);
+                }
+            });
+            presetsPanel.add(presetSaveBtn, pgbc);
+
+            pgbc.gridx = 1;
+            JButton presetLoadBtn = new JButton("Load");
+            presetLoadBtn.setMargin(new Insets(2, 4, 2, 4));
+            presetLoadBtn.addActionListener(e -> {
+                String sel = (String) presetCombo.getSelectedItem();
+                if (sel != null) {
+                    loadParaModePreset(sel);
+                }
+            });
+            presetsPanel.add(presetLoadBtn, pgbc);
+
+            pgbc.gridx = 2;
+            JButton presetDeleteBtn = new JButton("Del");
+            presetDeleteBtn.setMargin(new Insets(2, 4, 2, 4));
+            presetDeleteBtn.addActionListener(e -> {
+                String sel = (String) presetCombo.getSelectedItem();
+                if (sel != null) {
+                    deleteParaModePreset(sel);
+                    refreshPresets.run();
+                }
+            });
+            presetsPanel.add(presetDeleteBtn, pgbc);
+
             // Wrap global panel in scroll pane
             JScrollPane globalScrollPane = new JScrollPane(globalPanel);
             globalScrollPane.setBorder(BorderFactory.createTitledBorder("Global Settings"));
             globalScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
             globalScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
             globalScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+
+            // Combine presets + global settings in top section
+            JPanel topLeftPanel = new JPanel(new BorderLayout(0, 3));
+            topLeftPanel.add(presetsPanel, BorderLayout.NORTH);
+            topLeftPanel.add(globalScrollPane, BorderLayout.CENTER);
 
             // Lines List
             JPanel linesPanel = new JPanel(new BorderLayout(5, 5));
@@ -2360,8 +2465,8 @@ public class arabicSync {
             reloadLinesBtn.addActionListener(e -> loadParaModeLinesFromFile());
             linesPanel.add(reloadLinesBtn, BorderLayout.SOUTH);
 
-            // Use vertical split pane for left panel (global settings on top, lines list on bottom)
-            JSplitPane leftSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, globalScrollPane, linesPanel);
+            // Use vertical split pane for left panel (presets+global settings on top, lines list on bottom)
+            JSplitPane leftSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, topLeftPanel, linesPanel);
             leftSplitPane.setResizeWeight(0.5);
             leftSplitPane.setDividerLocation(350);
             leftSplitPane.setOneTouchExpandable(true);
@@ -2369,25 +2474,27 @@ public class arabicSync {
 
             // === CENTER PANEL: Line-Specific Settings ===
             JPanel centerPanel = new JPanel(new BorderLayout(5, 5));
+            centerPanel.setPreferredSize(new Dimension(220, 400));
+            centerPanel.setMinimumSize(new Dimension(170, 200));
 
             JPanel lineStylePanel = new JPanel(new GridBagLayout());
             gbc = new GridBagConstraints();
-            gbc.insets = new Insets(4, 5, 4, 5);
+            gbc.insets = new Insets(2, 4, 2, 4);
             gbc.anchor = GridBagConstraints.WEST;
             gbc.fill = GridBagConstraints.HORIZONTAL;
 
             // Font Size
-            gbc.gridx = 0; gbc.gridy = 0;
-            lineStylePanel.add(new JLabel("Font Size:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Size:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeFontSizeSpinner = new JSpinner(new SpinnerNumberModel(50, 20, 200, 2));
             paraModeFontSizeSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeFontSizeSpinner, gbc);
 
             // Font Style
-            gbc.gridx = 0; gbc.gridy = 1;
-            lineStylePanel.add(new JLabel("Font Style:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Font:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             // Combine scanned fonts with system fonts (scanning already done above)
             java.util.List<String> allFontItems = new java.util.ArrayList<>();
             allFontItems.add("Default");
@@ -2411,22 +2518,23 @@ public class arabicSync {
                 }
             }
             paraModeFontStyleCombo = new JComboBox<>(allFontItems.toArray(new String[0]));
+            paraModeFontStyleCombo.setPrototypeDisplayValue("MMMMMMMMMMMM");
             paraModeFontStyleCombo.addActionListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeFontStyleCombo, gbc);
 
             // Alignment
-            gbc.gridx = 0; gbc.gridy = 2;
-            lineStylePanel.add(new JLabel("Alignment:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Align:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeAlignmentCombo = new JComboBox<>(new String[]{"Left", "Center", "Right"});
             paraModeAlignmentCombo.setSelectedIndex(1);
             paraModeAlignmentCombo.addActionListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeAlignmentCombo, gbc);
 
             // Text Color
-            gbc.gridx = 0; gbc.gridy = 3;
-            lineStylePanel.add(new JLabel("Text Color:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Color:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeLineColorPanel = new JPanel();
             paraModeLineColorPanel.setBackground(Color.WHITE);
             paraModeLineColorPanel.setPreferredSize(new Dimension(60, 25));
@@ -2445,9 +2553,9 @@ public class arabicSync {
             lineStylePanel.add(paraModeLineColorPanel, gbc);
 
             // Highlight Color
-            gbc.gridx = 0; gbc.gridy = 4;
-            lineStylePanel.add(new JLabel("Highlight Color:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Highlight:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeHighlightColorPanel = new JPanel();
             paraModeHighlightColorPanel.setBackground(new Color(255, 215, 0));
             paraModeHighlightColorPanel.setPreferredSize(new Dimension(60, 25));
@@ -2498,25 +2606,25 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // Line Spacing Before
-            gbc.gridx = 0; gbc.gridy = 7;
-            lineStylePanel.add(new JLabel("Space Before (px):"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 7; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Gap:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeLineSpacingSpinner = new JSpinner(new SpinnerNumberModel(20, -200, 200, 5));
             paraModeLineSpacingSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeLineSpacingSpinner, gbc);
 
             // Word Spacing
-            gbc.gridx = 0; gbc.gridy = 8;
-            lineStylePanel.add(new JLabel("Word Spacing:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 8; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("W-Space:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeWordSpacingSpinner = new JSpinner(new SpinnerNumberModel(0, -10, 50, 2));
             paraModeWordSpacingSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeWordSpacingSpinner, gbc);
 
             // Horizontal Offset (shift left/right)
-            gbc.gridx = 0; gbc.gridy = 9;
-            lineStylePanel.add(new JLabel("Horizontal Offset:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 9; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("H-Shift:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeHorizontalOffsetSpinner = new JSpinner(new SpinnerNumberModel(0, -500, 500, 10));
             paraModeHorizontalOffsetSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeHorizontalOffsetSpinner, gbc);
@@ -2529,25 +2637,25 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // Border Style
-            gbc.gridx = 0; gbc.gridy = 11;
-            lineStylePanel.add(new JLabel("Border Style:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 11; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Bdr Style:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeBorderStyleCombo = new JComboBox<>(new String[]{"Solid", "Double", "Dashed", "Gradient", "Rounded"});
             paraModeBorderStyleCombo.addActionListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeBorderStyleCombo, gbc);
 
             // Border Thickness
-            gbc.gridx = 0; gbc.gridy = 12;
-            lineStylePanel.add(new JLabel("Border Thickness:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 12; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Bdr Width:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeBorderThicknessSpinner = new JSpinner(new SpinnerNumberModel(2, 1, 20, 1));
             paraModeBorderThicknessSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeBorderThicknessSpinner, gbc);
 
             // Border Colors
-            gbc.gridx = 0; gbc.gridy = 13;
-            lineStylePanel.add(new JLabel("Border Color:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 13; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Bdr Color:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeBorderColorPanel = new JPanel();
             paraModeBorderColorPanel.setBackground(new Color(255, 215, 0));
             paraModeBorderColorPanel.setPreferredSize(new Dimension(60, 25));
@@ -2563,9 +2671,9 @@ public class arabicSync {
             });
             lineStylePanel.add(paraModeBorderColorPanel, gbc);
 
-            gbc.gridx = 0; gbc.gridy = 14;
-            lineStylePanel.add(new JLabel("Gradient Color 2:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 14; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Grad Clr 2:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeBorderColor2Panel = new JPanel();
             paraModeBorderColor2Panel.setBackground(new Color(255, 165, 0));
             paraModeBorderColor2Panel.setPreferredSize(new Dimension(60, 25));
@@ -2582,17 +2690,17 @@ public class arabicSync {
             lineStylePanel.add(paraModeBorderColor2Panel, gbc);
 
             // Border Padding
-            gbc.gridx = 0; gbc.gridy = 15;
-            lineStylePanel.add(new JLabel("Border Padding:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 15; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Bdr Pad:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeBorderPaddingSpinner = new JSpinner(new SpinnerNumberModel(10, 0, 50, 2));
             paraModeBorderPaddingSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeBorderPaddingSpinner, gbc);
 
             // Border Radius
-            gbc.gridx = 0; gbc.gridy = 16;
-            lineStylePanel.add(new JLabel("Border Radius:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 16; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("Bdr Rad:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeBorderRadiusSpinner = new JSpinner(new SpinnerNumberModel(8, 0, 50, 2));
             paraModeBorderRadiusSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeBorderRadiusSpinner, gbc);
@@ -2604,9 +2712,9 @@ public class arabicSync {
             lineStylePanel.add(paraModeHighlightBgEnabledCheck, gbc);
             gbc.gridwidth = 1;
 
-            gbc.gridx = 0; gbc.gridy = 18;
-            lineStylePanel.add(new JLabel("Highlight BG Color:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 18; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("HL BG Clr:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeHighlightBgColorPanel = new JPanel();
             paraModeHighlightBgColorPanel.setBackground(new Color(255, 215, 0));
             paraModeHighlightBgColorPanel.setPreferredSize(new Dimension(60, 25));
@@ -2623,43 +2731,43 @@ public class arabicSync {
             });
             lineStylePanel.add(paraModeHighlightBgColorPanel, gbc);
 
-            gbc.gridx = 0; gbc.gridy = 19;
-            lineStylePanel.add(new JLabel("Highlight Opacity:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 19; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("HL Alpha:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeHighlightBgOpacitySpinner = new JSpinner(new SpinnerNumberModel(50, 0, 100, 5));
             paraModeHighlightBgOpacitySpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeHighlightBgOpacitySpinner, gbc);
 
-            gbc.gridx = 0; gbc.gridy = 20;
-            lineStylePanel.add(new JLabel("Highlight Padding:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 20; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("HL Pad:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeHighlightBgPaddingSpinner = new JSpinner(new SpinnerNumberModel(8, -50, 200, 2));
             paraModeHighlightBgPaddingSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeHighlightBgPaddingSpinner, gbc);
 
-            gbc.gridx = 0; gbc.gridy = 21;
-            lineStylePanel.add(new JLabel("Highlight Radius:"), gbc);
-            gbc.gridx = 1;
+            gbc.gridx = 0; gbc.gridy = 21; gbc.weightx = 0.0;
+            lineStylePanel.add(new JLabel("HL Rad:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeHighlightBgRadiusSpinner = new JSpinner(new SpinnerNumberModel(6, 0, 500, 5));
             paraModeHighlightBgRadiusSpinner.addChangeListener(e -> applyLineStyleChange());
             lineStylePanel.add(paraModeHighlightBgRadiusSpinner, gbc);
 
             // Fancy Symbols button
             gbc.gridx = 0; gbc.gridy = 22; gbc.gridwidth = 2;
-            JButton fancySymbolsBtn = new JButton("Insert Fancy Symbols");
+            JButton fancySymbolsBtn = new JButton("Fancy Symbols");
             fancySymbolsBtn.addActionListener(e -> showFancySymbolsDialog());
             lineStylePanel.add(fancySymbolsBtn, gbc);
             gbc.gridwidth = 1;
 
             // Apply to All Lines button
             gbc.gridx = 0; gbc.gridy = 23; gbc.gridwidth = 2;
-            JButton applyToAllBtn = new JButton("Apply Style to All Lines");
+            JButton applyToAllBtn = new JButton("Apply to All");
             applyToAllBtn.addActionListener(e -> applyStyleToAllLines());
             lineStylePanel.add(applyToAllBtn, gbc);
 
             // Apply to Selected Lines button (opens dialog to choose which lines)
             gbc.gridx = 0; gbc.gridy = 24; gbc.gridwidth = 2;
-            JButton applyToSelectedBtn = new JButton("Apply Style to Selected Lines...");
+            JButton applyToSelectedBtn = new JButton("Apply to Lines...");
             applyToSelectedBtn.addActionListener(e -> showApplyStyleToLinesDialog());
             lineStylePanel.add(applyToSelectedBtn, gbc);
 
@@ -2811,15 +2919,17 @@ public class arabicSync {
 
             // Use horizontal split panes to make all panels resizable
             // First split: left panel and center panel
+            leftPanel.setPreferredSize(new Dimension(230, 400));
+            leftPanel.setMinimumSize(new Dimension(180, 200));
             JSplitPane leftCenterSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, centerPanel);
-            leftCenterSplit.setResizeWeight(0.4);
-            leftCenterSplit.setDividerLocation(320);
+            leftCenterSplit.setResizeWeight(0.35);
+            leftCenterSplit.setDividerLocation(240);
             leftCenterSplit.setOneTouchExpandable(true);
 
             // Second split: (left+center) and right panel
             JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftCenterSplit, rightPanel);
-            mainSplit.setResizeWeight(0.7);
-            mainSplit.setDividerLocation(600);
+            mainSplit.setResizeWeight(0.65);
+            mainSplit.setDividerLocation(500);
             mainSplit.setOneTouchExpandable(true);
 
             mainPanel.add(mainSplit, BorderLayout.CENTER);
@@ -2880,6 +2990,305 @@ public class arabicSync {
                 updateLineStyleControls();
             }
             updateParaModePreview();
+        }
+
+        // === PRESET SAVE / LOAD / DELETE ===
+
+        private static final String PRESETS_DIR = "para_presets";
+
+        private File getPresetsDir() {
+            File dir = new File(System.getProperty("user.dir"), PRESETS_DIR);
+            if (!dir.exists()) dir.mkdirs();
+            return dir;
+        }
+
+        private String[] listPresetNames() {
+            File dir = getPresetsDir();
+            File[] files = dir.listFiles((d, name) -> name.endsWith(".preset"));
+            if (files == null || files.length == 0) return new String[0];
+            java.util.Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+            String[] names = new String[files.length];
+            for (int i = 0; i < files.length; i++) {
+                names[i] = files[i].getName().replace(".preset", "");
+            }
+            return names;
+        }
+
+        private String colorToHex(Color c) {
+            return String.format("#%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
+        }
+
+        private Color hexToColor(String hex, Color fallback) {
+            try {
+                return Color.decode(hex);
+            } catch (Exception e) {
+                return fallback;
+            }
+        }
+
+        private void saveParaModePreset(String name) {
+            try {
+                File file = new File(getPresetsDir(), name + ".preset");
+                java.util.Properties p = new java.util.Properties();
+
+                // Global settings
+                p.setProperty("paraModeDefaultFontSize", String.valueOf(config.paraModeDefaultFontSize));
+                p.setProperty("paraModeStartY", String.valueOf(config.paraModeStartY));
+                p.setProperty("paramodeGlobalLineSpacing", String.valueOf(config.paramodeGlobalLineSpacing));
+                p.setProperty("paraModeDefaultColor", colorToHex(config.paraModeDefaultColor));
+                p.setProperty("paraModeHighlightColor", colorToHex(config.paraModeHighlightColor));
+                p.setProperty("paraModeBackgroundColor", colorToHex(config.paraModeBackgroundColor));
+                p.setProperty("paraModeBackgroundImage", config.paraModeBackgroundImage);
+                p.setProperty("paraModeHighlightMode", String.valueOf(config.paraModeHighlightMode));
+                p.setProperty("paraModeTextBoxOpacity", String.valueOf(config.paraModeTextBoxOpacity));
+                p.setProperty("paraModeShowProgressBar", String.valueOf(config.paraModeShowProgressBar));
+
+                // Video border
+                p.setProperty("paraModeVideoBorderEnabled", String.valueOf(config.paraModeVideoBorderEnabled));
+                p.setProperty("paraModeVideoBorderStyle", String.valueOf(config.paraModeVideoBorderStyle));
+                p.setProperty("paraModeVideoBorderThickness", String.valueOf(config.paraModeVideoBorderThickness));
+                p.setProperty("paraModeVideoBorderColor", colorToHex(config.paraModeVideoBorderColor));
+                p.setProperty("paraModeVideoBorderColor2", colorToHex(config.paraModeVideoBorderColor2));
+                p.setProperty("paraModeVideoBorderPadding", String.valueOf(config.paraModeVideoBorderPadding));
+                p.setProperty("paraModeVideoBorderRadius", String.valueOf(config.paraModeVideoBorderRadius));
+
+                // Save first line style as the template (representative line style)
+                ParaLineStyle tpl = config.paraLineStyles.size() > 0 ? config.paraLineStyles.get(0) : new ParaLineStyle();
+                p.setProperty("ls.fontFamily", tpl.fontFamily);
+                p.setProperty("ls.fontSize", String.valueOf(tpl.fontSize));
+                p.setProperty("ls.color", colorToHex(tpl.color));
+                p.setProperty("ls.bold", String.valueOf(tpl.bold));
+                p.setProperty("ls.italic", String.valueOf(tpl.italic));
+                p.setProperty("ls.underline", String.valueOf(tpl.underline));
+                p.setProperty("ls.lineSpacingBefore", String.valueOf(tpl.lineSpacingBefore));
+                p.setProperty("ls.wordSpacing", String.valueOf(tpl.wordSpacing));
+                p.setProperty("ls.horizontalOffset", String.valueOf(tpl.horizontalOffset));
+                p.setProperty("ls.alignment", String.valueOf(tpl.alignment));
+                p.setProperty("ls.shadowEnabled", String.valueOf(tpl.shadowEnabled));
+                p.setProperty("ls.outlineEnabled", String.valueOf(tpl.outlineEnabled));
+                p.setProperty("ls.glowEnabled", String.valueOf(tpl.glowEnabled));
+                p.setProperty("ls.highlightColor", colorToHex(tpl.highlightColor));
+                p.setProperty("ls.borderEnabled", String.valueOf(tpl.borderEnabled));
+                p.setProperty("ls.borderStyle", String.valueOf(tpl.borderStyle));
+                p.setProperty("ls.borderThickness", String.valueOf(tpl.borderThickness));
+                p.setProperty("ls.borderColor", colorToHex(tpl.borderColor));
+                p.setProperty("ls.borderColor2", colorToHex(tpl.borderColor2));
+                p.setProperty("ls.borderPadding", String.valueOf(tpl.borderPadding));
+                p.setProperty("ls.borderRadius", String.valueOf(tpl.borderRadius));
+                p.setProperty("ls.highlightBgEnabled", String.valueOf(tpl.highlightBgEnabled));
+                p.setProperty("ls.highlightBgColor", colorToHex(tpl.highlightBgColor));
+                p.setProperty("ls.highlightBgOpacity", String.valueOf(tpl.highlightBgOpacity));
+                p.setProperty("ls.highlightBgPadding", String.valueOf(tpl.highlightBgPadding));
+                p.setProperty("ls.highlightBgRadius", String.valueOf(tpl.highlightBgRadius));
+
+                // Text overlays
+                p.setProperty("overlayCount", String.valueOf(config.textOverlays.size()));
+                for (int i = 0; i < config.textOverlays.size(); i++) {
+                    TextOverlay ov = config.textOverlays.get(i);
+                    String prefix = "ov." + i + ".";
+                    p.setProperty(prefix + "text", ov.text);
+                    p.setProperty(prefix + "xPercent", String.valueOf(ov.xPercent));
+                    p.setProperty(prefix + "yPercent", String.valueOf(ov.yPercent));
+                    p.setProperty(prefix + "fontSize", String.valueOf(ov.fontSize));
+                    p.setProperty(prefix + "color", colorToHex(ov.color));
+                    p.setProperty(prefix + "outlineEnabled", String.valueOf(ov.outlineEnabled));
+                    p.setProperty(prefix + "outlineColor", colorToHex(ov.outlineColor));
+                    p.setProperty(prefix + "outlineThickness", String.valueOf(ov.outlineThickness));
+                    p.setProperty(prefix + "shadowEnabled", String.valueOf(ov.shadowEnabled));
+                    p.setProperty(prefix + "shadowOffset", String.valueOf(ov.shadowOffset));
+                    p.setProperty(prefix + "fontFamily", ov.fontFamily);
+                    p.setProperty(prefix + "fontFilePath", ov.fontFilePath);
+                    p.setProperty(prefix + "bold", String.valueOf(ov.bold));
+                    p.setProperty(prefix + "italic", String.valueOf(ov.italic));
+                    p.setProperty(prefix + "opacity", String.valueOf(ov.opacity));
+                    p.setProperty(prefix + "tiltAngle", String.valueOf(ov.tiltAngle));
+                }
+
+                try (FileOutputStream fos = new FileOutputStream(file)) {
+                    p.store(fos, "ArabicSync Paragraph Mode Preset: " + name);
+                }
+                JOptionPane.showMessageDialog(this, "Preset '" + name + "' saved.", "Preset Saved", JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error saving preset: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+
+        private void loadParaModePreset(String name) {
+            try {
+                File file = new File(getPresetsDir(), name + ".preset");
+                if (!file.exists()) {
+                    JOptionPane.showMessageDialog(this, "Preset file not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                java.util.Properties p = new java.util.Properties();
+                try (FileInputStream fis = new FileInputStream(file)) {
+                    p.load(fis);
+                }
+
+                // Global settings
+                config.paraModeDefaultFontSize = Integer.parseInt(p.getProperty("paraModeDefaultFontSize", "45"));
+                config.paraModeStartY = Integer.parseInt(p.getProperty("paraModeStartY", "10"));
+                config.paramodeGlobalLineSpacing = Integer.parseInt(p.getProperty("paramodeGlobalLineSpacing", "25"));
+                config.paraModeDefaultColor = hexToColor(p.getProperty("paraModeDefaultColor", "#ffffff"), Color.WHITE);
+                config.paraModeHighlightColor = hexToColor(p.getProperty("paraModeHighlightColor", "#ffd700"), new Color(255, 215, 0));
+                config.paraModeBackgroundColor = hexToColor(p.getProperty("paraModeBackgroundColor", "#000000"), Color.BLACK);
+                config.paraModeBackgroundImage = p.getProperty("paraModeBackgroundImage", "");
+                config.paraModeHighlightMode = Integer.parseInt(p.getProperty("paraModeHighlightMode", "0"));
+                config.paraModeTextBoxOpacity = Integer.parseInt(p.getProperty("paraModeTextBoxOpacity", "0"));
+                config.paraModeShowProgressBar = Boolean.parseBoolean(p.getProperty("paraModeShowProgressBar", "false"));
+
+                // Video border
+                config.paraModeVideoBorderEnabled = Boolean.parseBoolean(p.getProperty("paraModeVideoBorderEnabled", "false"));
+                config.paraModeVideoBorderStyle = Integer.parseInt(p.getProperty("paraModeVideoBorderStyle", "0"));
+                config.paraModeVideoBorderThickness = Integer.parseInt(p.getProperty("paraModeVideoBorderThickness", "10"));
+                config.paraModeVideoBorderColor = hexToColor(p.getProperty("paraModeVideoBorderColor", "#ffd700"), new Color(255, 215, 0));
+                config.paraModeVideoBorderColor2 = hexToColor(p.getProperty("paraModeVideoBorderColor2", "#ffa500"), new Color(255, 165, 0));
+                config.paraModeVideoBorderPadding = Integer.parseInt(p.getProperty("paraModeVideoBorderPadding", "20"));
+                config.paraModeVideoBorderRadius = Integer.parseInt(p.getProperty("paraModeVideoBorderRadius", "30"));
+
+                // Apply line style template to all existing lines
+                ParaLineStyle tpl = new ParaLineStyle();
+                tpl.fontFamily = p.getProperty("ls.fontFamily", "");
+                tpl.fontSize = Integer.parseInt(p.getProperty("ls.fontSize", "50"));
+                tpl.color = hexToColor(p.getProperty("ls.color", "#ffffff"), Color.WHITE);
+                tpl.bold = Boolean.parseBoolean(p.getProperty("ls.bold", "false"));
+                tpl.italic = Boolean.parseBoolean(p.getProperty("ls.italic", "false"));
+                tpl.underline = Boolean.parseBoolean(p.getProperty("ls.underline", "false"));
+                tpl.lineSpacingBefore = Integer.parseInt(p.getProperty("ls.lineSpacingBefore", "20"));
+                tpl.wordSpacing = Integer.parseInt(p.getProperty("ls.wordSpacing", "0"));
+                tpl.horizontalOffset = Integer.parseInt(p.getProperty("ls.horizontalOffset", "0"));
+                tpl.alignment = Integer.parseInt(p.getProperty("ls.alignment", "1"));
+                tpl.shadowEnabled = Boolean.parseBoolean(p.getProperty("ls.shadowEnabled", "true"));
+                tpl.outlineEnabled = Boolean.parseBoolean(p.getProperty("ls.outlineEnabled", "true"));
+                tpl.glowEnabled = Boolean.parseBoolean(p.getProperty("ls.glowEnabled", "false"));
+                tpl.highlightColor = hexToColor(p.getProperty("ls.highlightColor", "#ffd700"), new Color(255, 215, 0));
+                tpl.borderEnabled = Boolean.parseBoolean(p.getProperty("ls.borderEnabled", "false"));
+                tpl.borderStyle = Integer.parseInt(p.getProperty("ls.borderStyle", "0"));
+                tpl.borderThickness = Integer.parseInt(p.getProperty("ls.borderThickness", "2"));
+                tpl.borderColor = hexToColor(p.getProperty("ls.borderColor", "#ffd700"), new Color(255, 215, 0));
+                tpl.borderColor2 = hexToColor(p.getProperty("ls.borderColor2", "#ffa500"), new Color(255, 165, 0));
+                tpl.borderPadding = Integer.parseInt(p.getProperty("ls.borderPadding", "10"));
+                tpl.borderRadius = Integer.parseInt(p.getProperty("ls.borderRadius", "8"));
+                tpl.highlightBgEnabled = Boolean.parseBoolean(p.getProperty("ls.highlightBgEnabled", "false"));
+                tpl.highlightBgColor = hexToColor(p.getProperty("ls.highlightBgColor", "#ffd700"), new Color(255, 215, 0));
+                tpl.highlightBgOpacity = Integer.parseInt(p.getProperty("ls.highlightBgOpacity", "50"));
+                tpl.highlightBgPadding = Integer.parseInt(p.getProperty("ls.highlightBgPadding", "8"));
+                tpl.highlightBgRadius = Integer.parseInt(p.getProperty("ls.highlightBgRadius", "6"));
+
+                for (ParaLineStyle ls : config.paraLineStyles) {
+                    ParaLineStyle c = tpl.copy();
+                    ls.fontFamily = c.fontFamily;
+                    ls.fontSize = c.fontSize;
+                    ls.color = c.color;
+                    ls.bold = c.bold;
+                    ls.italic = c.italic;
+                    ls.underline = c.underline;
+                    ls.lineSpacingBefore = c.lineSpacingBefore;
+                    ls.wordSpacing = c.wordSpacing;
+                    ls.horizontalOffset = c.horizontalOffset;
+                    ls.alignment = c.alignment;
+                    ls.shadowEnabled = c.shadowEnabled;
+                    ls.outlineEnabled = c.outlineEnabled;
+                    ls.glowEnabled = c.glowEnabled;
+                    ls.highlightColor = c.highlightColor;
+                    ls.borderEnabled = c.borderEnabled;
+                    ls.borderStyle = c.borderStyle;
+                    ls.borderThickness = c.borderThickness;
+                    ls.borderColor = c.borderColor;
+                    ls.borderColor2 = c.borderColor2;
+                    ls.borderPadding = c.borderPadding;
+                    ls.borderRadius = c.borderRadius;
+                    ls.highlightBgEnabled = c.highlightBgEnabled;
+                    ls.highlightBgColor = c.highlightBgColor;
+                    ls.highlightBgOpacity = c.highlightBgOpacity;
+                    ls.highlightBgPadding = c.highlightBgPadding;
+                    ls.highlightBgRadius = c.highlightBgRadius;
+                }
+
+                // Load text overlays
+                config.textOverlays.clear();
+                int ovCount = Integer.parseInt(p.getProperty("overlayCount", "0"));
+                for (int i = 0; i < ovCount; i++) {
+                    String prefix = "ov." + i + ".";
+                    TextOverlay ov = new TextOverlay();
+                    ov.text = p.getProperty(prefix + "text", "");
+                    ov.xPercent = Integer.parseInt(p.getProperty(prefix + "xPercent", "50"));
+                    ov.yPercent = Integer.parseInt(p.getProperty(prefix + "yPercent", "90"));
+                    ov.fontSize = Integer.parseInt(p.getProperty(prefix + "fontSize", "40"));
+                    ov.color = hexToColor(p.getProperty(prefix + "color", "#ffffff"), Color.WHITE);
+                    ov.outlineEnabled = Boolean.parseBoolean(p.getProperty(prefix + "outlineEnabled", "true"));
+                    ov.outlineColor = hexToColor(p.getProperty(prefix + "outlineColor", "#000000"), Color.BLACK);
+                    ov.outlineThickness = Integer.parseInt(p.getProperty(prefix + "outlineThickness", "2"));
+                    ov.shadowEnabled = Boolean.parseBoolean(p.getProperty(prefix + "shadowEnabled", "true"));
+                    ov.shadowOffset = Integer.parseInt(p.getProperty(prefix + "shadowOffset", "3"));
+                    ov.fontFamily = p.getProperty(prefix + "fontFamily", "");
+                    ov.fontFilePath = p.getProperty(prefix + "fontFilePath", "");
+                    ov.bold = Boolean.parseBoolean(p.getProperty(prefix + "bold", "false"));
+                    ov.italic = Boolean.parseBoolean(p.getProperty(prefix + "italic", "false"));
+                    ov.opacity = Integer.parseInt(p.getProperty(prefix + "opacity", "100"));
+                    ov.tiltAngle = Integer.parseInt(p.getProperty(prefix + "tiltAngle", "0"));
+                    config.textOverlays.add(ov);
+                }
+
+                // Refresh the entire para mode UI - global controls
+                paraModeUpdatingControls = true;
+                try {
+                    paraModeGlobalFontSizeSpinner.setValue(config.paraModeDefaultFontSize);
+                    paraModeGlobalStartYSpinner.setValue(config.paraModeStartY);
+                    paraModeGlobalLineSpacingSpinner.setValue(config.paramodeGlobalLineSpacing);
+                    paraModeGlobalDefaultColorPanel.setBackground(config.paraModeDefaultColor);
+                    paraModeGlobalHighlightColorPanel.setBackground(config.paraModeHighlightColor);
+                    paraModeGlobalBgColorPanel.setBackground(config.paraModeBackgroundColor);
+                    paraModeGlobalAlignmentCombo.setSelectedIndex(tpl.alignment);
+                    paraModeGlobalHShiftSpinner.setValue(tpl.horizontalOffset);
+                    paraModeGlobalHighlightModeCombo.setSelectedIndex(config.paraModeHighlightMode);
+                    paraModeGlobalTextBoxOpacitySpinner.setValue(config.paraModeTextBoxOpacity);
+                    paraModeGlobalShowProgressBarCheck.setSelected(config.paraModeShowProgressBar);
+                    paraModeGlobalVideoBorderEnabledCheck.setSelected(config.paraModeVideoBorderEnabled);
+                    paraModeGlobalVideoBorderStyleCombo.setSelectedIndex(config.paraModeVideoBorderStyle);
+                    paraModeGlobalVideoBorderThicknessSpinner.setValue(config.paraModeVideoBorderThickness);
+                    paraModeGlobalVideoBorderColorPanel.setBackground(config.paraModeVideoBorderColor);
+                    paraModeGlobalVideoBorderColor2Panel.setBackground(config.paraModeVideoBorderColor2);
+                    paraModeGlobalVideoBorderPaddingSpinner.setValue(config.paraModeVideoBorderPadding);
+                    paraModeGlobalVideoBorderRadiusSpinner.setValue(config.paraModeVideoBorderRadius);
+                    // Font combo - find matching entry
+                    if (tpl.fontFamily.isEmpty()) {
+                        paraModeGlobalFontTypeCombo.setSelectedIndex(0); // "Default"
+                    } else {
+                        for (int fi = 0; fi < paraModeGlobalFontTypeCombo.getItemCount(); fi++) {
+                            String item = paraModeGlobalFontTypeCombo.getItemAt(fi);
+                            File fontFile = paraModeFontFileMap.get(item);
+                            if (fontFile != null && fontFile.getAbsolutePath().equals(tpl.fontFamily)) {
+                                paraModeGlobalFontTypeCombo.setSelectedIndex(fi);
+                                break;
+                            } else if (item.equals(tpl.fontFamily)) {
+                                paraModeGlobalFontTypeCombo.setSelectedIndex(fi);
+                                break;
+                            }
+                        }
+                    }
+                } finally {
+                    paraModeUpdatingControls = false;
+                }
+                // Refresh per-line controls and overlay list
+                updateLineStyleControls();
+                if (paraModeRefreshOverlayList != null) paraModeRefreshOverlayList.run();
+                updateParaModePreview();
+
+                JOptionPane.showMessageDialog(this, "Preset '" + name + "' loaded. All lines updated.", "Preset Loaded", JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error loading preset: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+
+        private void deleteParaModePreset(String name) {
+            File file = new File(getPresetsDir(), name + ".preset");
+            if (file.exists()) {
+                int confirm = JOptionPane.showConfirmDialog(this, "Delete preset '" + name + "'?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    file.delete();
+                }
+            }
         }
 
         private void updateLineStyleControls() {
