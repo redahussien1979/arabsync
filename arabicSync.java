@@ -1812,6 +1812,7 @@ public class arabicSync {
             paraModeGlobalFontSizeSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeDefaultFontSize, 20, 150, 2));
             JSpinner globalFontSizeSpinner = paraModeGlobalFontSizeSpinner;
             globalFontSizeSpinner.addChangeListener(e -> {
+                if (paraModeUpdatingControls) return;
                 int newSize = (Integer) globalFontSizeSpinner.getValue();
                 config.paraModeDefaultFontSize = newSize;
                 // Apply to ALL existing lines at once
@@ -1859,6 +1860,7 @@ public class arabicSync {
             JComboBox<String> globalFontTypeCombo = paraModeGlobalFontTypeCombo;
             globalFontTypeCombo.setPrototypeDisplayValue("MMMMMMMMMMMM");
             globalFontTypeCombo.addActionListener(e -> {
+                if (paraModeUpdatingControls) return;
                 String selectedFont = (String) globalFontTypeCombo.getSelectedItem();
                 String fontFamily = "";
                 if (selectedFont != null && !selectedFont.equals("Default")) {
@@ -1894,6 +1896,7 @@ public class arabicSync {
             globalItalicCheck.setFont(globalItalicCheck.getFont().deriveFont(Font.ITALIC));
             JCheckBox globalUnderlineCheck = new JCheckBox("U");
             ActionListener globalStyleListener = e -> {
+                if (paraModeUpdatingControls) return;
                 boolean b = globalBoldCheck.isSelected();
                 boolean it = globalItalicCheck.isSelected();
                 boolean u = globalUnderlineCheck.isSelected();
@@ -1930,6 +1933,7 @@ public class arabicSync {
             globalOutlineCheck.setSelected(true);
             JCheckBox globalGlowCheck = new JCheckBox("Glow");
             ActionListener globalEffectsListener = e -> {
+                if (paraModeUpdatingControls) return;
                 boolean s = globalShadowCheck.isSelected();
                 boolean o = globalOutlineCheck.isSelected();
                 boolean g = globalGlowCheck.isSelected();
@@ -2060,6 +2064,7 @@ public class arabicSync {
             JComboBox<String> globalAlignmentCombo = paraModeGlobalAlignmentCombo;
             globalAlignmentCombo.setSelectedIndex(1); // Default center
             globalAlignmentCombo.addActionListener(e -> {
+                if (paraModeUpdatingControls) return;
                 int newAlignment = globalAlignmentCombo.getSelectedIndex();
                 // Apply to ALL existing lines
                 for (ParaLineStyle lineStyle : config.paraLineStyles) {
@@ -2082,6 +2087,7 @@ public class arabicSync {
             paraModeGlobalHShiftSpinner = new JSpinner(new SpinnerNumberModel(0, -500, 500, 5));
             JSpinner globalHorizontalOffsetSpinner = paraModeGlobalHShiftSpinner;
             globalHorizontalOffsetSpinner.addChangeListener(e -> {
+                if (paraModeUpdatingControls) return;
                 int newOffset = (Integer) globalHorizontalOffsetSpinner.getValue();
                 // Apply to ALL existing lines
                 for (ParaLineStyle lineStyle : config.paraLineStyles) {
@@ -3065,8 +3071,13 @@ public class arabicSync {
                 p.setProperty("ls.horizontalOffset", String.valueOf(tpl.horizontalOffset));
                 p.setProperty("ls.alignment", String.valueOf(tpl.alignment));
                 p.setProperty("ls.shadowEnabled", String.valueOf(tpl.shadowEnabled));
+                p.setProperty("ls.shadowColor", colorToHex(tpl.shadowColor));
+                p.setProperty("ls.shadowOffset", String.valueOf(tpl.shadowOffset));
                 p.setProperty("ls.outlineEnabled", String.valueOf(tpl.outlineEnabled));
+                p.setProperty("ls.outlineColor", colorToHex(tpl.outlineColor));
+                p.setProperty("ls.outlineThickness", String.valueOf(tpl.outlineThickness));
                 p.setProperty("ls.glowEnabled", String.valueOf(tpl.glowEnabled));
+                p.setProperty("ls.glowColor", colorToHex(tpl.glowColor));
                 p.setProperty("ls.highlightColor", colorToHex(tpl.highlightColor));
                 p.setProperty("ls.borderEnabled", String.valueOf(tpl.borderEnabled));
                 p.setProperty("ls.borderStyle", String.valueOf(tpl.borderStyle));
@@ -3159,8 +3170,13 @@ public class arabicSync {
                 tpl.horizontalOffset = Integer.parseInt(p.getProperty("ls.horizontalOffset", "0"));
                 tpl.alignment = Integer.parseInt(p.getProperty("ls.alignment", "1"));
                 tpl.shadowEnabled = Boolean.parseBoolean(p.getProperty("ls.shadowEnabled", "true"));
+                tpl.shadowColor = hexToColor(p.getProperty("ls.shadowColor", "#000000"), new Color(0, 0, 0));
+                tpl.shadowOffset = Integer.parseInt(p.getProperty("ls.shadowOffset", "3"));
                 tpl.outlineEnabled = Boolean.parseBoolean(p.getProperty("ls.outlineEnabled", "true"));
+                tpl.outlineColor = hexToColor(p.getProperty("ls.outlineColor", "#000000"), new Color(0, 0, 0));
+                tpl.outlineThickness = Integer.parseInt(p.getProperty("ls.outlineThickness", "2"));
                 tpl.glowEnabled = Boolean.parseBoolean(p.getProperty("ls.glowEnabled", "false"));
+                tpl.glowColor = hexToColor(p.getProperty("ls.glowColor", "#ffc864"), new Color(255, 200, 100));
                 tpl.highlightColor = hexToColor(p.getProperty("ls.highlightColor", "#ffd700"), new Color(255, 215, 0));
                 tpl.borderEnabled = Boolean.parseBoolean(p.getProperty("ls.borderEnabled", "false"));
                 tpl.borderStyle = Integer.parseInt(p.getProperty("ls.borderStyle", "0"));
@@ -3188,8 +3204,13 @@ public class arabicSync {
                     ls.horizontalOffset = c.horizontalOffset;
                     ls.alignment = c.alignment;
                     ls.shadowEnabled = c.shadowEnabled;
+                    ls.shadowColor = c.shadowColor;
+                    ls.shadowOffset = c.shadowOffset;
                     ls.outlineEnabled = c.outlineEnabled;
+                    ls.outlineColor = c.outlineColor;
+                    ls.outlineThickness = c.outlineThickness;
                     ls.glowEnabled = c.glowEnabled;
+                    ls.glowColor = c.glowColor;
                     ls.highlightColor = c.highlightColor;
                     ls.borderEnabled = c.borderEnabled;
                     ls.borderStyle = c.borderStyle;
