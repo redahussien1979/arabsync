@@ -8217,15 +8217,17 @@ public class arabicSync {
             int waveformBgHeight = config.waveformHeight + 10; // Background slightly larger than waveform
             int waveformBgWidth = waveformWidth + 10; // Background slightly wider than waveform
 
+            int fps = (int)config.frameRate;
+
             String filterComplex =
                     // Scale and pad base video
                     "[0:v]scale=" + config.videoWidth + ":" + config.videoHeight + ":force_original_aspect_ratio=decrease,pad=" + config.videoWidth + ":" + config.videoHeight + ":(ow-iw)/2:(oh-ih)/2[padded];" +
 
-                            // Create waveform background
-                            "color=black@0.1:s=" + waveformBgWidth + "x" + waveformBgHeight + "[bg];" +
+                            // Create waveform background - match frame rate to input
+                            "color=black@0.1:s=" + waveformBgWidth + "x" + waveformBgHeight + ":rate=" + fps + "[bg];" +
 
-                            // Generate audio waveform
-                            "[1:a]showwaves=s=" + waveformWidth + "x" + config.waveformHeight + ":mode=cline:colors=gold|white:scale=sqrt:draw=full[waves];" +
+                            // Generate audio waveform - match frame rate to input
+                            "[1:a]showwaves=s=" + waveformWidth + "x" + config.waveformHeight + ":mode=cline:colors=gold|white:scale=sqrt:draw=full:rate=" + fps + "[waves];" +
 
                             // Overlay waveform on background
                             "[bg][waves]overlay=5:5[wave];" +
@@ -8240,7 +8242,7 @@ public class arabicSync {
 
             ProcessBuilder pb = new ProcessBuilder(
                     "ffmpeg", "-y",
-                    "-framerate", String.valueOf((int)config.frameRate),
+                    "-framerate", String.valueOf(fps),
                     "-i", tempFolder + "/frame_%04d.jpg",
                     "-i", audioPath,
                     "-filter_complex", filterComplex,
@@ -8249,6 +8251,7 @@ public class arabicSync {
                     "-c:v", "libx264",
                     "-preset", "ultrafast",
                     "-crf", "28",
+                    "-r", String.valueOf(fps),
                     "-c:a", "aac",
                     "-b:a", "320k",
                     "-pix_fmt", "yuv420p",
