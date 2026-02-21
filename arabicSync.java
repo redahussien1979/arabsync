@@ -37,9 +37,8 @@ public class arabicSync {
     // Image cache to avoid repeated disk reads - speeds up video generation
     private java.util.Map<Integer, java.util.List<BufferedImage>> lineImageCache = new java.util.HashMap<>();
     private java.util.Map<String, BufferedImage> generalImageCache = new java.util.HashMap<>();
-    // Background video frame extraction for paragraph mode (used during video generation)
-    private String bgVideoFramesFolder = null;
-    private int bgVideoTotalFrames = 0;
+    // Background video frame for paragraph mode (piped from FFmpeg during generation)
+    private BufferedImage currentBgVideoFrame = null;
     private static final int USE_CHANGING_BACKGROUNDS = 1; //
     private VideoConfig config = new VideoConfig();
 
@@ -8940,32 +8939,7 @@ public class arabicSync {
                 // No pre-loading needed - images loaded per line
             } else if (config.backgroundMode == 8) {
                 System.out.println("📄 Selected: PARAGRAPH MODE for Arabic audio sync");
-                // Pre-extract background video frames if a background video is set
-                bgVideoFramesFolder = null;
-                bgVideoTotalFrames = 0;
-                if (config.paraModeBackgroundVideo != null && !config.paraModeBackgroundVideo.isEmpty()) {
-                    File bgVideoFile = new File(config.paraModeBackgroundVideo);
-                    if (bgVideoFile.exists()) {
-                        bgVideoFramesFolder = tempFolder + "/bg_video_frames";
-                        new File(bgVideoFramesFolder).mkdirs();
-                        System.out.println("🎬 Extracting background video frames...");
-                        ProcessBuilder bgPb = new ProcessBuilder(
-                            "ffmpeg", "-i", config.paraModeBackgroundVideo,
-                            "-vf", "fps=" + (int)frameRate + ",scale=" + config.videoWidth + ":" + config.videoHeight,
-                            "-q:v", "2",
-                            bgVideoFramesFolder + "/bg_%04d.jpg"
-                        );
-                        bgPb.redirectErrorStream(true);
-                        Process bgProcess = bgPb.start();
-                        try (java.io.InputStream bgIs = bgProcess.getInputStream()) {
-                            while (bgIs.read() != -1) {}
-                        }
-                        bgProcess.waitFor();
-                        File[] bgFrameFiles = new File(bgVideoFramesFolder).listFiles();
-                        bgVideoTotalFrames = bgFrameFiles != null ? bgFrameFiles.length : 0;
-                        System.out.println("✅ Extracted " + bgVideoTotalFrames + " background video frames");
-                    }
-                }
+                // Background video handled via FFmpeg pipe in the frame loop below
             } else {
                 System.out.println("🎨 Selected: SINGLE IMAGE with effects for Arabic audio sync");
                 singleEffectImage = loadSingleRandomImageForEffects();
@@ -8974,17 +8948,67 @@ public class arabicSync {
                 }
             }
 
+            // Start background video pipe if paragraph mode with bg video
+            Process bgVideoProcess = null;
+            java.io.BufferedInputStream bgVideoStream = null;
+            byte[] bgFrameBuffer = null;
+            boolean useBgVideoPipe = (config.backgroundMode == 8 &&
+                    config.paraModeBackgroundVideo != null && !config.paraModeBackgroundVideo.isEmpty() &&
+                    new File(config.paraModeBackgroundVideo).exists());
+            if (useBgVideoPipe) {
+                System.out.println("🎬 Starting background video pipe...");
+                ProcessBuilder bgPb = new ProcessBuilder(
+                    "ffmpeg", "-stream_loop", "-1",
+                    "-i", config.paraModeBackgroundVideo,
+                    "-vf", "fps=" + (int)frameRate + ",scale=" + config.videoWidth + ":" + config.videoHeight,
+                    "-f", "rawvideo", "-pix_fmt", "rgb24",
+                    "-v", "quiet", "-"
+                );
+                bgPb.redirectError(ProcessBuilder.Redirect.INHERIT);
+                bgVideoProcess = bgPb.start();
+                bgVideoStream = new java.io.BufferedInputStream(bgVideoProcess.getInputStream(), config.videoWidth * config.videoHeight * 3 * 2);
+                bgFrameBuffer = new byte[config.videoWidth * config.videoHeight * 3];
+            }
+
             // Generate frames
             for (int frame = 0; frame < totalFrames; frame++) {
 
                 // ADD THIS CHECK:
                 if (stopRequested) {
                     System.out.println("Generation stopped at frame " + frame);
+                    if (bgVideoProcess != null) bgVideoProcess.destroyForcibly();
                     return tempFolder;
                 }
                 this.currentFrame = frame + 1; // Update current frame counter
 
                 double currentTime = (double) frame / frameRate;
+
+                // Read background video frame from pipe if active
+                currentBgVideoFrame = null;
+                if (useBgVideoPipe && bgVideoStream != null && bgFrameBuffer != null) {
+                    try {
+                        int totalRead = 0;
+                        while (totalRead < bgFrameBuffer.length) {
+                            int read = bgVideoStream.read(bgFrameBuffer, totalRead, bgFrameBuffer.length - totalRead);
+                            if (read == -1) break;
+                            totalRead += read;
+                        }
+                        if (totalRead == bgFrameBuffer.length) {
+                            BufferedImage bgFrame = new BufferedImage(config.videoWidth, config.videoHeight, BufferedImage.TYPE_INT_RGB);
+                            int[] pixels = new int[config.videoWidth * config.videoHeight];
+                            for (int p = 0; p < pixels.length; p++) {
+                                int r = bgFrameBuffer[p * 3] & 0xFF;
+                                int g = bgFrameBuffer[p * 3 + 1] & 0xFF;
+                                int b = bgFrameBuffer[p * 3 + 2] & 0xFF;
+                                pixels[p] = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                            }
+                            bgFrame.setRGB(0, 0, config.videoWidth, config.videoHeight, pixels, 0, config.videoWidth);
+                            currentBgVideoFrame = bgFrame;
+                        }
+                    } catch (IOException e) {
+                        // Pipe read failed, continue without bg video for this frame
+                    }
+                }
 
                 // Determine current quote being spoken
                 QuoteDisplayInfoArabicSync displayInfo = getCurrentArabicQuoteDisplayInfo(currentTime, quoteTimings);
@@ -9023,6 +9047,11 @@ public class arabicSync {
                 }
             }
 
+            // Close background video pipe if active
+            if (bgVideoProcess != null) {
+                bgVideoProcess.destroyForcibly();
+                currentBgVideoFrame = null;
+            }
 
             System.out.println("✅ Arabic audio sync sequence generated!");
             return tempFolder;
@@ -16131,29 +16160,16 @@ public class arabicSync {
         g2d.setColor(config.paraModeBackgroundColor);
         g2d.fillRect(0, 0, width, height);
 
-        // Draw background video frame if specified (takes priority over image)
+        // Draw background video frame if available (piped from FFmpeg, takes priority over image)
         boolean bgDrawn = false;
-        if (bgVideoFramesFolder != null && bgVideoTotalFrames > 0) {
-            try {
-                // Calculate which bg video frame to use (1-indexed, loop if video is shorter)
-                int frameRate = (int) config.frameRate;
-                int bgFrameIndex = (int) (currentTime * frameRate);
-                bgFrameIndex = (bgFrameIndex % bgVideoTotalFrames) + 1; // 1-indexed, loop
-                String bgFramePath = String.format("%s/bg_%04d.jpg", bgVideoFramesFolder, bgFrameIndex);
-                File bgFrameFile = new File(bgFramePath);
-                if (bgFrameFile.exists()) {
-                    BufferedImage bgFrame = ImageIO.read(bgFrameFile);
-                    g2d.drawImage(bgFrame, 0, 0, width, height, null);
-                    bgDrawn = true;
-                    // Apply opacity overlay if needed
-                    if (config.paraModeBackgroundOpacity < 100) {
-                        int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
-                        g2d.setColor(new Color(0, 0, 0, alpha));
-                        g2d.fillRect(0, 0, width, height);
-                    }
-                }
-            } catch (IOException e) {
-                // Background video frame failed to load
+        if (currentBgVideoFrame != null) {
+            g2d.drawImage(currentBgVideoFrame, 0, 0, width, height, null);
+            bgDrawn = true;
+            // Apply opacity overlay if needed
+            if (config.paraModeBackgroundOpacity < 100) {
+                int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
+                g2d.setColor(new Color(0, 0, 0, alpha));
+                g2d.fillRect(0, 0, width, height);
             }
         }
 
