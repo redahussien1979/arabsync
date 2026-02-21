@@ -38,10 +38,6 @@ public class arabicSync {
     private java.util.Map<Integer, java.util.List<BufferedImage>> lineImageCache = new java.util.HashMap<>();
     private java.util.Map<String, BufferedImage> generalImageCache = new java.util.HashMap<>();
     private static final int USE_CHANGING_BACKGROUNDS = 1; //
-    // Video background frame cache for paragraph mode
-    private java.util.List<BufferedImage> paraModeVideoFrames = null;
-    private String paraModeVideoFramesExtractedDir = null;
-    private int paraModeVideoFrameCount = 0;
     private VideoConfig config = new VideoConfig();
 
     public void setConfig(VideoConfig config) {
@@ -477,10 +473,8 @@ public class arabicSync {
         Color paraModeHighlightColor = new Color(255, 215, 0); // Active line highlight color
         Color paraModeBackgroundColor = new Color(0, 0, 0); // Background color
         String paraModeBackgroundImage = ""; // Optional background image path
-        String paraModeBackgroundVideo = ""; // Optional background video path
         int paraModeBackgroundOpacity = 100; // Background opacity (0-100)
         boolean paraModeShowEnglish = false; // Show English text above Arabic
-        boolean paraModeOneLineAtATime = false; // Show only one line at a time (appears/disappears)
         int paramodeGlobalLineSpacing = 25; // Global line spacing in pixels
         int paraModeHighlightMode = 0; // 0=color change, 1=scale up, 2=glow pulse, 3=underline
         boolean paraModeAnimateTransition = true; // Smooth transition between lines
@@ -2159,48 +2153,8 @@ public class arabicSync {
             bgImagePanel.add(bgImageClearBtn);
             globalPanel.add(bgImagePanel, gbc);
 
-            // Background Video
-            gbc.gridx = 0; gbc.gridy = 14; gbc.weightx = 0.0;
-            globalPanel.add(new JLabel("BG Video:"), gbc);
-            gbc.gridx = 1; gbc.weightx = 1.0;
-            JPanel bgVideoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-            JTextField bgVideoPathLabel = new JTextField(15);
-            bgVideoPathLabel.setEditable(false);
-            bgVideoPathLabel.setText(config.paraModeBackgroundVideo.isEmpty() ? "(none)" : new File(config.paraModeBackgroundVideo).getName());
-            JButton bgVideoBtn = new JButton("Select...");
-            bgVideoBtn.addActionListener(e -> {
-                JFileChooser fc = new JFileChooser(new File(System.getProperty("user.dir")));
-                fc.setFileFilter(new FileNameExtensionFilter("Videos", "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"));
-                if (fc.showOpenDialog(mainPanel) == JFileChooser.APPROVE_OPTION) {
-                    config.paraModeBackgroundVideo = fc.getSelectedFile().getAbsolutePath();
-                    bgVideoPathLabel.setText(fc.getSelectedFile().getName());
-                    updateParaModePreview();
-                }
-            });
-            bgVideoPanel.add(bgVideoBtn);
-            JButton bgVideoClearBtn = new JButton("Clear");
-            bgVideoClearBtn.addActionListener(e -> {
-                config.paraModeBackgroundVideo = "";
-                bgVideoPathLabel.setText("(none)");
-                updateParaModePreview();
-            });
-            bgVideoPanel.add(bgVideoClearBtn);
-            bgVideoPanel.add(bgVideoPathLabel);
-            globalPanel.add(bgVideoPanel, gbc);
-
-            // One Line at a Time mode
-            gbc.gridx = 0; gbc.gridy = 15; gbc.gridwidth = 2;
-            JCheckBox oneLineCheck = new JCheckBox("One Line at a Time", config.paraModeOneLineAtATime);
-            oneLineCheck.setToolTipText("Show only the active line, centered on screen. Lines appear and disappear one by one.");
-            oneLineCheck.addActionListener(e -> {
-                config.paraModeOneLineAtATime = oneLineCheck.isSelected();
-                updateParaModePreview();
-            });
-            globalPanel.add(oneLineCheck, gbc);
-            gbc.gridwidth = 1;
-
             // Show/Hide Progress Bar
-            gbc.gridx = 0; gbc.gridy = 16; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 14; gbc.gridwidth = 2;
             paraModeGlobalShowProgressBarCheck = new JCheckBox("Show Progress Bar", config.paraModeShowProgressBar);
             JCheckBox showProgressBarCheck = paraModeGlobalShowProgressBarCheck;
             showProgressBarCheck.addActionListener(e -> {
@@ -2211,7 +2165,7 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // === VIDEO BORDER SETTINGS (collapsible section) ===
-            gbc.gridx = 0; gbc.gridy = 17; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 15; gbc.gridwidth = 2;
             paraModeGlobalVideoBorderEnabledCheck = new JCheckBox("Enable Video Border", config.paraModeVideoBorderEnabled);
             JCheckBox videoBorderEnabledCheck = paraModeGlobalVideoBorderEnabledCheck;
             videoBorderEnabledCheck.addActionListener(e -> {
@@ -2222,7 +2176,7 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // Border Style
-            gbc.gridx = 0; gbc.gridy = 18;
+            gbc.gridx = 0; gbc.gridy = 16;
             globalPanel.add(new JLabel("Border Style:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderStyleCombo = new JComboBox<>(new String[]{
@@ -2237,7 +2191,7 @@ public class arabicSync {
             globalPanel.add(videoBorderStyleCombo, gbc);
 
             // Border Thickness
-            gbc.gridx = 0; gbc.gridy = 19;
+            gbc.gridx = 0; gbc.gridy = 17;
             globalPanel.add(new JLabel("Border Thickness:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderThicknessSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderThickness, 1, 50, 2));
@@ -2249,7 +2203,7 @@ public class arabicSync {
             globalPanel.add(videoBorderThicknessSpinner, gbc);
 
             // Border Color
-            gbc.gridx = 0; gbc.gridy = 20;
+            gbc.gridx = 0; gbc.gridy = 18;
             globalPanel.add(new JLabel("Border Color:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderColorPanel = new JPanel();
@@ -2270,7 +2224,7 @@ public class arabicSync {
             globalPanel.add(videoBorderColorPanel, gbc);
 
             // Border Color 2 (for gradient)
-            gbc.gridx = 0; gbc.gridy = 21;
+            gbc.gridx = 0; gbc.gridy = 19;
             globalPanel.add(new JLabel("Gradient Color 2:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderColor2Panel = new JPanel();
@@ -2291,7 +2245,7 @@ public class arabicSync {
             globalPanel.add(videoBorderColor2Panel, gbc);
 
             // Border Padding
-            gbc.gridx = 0; gbc.gridy = 22;
+            gbc.gridx = 0; gbc.gridy = 20;
             globalPanel.add(new JLabel("Border Padding:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderPaddingSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderPadding, 0, 100, 5));
@@ -2303,7 +2257,7 @@ public class arabicSync {
             globalPanel.add(videoBorderPaddingSpinner, gbc);
 
             // Border Radius
-            gbc.gridx = 0; gbc.gridy = 23;
+            gbc.gridx = 0; gbc.gridy = 21;
             globalPanel.add(new JLabel("Border Radius:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderRadiusSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderRadius, 0, 100, 5));
@@ -2315,18 +2269,18 @@ public class arabicSync {
             globalPanel.add(videoBorderRadiusSpinner, gbc);
 
             // === TEXT OVERLAYS SECTION ===
-            gbc.gridx = 0; gbc.gridy = 24; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 22; gbc.gridwidth = 2;
             JSeparator sep = new JSeparator();
             globalPanel.add(sep, gbc);
 
-            gbc.gridy = 25;
+            gbc.gridy = 23;
             JLabel overlayTitle = new JLabel("── Text Overlays ──");
             overlayTitle.setFont(overlayTitle.getFont().deriveFont(Font.BOLD));
             globalPanel.add(overlayTitle, gbc);
             gbc.gridwidth = 1;
 
             // Overlay list
-            gbc.gridy = 26; gbc.gridwidth = 2;
+            gbc.gridy = 24; gbc.gridwidth = 2;
             DefaultListModel<String> overlayListModel = new DefaultListModel<>();
             JList<String> overlayList = new JList<>(overlayListModel);
             overlayList.setVisibleRowCount(3);
@@ -2347,7 +2301,7 @@ public class arabicSync {
             Runnable refreshOverlayList = paraModeRefreshOverlayList;
 
             // Add overlay button
-            gbc.gridy = 27; gbc.gridwidth = 1;
+            gbc.gridy = 25; gbc.gridwidth = 1;
             gbc.gridx = 0;
             JButton addOverlayBtn = new JButton("Add");
             addOverlayBtn.addActionListener(e -> {
@@ -2367,7 +2321,7 @@ public class arabicSync {
             globalPanel.add(editOverlayBtn, gbc);
 
             // Copy overlay button
-            gbc.gridy = 28; gbc.gridx = 0;
+            gbc.gridy = 26; gbc.gridx = 0;
             JButton copyOverlayBtn = new JButton("Copy");
             copyOverlayBtn.addActionListener(e -> {
                 int idx = overlayList.getSelectedIndex();
@@ -2396,7 +2350,7 @@ public class arabicSync {
             globalPanel.add(removeOverlayBtn, gbc);
 
             // Add Multiple overlays button
-            gbc.gridy = 29; gbc.gridx = 0;
+            gbc.gridy = 27; gbc.gridx = 0;
             JButton addMultipleOverlaysBtn = new JButton("Add Multiple");
             addMultipleOverlaysBtn.addActionListener(e -> {
                 showAddMultipleOverlaysDialog(refreshOverlayList);
@@ -2416,7 +2370,7 @@ public class arabicSync {
             globalPanel.add(editAllOverlaysBtn, gbc);
 
             // Clear all overlays button
-            gbc.gridy = 30; gbc.gridx = 0; gbc.gridwidth = 2;
+            gbc.gridy = 28; gbc.gridx = 0; gbc.gridwidth = 2;
             JButton clearOverlaysBtn = new JButton("Clear All");
             clearOverlaysBtn.addActionListener(e -> {
                 config.textOverlays.clear();
@@ -3091,8 +3045,6 @@ public class arabicSync {
                 p.setProperty("paraModeHighlightColor", colorToHex(config.paraModeHighlightColor));
                 p.setProperty("paraModeBackgroundColor", colorToHex(config.paraModeBackgroundColor));
                 p.setProperty("paraModeBackgroundImage", config.paraModeBackgroundImage);
-                p.setProperty("paraModeBackgroundVideo", config.paraModeBackgroundVideo);
-                p.setProperty("paraModeOneLineAtATime", String.valueOf(config.paraModeOneLineAtATime));
                 p.setProperty("paraModeHighlightMode", String.valueOf(config.paraModeHighlightMode));
                 p.setProperty("paraModeTextBoxOpacity", String.valueOf(config.paraModeTextBoxOpacity));
                 p.setProperty("paraModeShowProgressBar", String.valueOf(config.paraModeShowProgressBar));
@@ -3192,8 +3144,6 @@ public class arabicSync {
                 config.paraModeHighlightColor = hexToColor(p.getProperty("paraModeHighlightColor", "#ffd700"), new Color(255, 215, 0));
                 config.paraModeBackgroundColor = hexToColor(p.getProperty("paraModeBackgroundColor", "#000000"), Color.BLACK);
                 config.paraModeBackgroundImage = p.getProperty("paraModeBackgroundImage", "");
-                config.paraModeBackgroundVideo = p.getProperty("paraModeBackgroundVideo", "");
-                config.paraModeOneLineAtATime = Boolean.parseBoolean(p.getProperty("paraModeOneLineAtATime", "false"));
                 config.paraModeHighlightMode = Integer.parseInt(p.getProperty("paraModeHighlightMode", "0"));
                 config.paraModeTextBoxOpacity = Integer.parseInt(p.getProperty("paraModeTextBoxOpacity", "0"));
                 config.paraModeShowProgressBar = Boolean.parseBoolean(p.getProperty("paraModeShowProgressBar", "false"));
@@ -4416,24 +4366,12 @@ public class arabicSync {
             int currentY = (int) (videoHeight * config.paraModeStartY / 100.0);
             int simulatedActiveLine = paraModeSelectedLineIndex >= 0 ? paraModeSelectedLineIndex : 0;
 
-            // Determine line range for one-line-at-a-time mode
-            int previewStartLine = 0;
-            int previewEndLine = Math.min(paraModeCurrentLines.size(), config.paraLineStyles.size());
-            if (config.paraModeOneLineAtATime) {
-                if (simulatedActiveLine >= 0 && simulatedActiveLine < previewEndLine) {
-                    previewStartLine = simulatedActiveLine;
-                    previewEndLine = simulatedActiveLine + 1;
-                }
-            }
-
-            for (int i = previewStartLine; i < previewEndLine; i++) {
+            for (int i = 0; i < paraModeCurrentLines.size() && i < config.paraLineStyles.size(); i++) {
                 String lineText = paraModeCurrentLines.get(i);
                 ParaLineStyle style = config.paraLineStyles.get(i);
                 boolean isActive = (i == simulatedActiveLine);
 
-                if (!config.paraModeOneLineAtATime) {
-                    currentY += style.lineSpacingBefore;
-                }
+                currentY += style.lineSpacingBefore;
 
                 int fontStyle = Font.PLAIN;
                 if (style.bold) fontStyle |= Font.BOLD;
@@ -8110,24 +8048,6 @@ public class arabicSync {
 // Store for use in highlighting methods
             this.currentWordTimings = wordTimings;
             this.currentFormattedData = formattedData;
-
-            // For paragraph mode (backgroundMode 8), ensure formattedData line count
-            // matches the UI-configured paraLineStyles count. If there's a mismatch
-            // (e.g., different number of English vs Arabic lines), trim to the smaller
-            // count so timing, rendering, and styles all align correctly.
-            if (config.backgroundMode == 8 && !config.paraLineStyles.isEmpty()) {
-                int styleCount = config.paraLineStyles.size();
-                int dataCount = formattedData.lines.size();
-                if (dataCount > styleCount) {
-                    System.out.println("⚠ Paragraph mode: trimming " + dataCount + " data lines to " + styleCount + " configured styles");
-                    while (formattedData.lines.size() > styleCount) {
-                        formattedData.lines.remove(formattedData.lines.size() - 1);
-                    }
-                } else if (styleCount > dataCount) {
-                    System.out.println("⚠ Paragraph mode: " + styleCount + " styles but only " + dataCount + " data lines (extra styles ignored)");
-                }
-            }
-
             // Generate precisely timed sequence with Arabic audio sync
             String tempFolder = generateArabicAudioSyncSequence(formattedData, wordTimings, audioDuration);
             if (tempFolder == null) {
@@ -8140,14 +8060,6 @@ public class arabicSync {
 
             // Cleanup
             cleanupTempFolder(tempFolder);
-            // Cleanup extracted video background frames
-            if (paraModeVideoFramesExtractedDir != null) {
-                cleanupTempFolder(paraModeVideoFramesExtractedDir);
-                paraModeVideoFramesExtractedDir = null;
-                paraModeVideoFrameCount = 0;
-                paraModeVideoFrames = null;
-                generalImageCache.clear(); // Clear cached video frames
-            }
 
         } catch (Exception e) {
             System.out.println("❌ Error creating Arabic audio sync video: " + e.getMessage());
@@ -8938,23 +8850,7 @@ public class arabicSync {
                 // No pre-loading needed - images loaded per line
             } else if (config.backgroundMode == 8) {
                 System.out.println("📄 Selected: PARAGRAPH MODE for Arabic audio sync");
-                // Extract video background frames if a background video is specified
-                if (config.paraModeBackgroundVideo != null && !config.paraModeBackgroundVideo.isEmpty()) {
-                    File videoFile = new File(config.paraModeBackgroundVideo);
-                    if (videoFile.exists()) {
-                        paraModeVideoFramesExtractedDir = tempFolder + "_bg_video";
-                        paraModeVideoFrameCount = extractVideoBackgroundFrames(
-                                config.paraModeBackgroundVideo, paraModeVideoFramesExtractedDir, frameRate);
-                        if (paraModeVideoFrameCount > 0) {
-                            System.out.println("Background video: " + paraModeVideoFrameCount + " frames extracted (will loop if shorter than audio)");
-                        } else {
-                            System.out.println("Warning: Failed to extract background video frames, falling back to color/image background");
-                            paraModeVideoFramesExtractedDir = null;
-                        }
-                    } else {
-                        System.out.println("Warning: Background video file not found: " + config.paraModeBackgroundVideo);
-                    }
-                }
+                // No pre-loading needed - all lines displayed at once with per-line styling
             } else {
                 System.out.println("🎨 Selected: SINGLE IMAGE with effects for Arabic audio sync");
                 singleEffectImage = loadSingleRandomImageForEffects();
@@ -9005,7 +8901,7 @@ public class arabicSync {
                             preloadedEnglishFont, preloadedArabicFont, audioDuration);
                 } else if (config.backgroundMode == 8) {
                     generateParaModeFrame(formattedData, displayInfo, frameName, currentTime,
-                            preloadedEnglishFont, preloadedArabicFont, audioDuration, frame);
+                            preloadedEnglishFont, preloadedArabicFont, audioDuration);
                 } else {
                     generateArabicSyncSingleImageFrame(formattedData, displayInfo, frameName, singleEffectImage, currentTime,
                             preloadedEnglishFont, preloadedArabicFont, audioDuration);
@@ -10488,8 +10384,6 @@ public class arabicSync {
     /**
      * Calculate gap-free line timings using REAL audio word timings from ElevenLabs.
      * Uses proportional distribution based on actual ElevenLabs word count to ensure accurate sync.
-     * Also updates each line's wordStartIndex and wordCount to match the actual ElevenLabs
-     * word distribution, so word-level highlighting stays aligned with line-level timing.
      */
     private QuoteTimingInfoArabicSync[] calculateArabicQuoteTimings(FormattedTextDataArabicSync formattedData, WordTiming[] wordTimings, double audioDuration) {
         QuoteTimingInfoArabicSync[] quoteTimings = new QuoteTimingInfoArabicSync[formattedData.lines.size()];
@@ -10503,7 +10397,7 @@ public class arabicSync {
 
         if (wordTimings == null || wordTimings.length == 0 || numLines == 0) {
             // Fallback: distribute audio evenly across lines
-            double timePerLine = audioDuration / Math.max(1, numLines);
+            double timePerLine = audioDuration / numLines;
             for (int i = 0; i < numLines; i++) {
                 double startTime = i * timePerLine;
                 double endTime = (i == numLines - 1) ? audioDuration : (i + 1) * timePerLine;
@@ -10519,52 +10413,30 @@ public class arabicSync {
         for (FormattedLineArabicSync line : formattedData.lines) {
             totalOriginalWords += line.wordCount;
         }
-        // Guard against zero total (all empty lines)
-        if (totalOriginalWords == 0) totalOriginalWords = numLines;
 
-        // === PASS 1: Calculate how many ElevenLabs words each line should get ===
-        int[] wordsPerLine = new int[numLines];
-        int assignedWords = 0;
-
-        for (int i = 0; i < numLines; i++) {
-            FormattedLineArabicSync line = formattedData.lines.get(i);
-            double proportion = (double) Math.max(1, line.wordCount) / totalOriginalWords;
-            wordsPerLine[i] = (int) Math.round(proportion * elevenLabsWordCount);
-            wordsPerLine[i] = Math.max(1, wordsPerLine[i]); // at least 1 word per line
-            assignedWords += wordsPerLine[i];
-        }
-
-        // Adjust to ensure total assigned words == elevenLabsWordCount
-        // Distribute surplus/deficit across lines proportionally
-        int diff = elevenLabsWordCount - assignedWords;
-        if (diff != 0) {
-            // Add/remove from lines with the most words first
-            int direction = diff > 0 ? 1 : -1;
-            int remaining = Math.abs(diff);
-            for (int pass = 0; remaining > 0 && pass < numLines * 2; pass++) {
-                for (int i = numLines - 1; i >= 0 && remaining > 0; i--) {
-                    if (direction > 0 || wordsPerLine[i] > 1) { // don't go below 1
-                        wordsPerLine[i] += direction;
-                        remaining--;
-                    }
-                }
-            }
-        }
-
-        // === PASS 2: Assign timings and update line word indices to match ===
+        // Distribute ElevenLabs words proportionally across lines
+        // Each line gets a share of ElevenLabs words based on its original word count
         int elevenLabsWordIndex = 0;
+        double currentTime = 0;
 
         for (int i = 0; i < numLines; i++) {
             FormattedLineArabicSync line = formattedData.lines.get(i);
-            int wordsForThisLine = wordsPerLine[i];
 
-            // Clamp to remaining words
+            // Calculate how many ElevenLabs words this line should get
+            double proportion = (double) line.wordCount / totalOriginalWords;
+            int wordsForThisLine = (int) Math.round(proportion * elevenLabsWordCount);
+
+            // Ensure at least 1 word per line, and don't exceed remaining words
+            wordsForThisLine = Math.max(1, wordsForThisLine);
+            int remainingLines = numLines - i - 1;
             int remainingWords = elevenLabsWordCount - elevenLabsWordIndex;
+            if (remainingLines > 0) {
+                wordsForThisLine = Math.min(wordsForThisLine, remainingWords - remainingLines);
+            }
+
+            // For the last line, take all remaining words
             if (i == numLines - 1) {
-                // Last line gets all remaining words
-                wordsForThisLine = Math.max(1, remainingWords);
-            } else {
-                wordsForThisLine = Math.max(1, Math.min(wordsForThisLine, remainingWords - (numLines - i - 1)));
+                wordsForThisLine = elevenLabsWordCount - elevenLabsWordIndex;
             }
 
             // Get timing from actual ElevenLabs words
@@ -10605,15 +10477,8 @@ public class arabicSync {
 
             quoteTimings[i] = new QuoteTimingInfoArabicSync(i, startTime, endTime);
 
-            // CRITICAL FIX: Update line's word indices to match the actual ElevenLabs
-            // word distribution used for timing. This keeps word-level highlighting
-            // aligned with line-level timing.
-            line.wordStartIndex = elevenLabsWordIndex;
-            line.wordCount = wordsForThisLine;
-
             System.out.println("🎯 Line " + (i + 1) + ": " + String.format("%.2f", startTime) + "s → " +
-                    String.format("%.2f", endTime) + "s (ElevenLabs words " + elevenLabsWordIndex + "-" + lastWordIdx +
-                    ", count=" + wordsForThisLine + ")");
+                    String.format("%.2f", endTime) + "s (ElevenLabs words " + elevenLabsWordIndex + "-" + lastWordIdx + ")");
 
             elevenLabsWordIndex += wordsForThisLine;
         }
@@ -13001,12 +12866,7 @@ public class arabicSync {
                     new InputStreamReader(new FileInputStream(arabicFile), "UTF-8"))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    // Skip empty lines to match the UI paragraph mode loader
-                    // (loadParaModeLinesFromFile) which also skips empty lines.
-                    // This ensures the video generation uses the same line set as the UI.
-                    if (!line.trim().isEmpty()) {
-                        arabicTranslations.add(line);
-                    }
+                    arabicTranslations.add(line);
                 }
             }
             return arabicTranslations.isEmpty() ? null : arabicTranslations.toArray(new String[0]);
@@ -16138,7 +15998,7 @@ public class arabicSync {
     // Displays all lines on screen at once with the active line highlighted based on audio timing
     private void generateParaModeFrame(FormattedTextDataArabicSync formattedData, QuoteDisplayInfoArabicSync displayInfo,
                                        String outputPath, double currentTime,
-                                       Font englishFont, Font arabicFont, double totalDuration, int frameIndex) throws Exception {
+                                       Font englishFont, Font arabicFont, double totalDuration) throws Exception {
 
         int width = config.videoWidth;
         int height = config.videoHeight;
@@ -16156,24 +16016,8 @@ public class arabicSync {
         g2d.setColor(config.paraModeBackgroundColor);
         g2d.fillRect(0, 0, width, height);
 
-        // Draw background video frame if available (loops automatically)
-        boolean bgDrawn = false;
-        if (paraModeVideoFrameCount > 0 && paraModeVideoFramesExtractedDir != null) {
-            BufferedImage videoBgFrame = getVideoBackgroundFrame(frameIndex);
-            if (videoBgFrame != null) {
-                g2d.drawImage(videoBgFrame, 0, 0, width, height, null);
-                bgDrawn = true;
-                // Apply opacity overlay if needed
-                if (config.paraModeBackgroundOpacity < 100) {
-                    int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
-                    g2d.setColor(new Color(0, 0, 0, alpha));
-                    g2d.fillRect(0, 0, width, height);
-                }
-            }
-        }
-
-        // Draw background image if specified and no video background was drawn
-        if (!bgDrawn && config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
+        // Draw background image if specified (on top of color)
+        if (config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
             try {
                 File bgFile = new File(config.paraModeBackgroundImage);
                 if (bgFile.exists()) {
@@ -16200,28 +16044,11 @@ public class arabicSync {
         int activeLine = displayInfo.currentQuote;
         boolean lineIsActive = displayInfo.isActive;
 
-        // Determine which lines to draw
-        // Bound to both formattedData lines AND available styles (matching the preview panel)
-        int startLine = 0;
-        int endLine = Math.min(formattedData.lines.size(), config.paraLineStyles.size());
-
-        // In one-line-at-a-time mode, only draw the active line
-        if (config.paraModeOneLineAtATime) {
-            if (lineIsActive && activeLine >= 0 && activeLine < endLine) {
-                startLine = activeLine;
-                endLine = activeLine + 1;
-            } else {
-                // No active line - don't draw any text
-                startLine = 0;
-                endLine = 0;
-            }
-        }
-
         // Calculate starting Y position
         int currentY = (int) (height * config.paraModeStartY / 100.0);
 
-        // Draw lines
-        for (int i = startLine; i < endLine; i++) {
+        // Draw all lines
+        for (int i = 0; i < formattedData.lines.size(); i++) {
             // Get or create style for this line
             ParaLineStyle style;
             if (i < config.paraLineStyles.size()) {
@@ -16237,10 +16064,8 @@ public class arabicSync {
             String lineText = line.arabicContent;
             boolean isActive = (i == activeLine) && lineIsActive;
 
-            // Add line spacing (skip in one-line-at-a-time mode since we position directly)
-            if (!config.paraModeOneLineAtATime) {
-                currentY += style.lineSpacingBefore;
-            }
+            // Add line spacing
+            currentY += style.lineSpacingBefore;
 
             // Create font
             int fontStyle = Font.PLAIN;
@@ -16428,83 +16253,6 @@ public class arabicSync {
 
         g2d.dispose();
         ImageIO.write(image, "JPEG", new File(outputPath));
-    }
-
-    /**
-     * Extract frames from a video file using ffmpeg at the given frame rate.
-     * Returns the number of frames extracted, or 0 on failure.
-     * Frames are saved as bg_frame_0001.jpg, bg_frame_0002.jpg, etc.
-     */
-    private int extractVideoBackgroundFrames(String videoPath, String outputDir, double frameRate) {
-        try {
-            File outDir = new File(outputDir);
-            if (!outDir.exists()) outDir.mkdirs();
-
-            ProcessBuilder pb = new ProcessBuilder(
-                    "ffmpeg", "-y",
-                    "-i", videoPath,
-                    "-vf", "fps=" + frameRate + ",scale=" + config.videoWidth + ":" + config.videoHeight + ":force_original_aspect_ratio=decrease,pad=" + config.videoWidth + ":" + config.videoHeight + ":(ow-iw)/2:(oh-ih)/2",
-                    "-q:v", "2",
-                    outputDir + "/bg_frame_%04d.jpg"
-            );
-            pb.redirectErrorStream(true);
-            System.out.println("Extracting background video frames from: " + videoPath);
-            Process process = pb.start();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    // consume output
-                }
-            }
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                System.out.println("ffmpeg video frame extraction failed with exit code: " + exitCode);
-                return 0;
-            }
-
-            // Count extracted frames
-            int count = 0;
-            while (new File(outputDir + String.format("/bg_frame_%04d.jpg", count + 1)).exists()) {
-                count++;
-            }
-            System.out.println("Extracted " + count + " background video frames");
-            return count;
-        } catch (Exception e) {
-            System.out.println("Error extracting video frames: " + e.getMessage());
-            return 0;
-        }
-    }
-
-    /**
-     * Get a background video frame for the given output frame index.
-     * Loops the video frames if the video is shorter than the audio.
-     */
-    private BufferedImage getVideoBackgroundFrame(int frameIndex) {
-        if (paraModeVideoFrameCount <= 0 || paraModeVideoFramesExtractedDir == null) return null;
-
-        // Loop: use modulo to repeat video frames
-        int videoFrameIndex = (frameIndex % paraModeVideoFrameCount) + 1; // 1-based file naming
-        String framePath = paraModeVideoFramesExtractedDir + String.format("/bg_frame_%04d.jpg", videoFrameIndex);
-
-        try {
-            // Check in-memory cache first
-            String cacheKey = "vbg_" + videoFrameIndex;
-            BufferedImage cached = generalImageCache.get(cacheKey);
-            if (cached != null) return cached;
-
-            File f = new File(framePath);
-            if (f.exists()) {
-                BufferedImage img = ImageIO.read(f);
-                // Cache every 10th frame to balance memory vs disk I/O
-                if (videoFrameIndex % 10 == 0 || paraModeVideoFrameCount <= 100) {
-                    generalImageCache.put(cacheKey, img);
-                }
-                return img;
-            }
-        } catch (IOException e) {
-            // ignore
-        }
-        return null;
     }
 
     // Helper method to draw text overlays on the video frame
