@@ -37,6 +37,9 @@ public class arabicSync {
     // Image cache to avoid repeated disk reads - speeds up video generation
     private java.util.Map<Integer, java.util.List<BufferedImage>> lineImageCache = new java.util.HashMap<>();
     private java.util.Map<String, BufferedImage> generalImageCache = new java.util.HashMap<>();
+    // Background video frame extraction for paragraph mode (used during video generation)
+    private String bgVideoFramesFolder = null;
+    private int bgVideoTotalFrames = 0;
     private static final int USE_CHANGING_BACKGROUNDS = 1; //
     private VideoConfig config = new VideoConfig();
 
@@ -473,6 +476,7 @@ public class arabicSync {
         Color paraModeHighlightColor = new Color(255, 215, 0); // Active line highlight color
         Color paraModeBackgroundColor = new Color(0, 0, 0); // Background color
         String paraModeBackgroundImage = ""; // Optional background image path
+        String paraModeBackgroundVideo = ""; // Optional background video path
         int paraModeBackgroundOpacity = 100; // Background opacity (0-100)
         boolean paraModeShowEnglish = false; // Show English text above Arabic
         int paramodeGlobalLineSpacing = 25; // Global line spacing in pixels
@@ -1726,6 +1730,8 @@ public class arabicSync {
         }
 
         // === PARAGRAPH MODE PANEL ===
+        private BufferedImage bgVideoFirstFrame = null; // Cached first frame for preview
+
         private JPanel paraModePreviewPanel;
         private JList<String> paraModeLineList;
         private DefaultListModel<String> paraModeLineListModel;
@@ -2153,8 +2159,41 @@ public class arabicSync {
             bgImagePanel.add(bgImageClearBtn);
             globalPanel.add(bgImagePanel, gbc);
 
+            // Background Video
+            gbc.gridx = 0; gbc.gridy = 14; gbc.weightx = 0.0; gbc.gridwidth = 1;
+            globalPanel.add(new JLabel("BG Video:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            JPanel bgVideoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+            JButton bgVideoBtn = new JButton("Select...");
+            bgVideoBtn.addActionListener(e -> {
+                JFileChooser fc = new JFileChooser(new File(System.getProperty("user.dir")));
+                fc.setFileFilter(new FileNameExtensionFilter("Videos", "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"));
+                if (fc.showOpenDialog(mainPanel) == JFileChooser.APPROVE_OPTION) {
+                    config.paraModeBackgroundVideo = fc.getSelectedFile().getAbsolutePath();
+                    bgVideoFirstFrame = extractFirstFrameFromVideo(config.paraModeBackgroundVideo);
+                    updateParaModePreview();
+                }
+            });
+            bgVideoPanel.add(bgVideoBtn);
+            JButton bgVideoClearBtn = new JButton("Clear");
+            bgVideoClearBtn.addActionListener(e -> {
+                config.paraModeBackgroundVideo = "";
+                bgVideoFirstFrame = null;
+                updateParaModePreview();
+            });
+            bgVideoPanel.add(bgVideoClearBtn);
+            // Show filename label
+            JLabel bgVideoLabel = new JLabel(config.paraModeBackgroundVideo.isEmpty() ? "(none)" :
+                    new File(config.paraModeBackgroundVideo).getName());
+            bgVideoPanel.add(bgVideoLabel);
+            // Update label when video is selected/cleared
+            bgVideoBtn.addActionListener(e2 -> bgVideoLabel.setText(
+                    config.paraModeBackgroundVideo.isEmpty() ? "(none)" : new File(config.paraModeBackgroundVideo).getName()));
+            bgVideoClearBtn.addActionListener(e2 -> bgVideoLabel.setText("(none)"));
+            globalPanel.add(bgVideoPanel, gbc);
+
             // Show/Hide Progress Bar
-            gbc.gridx = 0; gbc.gridy = 14; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 15; gbc.gridwidth = 2;
             paraModeGlobalShowProgressBarCheck = new JCheckBox("Show Progress Bar", config.paraModeShowProgressBar);
             JCheckBox showProgressBarCheck = paraModeGlobalShowProgressBarCheck;
             showProgressBarCheck.addActionListener(e -> {
@@ -2165,7 +2204,7 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // === VIDEO BORDER SETTINGS (collapsible section) ===
-            gbc.gridx = 0; gbc.gridy = 15; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 16; gbc.gridwidth = 2;
             paraModeGlobalVideoBorderEnabledCheck = new JCheckBox("Enable Video Border", config.paraModeVideoBorderEnabled);
             JCheckBox videoBorderEnabledCheck = paraModeGlobalVideoBorderEnabledCheck;
             videoBorderEnabledCheck.addActionListener(e -> {
@@ -2176,7 +2215,7 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // Border Style
-            gbc.gridx = 0; gbc.gridy = 16;
+            gbc.gridx = 0; gbc.gridy = 17;
             globalPanel.add(new JLabel("Border Style:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderStyleCombo = new JComboBox<>(new String[]{
@@ -2191,7 +2230,7 @@ public class arabicSync {
             globalPanel.add(videoBorderStyleCombo, gbc);
 
             // Border Thickness
-            gbc.gridx = 0; gbc.gridy = 17;
+            gbc.gridx = 0; gbc.gridy = 18;
             globalPanel.add(new JLabel("Border Thickness:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderThicknessSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderThickness, 1, 50, 2));
@@ -2203,7 +2242,7 @@ public class arabicSync {
             globalPanel.add(videoBorderThicknessSpinner, gbc);
 
             // Border Color
-            gbc.gridx = 0; gbc.gridy = 18;
+            gbc.gridx = 0; gbc.gridy = 19;
             globalPanel.add(new JLabel("Border Color:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderColorPanel = new JPanel();
@@ -2224,7 +2263,7 @@ public class arabicSync {
             globalPanel.add(videoBorderColorPanel, gbc);
 
             // Border Color 2 (for gradient)
-            gbc.gridx = 0; gbc.gridy = 19;
+            gbc.gridx = 0; gbc.gridy = 20;
             globalPanel.add(new JLabel("Gradient Color 2:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderColor2Panel = new JPanel();
@@ -2245,7 +2284,7 @@ public class arabicSync {
             globalPanel.add(videoBorderColor2Panel, gbc);
 
             // Border Padding
-            gbc.gridx = 0; gbc.gridy = 20;
+            gbc.gridx = 0; gbc.gridy = 21;
             globalPanel.add(new JLabel("Border Padding:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderPaddingSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderPadding, 0, 100, 5));
@@ -2257,7 +2296,7 @@ public class arabicSync {
             globalPanel.add(videoBorderPaddingSpinner, gbc);
 
             // Border Radius
-            gbc.gridx = 0; gbc.gridy = 21;
+            gbc.gridx = 0; gbc.gridy = 22;
             globalPanel.add(new JLabel("Border Radius:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderRadiusSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderRadius, 0, 100, 5));
@@ -2269,18 +2308,18 @@ public class arabicSync {
             globalPanel.add(videoBorderRadiusSpinner, gbc);
 
             // === TEXT OVERLAYS SECTION ===
-            gbc.gridx = 0; gbc.gridy = 22; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 23; gbc.gridwidth = 2;
             JSeparator sep = new JSeparator();
             globalPanel.add(sep, gbc);
 
-            gbc.gridy = 23;
+            gbc.gridy = 24;
             JLabel overlayTitle = new JLabel("── Text Overlays ──");
             overlayTitle.setFont(overlayTitle.getFont().deriveFont(Font.BOLD));
             globalPanel.add(overlayTitle, gbc);
             gbc.gridwidth = 1;
 
             // Overlay list
-            gbc.gridy = 24; gbc.gridwidth = 2;
+            gbc.gridy = 25; gbc.gridwidth = 2;
             DefaultListModel<String> overlayListModel = new DefaultListModel<>();
             JList<String> overlayList = new JList<>(overlayListModel);
             overlayList.setVisibleRowCount(3);
@@ -2301,7 +2340,7 @@ public class arabicSync {
             Runnable refreshOverlayList = paraModeRefreshOverlayList;
 
             // Add overlay button
-            gbc.gridy = 25; gbc.gridwidth = 1;
+            gbc.gridy = 26; gbc.gridwidth = 1;
             gbc.gridx = 0;
             JButton addOverlayBtn = new JButton("Add");
             addOverlayBtn.addActionListener(e -> {
@@ -2321,7 +2360,7 @@ public class arabicSync {
             globalPanel.add(editOverlayBtn, gbc);
 
             // Copy overlay button
-            gbc.gridy = 26; gbc.gridx = 0;
+            gbc.gridy = 27; gbc.gridx = 0;
             JButton copyOverlayBtn = new JButton("Copy");
             copyOverlayBtn.addActionListener(e -> {
                 int idx = overlayList.getSelectedIndex();
@@ -2350,7 +2389,7 @@ public class arabicSync {
             globalPanel.add(removeOverlayBtn, gbc);
 
             // Add Multiple overlays button
-            gbc.gridy = 27; gbc.gridx = 0;
+            gbc.gridy = 28; gbc.gridx = 0;
             JButton addMultipleOverlaysBtn = new JButton("Add Multiple");
             addMultipleOverlaysBtn.addActionListener(e -> {
                 showAddMultipleOverlaysDialog(refreshOverlayList);
@@ -2370,7 +2409,7 @@ public class arabicSync {
             globalPanel.add(editAllOverlaysBtn, gbc);
 
             // Clear all overlays button
-            gbc.gridy = 28; gbc.gridx = 0; gbc.gridwidth = 2;
+            gbc.gridy = 29; gbc.gridx = 0; gbc.gridwidth = 2;
             JButton clearOverlaysBtn = new JButton("Clear All");
             clearOverlaysBtn.addActionListener(e -> {
                 config.textOverlays.clear();
@@ -3045,6 +3084,7 @@ public class arabicSync {
                 p.setProperty("paraModeHighlightColor", colorToHex(config.paraModeHighlightColor));
                 p.setProperty("paraModeBackgroundColor", colorToHex(config.paraModeBackgroundColor));
                 p.setProperty("paraModeBackgroundImage", config.paraModeBackgroundImage);
+                p.setProperty("paraModeBackgroundVideo", config.paraModeBackgroundVideo);
                 p.setProperty("paraModeHighlightMode", String.valueOf(config.paraModeHighlightMode));
                 p.setProperty("paraModeTextBoxOpacity", String.valueOf(config.paraModeTextBoxOpacity));
                 p.setProperty("paraModeShowProgressBar", String.valueOf(config.paraModeShowProgressBar));
@@ -3144,6 +3184,10 @@ public class arabicSync {
                 config.paraModeHighlightColor = hexToColor(p.getProperty("paraModeHighlightColor", "#ffd700"), new Color(255, 215, 0));
                 config.paraModeBackgroundColor = hexToColor(p.getProperty("paraModeBackgroundColor", "#000000"), Color.BLACK);
                 config.paraModeBackgroundImage = p.getProperty("paraModeBackgroundImage", "");
+                config.paraModeBackgroundVideo = p.getProperty("paraModeBackgroundVideo", "");
+                if (!config.paraModeBackgroundVideo.isEmpty()) {
+                    bgVideoFirstFrame = extractFirstFrameFromVideo(config.paraModeBackgroundVideo);
+                }
                 config.paraModeHighlightMode = Integer.parseInt(p.getProperty("paraModeHighlightMode", "0"));
                 config.paraModeTextBoxOpacity = Integer.parseInt(p.getProperty("paraModeTextBoxOpacity", "0"));
                 config.paraModeShowProgressBar = Boolean.parseBoolean(p.getProperty("paraModeShowProgressBar", "false"));
@@ -3621,6 +3665,40 @@ public class arabicSync {
             if (paraModePreviewPanel != null) {
                 paraModePreviewPanel.repaint();
             }
+        }
+
+        // Extract the first frame from a video file using FFmpeg (for preview)
+        private BufferedImage extractFirstFrameFromVideo(String videoPath) {
+            if (videoPath == null || videoPath.isEmpty()) return null;
+            try {
+                File videoFile = new File(videoPath);
+                if (!videoFile.exists()) return null;
+                // Create a temp file for the extracted frame
+                File tempFrame = File.createTempFile("bg_video_preview_", ".jpg");
+                tempFrame.deleteOnExit();
+                ProcessBuilder pb = new ProcessBuilder(
+                    "ffmpeg", "-y", "-i", videoPath,
+                    "-vframes", "1", "-q:v", "2",
+                    "-vf", "scale=" + config.videoWidth + ":" + config.videoHeight,
+                    tempFrame.getAbsolutePath()
+                );
+                pb.redirectErrorStream(true);
+                Process process = pb.start();
+                // Consume output to prevent blocking
+                try (java.io.InputStream is = process.getInputStream()) {
+                    while (is.read() != -1) {}
+                }
+                process.waitFor();
+                if (tempFrame.exists() && tempFrame.length() > 0) {
+                    BufferedImage frame = ImageIO.read(tempFrame);
+                    tempFrame.delete();
+                    return frame;
+                }
+                tempFrame.delete();
+            } catch (Exception e) {
+                System.out.println("Failed to extract first frame from video: " + e.getMessage());
+            }
+            return null;
         }
 
         private void showFancySymbolsDialog() {
@@ -4339,8 +4417,20 @@ public class arabicSync {
             vg.setColor(config.paraModeBackgroundColor);
             vg.fillRect(0, 0, videoWidth, videoHeight);
 
-            // Draw background image if specified
-            if (config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
+            // Draw background video first frame if specified (takes priority over image)
+            boolean previewBgDrawn = false;
+            if (bgVideoFirstFrame != null) {
+                vg.drawImage(bgVideoFirstFrame, 0, 0, videoWidth, videoHeight, null);
+                previewBgDrawn = true;
+                if (config.paraModeBackgroundOpacity < 100) {
+                    int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
+                    vg.setColor(new Color(0, 0, 0, alpha));
+                    vg.fillRect(0, 0, videoWidth, videoHeight);
+                }
+            }
+
+            // Draw background image if specified and no video bg
+            if (!previewBgDrawn && config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
                 try {
                     File bgFile = new File(config.paraModeBackgroundImage);
                     if (bgFile.exists()) {
@@ -8850,7 +8940,32 @@ public class arabicSync {
                 // No pre-loading needed - images loaded per line
             } else if (config.backgroundMode == 8) {
                 System.out.println("📄 Selected: PARAGRAPH MODE for Arabic audio sync");
-                // No pre-loading needed - all lines displayed at once with per-line styling
+                // Pre-extract background video frames if a background video is set
+                bgVideoFramesFolder = null;
+                bgVideoTotalFrames = 0;
+                if (config.paraModeBackgroundVideo != null && !config.paraModeBackgroundVideo.isEmpty()) {
+                    File bgVideoFile = new File(config.paraModeBackgroundVideo);
+                    if (bgVideoFile.exists()) {
+                        bgVideoFramesFolder = tempFolder + "/bg_video_frames";
+                        new File(bgVideoFramesFolder).mkdirs();
+                        System.out.println("🎬 Extracting background video frames...");
+                        ProcessBuilder bgPb = new ProcessBuilder(
+                            "ffmpeg", "-i", config.paraModeBackgroundVideo,
+                            "-vf", "fps=" + (int)frameRate + ",scale=" + config.videoWidth + ":" + config.videoHeight,
+                            "-q:v", "2",
+                            bgVideoFramesFolder + "/bg_%04d.jpg"
+                        );
+                        bgPb.redirectErrorStream(true);
+                        Process bgProcess = bgPb.start();
+                        try (java.io.InputStream bgIs = bgProcess.getInputStream()) {
+                            while (bgIs.read() != -1) {}
+                        }
+                        bgProcess.waitFor();
+                        File[] bgFrameFiles = new File(bgVideoFramesFolder).listFiles();
+                        bgVideoTotalFrames = bgFrameFiles != null ? bgFrameFiles.length : 0;
+                        System.out.println("✅ Extracted " + bgVideoTotalFrames + " background video frames");
+                    }
+                }
             } else {
                 System.out.println("🎨 Selected: SINGLE IMAGE with effects for Arabic audio sync");
                 singleEffectImage = loadSingleRandomImageForEffects();
@@ -16016,8 +16131,34 @@ public class arabicSync {
         g2d.setColor(config.paraModeBackgroundColor);
         g2d.fillRect(0, 0, width, height);
 
-        // Draw background image if specified (on top of color)
-        if (config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
+        // Draw background video frame if specified (takes priority over image)
+        boolean bgDrawn = false;
+        if (bgVideoFramesFolder != null && bgVideoTotalFrames > 0) {
+            try {
+                // Calculate which bg video frame to use (1-indexed, loop if video is shorter)
+                int frameRate = (int) config.frameRate;
+                int bgFrameIndex = (int) (currentTime * frameRate);
+                bgFrameIndex = (bgFrameIndex % bgVideoTotalFrames) + 1; // 1-indexed, loop
+                String bgFramePath = String.format("%s/bg_%04d.jpg", bgVideoFramesFolder, bgFrameIndex);
+                File bgFrameFile = new File(bgFramePath);
+                if (bgFrameFile.exists()) {
+                    BufferedImage bgFrame = ImageIO.read(bgFrameFile);
+                    g2d.drawImage(bgFrame, 0, 0, width, height, null);
+                    bgDrawn = true;
+                    // Apply opacity overlay if needed
+                    if (config.paraModeBackgroundOpacity < 100) {
+                        int alpha = (int) (255 * (100 - config.paraModeBackgroundOpacity) / 100.0);
+                        g2d.setColor(new Color(0, 0, 0, alpha));
+                        g2d.fillRect(0, 0, width, height);
+                    }
+                }
+            } catch (IOException e) {
+                // Background video frame failed to load
+            }
+        }
+
+        // Draw background image if specified and no video bg was drawn (on top of color)
+        if (!bgDrawn && config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
             try {
                 File bgFile = new File(config.paraModeBackgroundImage);
                 if (bgFile.exists()) {
