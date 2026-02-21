@@ -8110,6 +8110,24 @@ public class arabicSync {
 // Store for use in highlighting methods
             this.currentWordTimings = wordTimings;
             this.currentFormattedData = formattedData;
+
+            // For paragraph mode (backgroundMode 8), ensure formattedData line count
+            // matches the UI-configured paraLineStyles count. If there's a mismatch
+            // (e.g., different number of English vs Arabic lines), trim to the smaller
+            // count so timing, rendering, and styles all align correctly.
+            if (config.backgroundMode == 8 && !config.paraLineStyles.isEmpty()) {
+                int styleCount = config.paraLineStyles.size();
+                int dataCount = formattedData.lines.size();
+                if (dataCount > styleCount) {
+                    System.out.println("⚠ Paragraph mode: trimming " + dataCount + " data lines to " + styleCount + " configured styles");
+                    while (formattedData.lines.size() > styleCount) {
+                        formattedData.lines.remove(formattedData.lines.size() - 1);
+                    }
+                } else if (styleCount > dataCount) {
+                    System.out.println("⚠ Paragraph mode: " + styleCount + " styles but only " + dataCount + " data lines (extra styles ignored)");
+                }
+            }
+
             // Generate precisely timed sequence with Arabic audio sync
             String tempFolder = generateArabicAudioSyncSequence(formattedData, wordTimings, audioDuration);
             if (tempFolder == null) {
@@ -10470,6 +10488,8 @@ public class arabicSync {
     /**
      * Calculate gap-free line timings using REAL audio word timings from ElevenLabs.
      * Uses proportional distribution based on actual ElevenLabs word count to ensure accurate sync.
+     * Also updates each line's wordStartIndex and wordCount to match the actual ElevenLabs
+     * word distribution, so word-level highlighting stays aligned with line-level timing.
      */
     private QuoteTimingInfoArabicSync[] calculateArabicQuoteTimings(FormattedTextDataArabicSync formattedData, WordTiming[] wordTimings, double audioDuration) {
         QuoteTimingInfoArabicSync[] quoteTimings = new QuoteTimingInfoArabicSync[formattedData.lines.size()];
@@ -10483,7 +10503,7 @@ public class arabicSync {
 
         if (wordTimings == null || wordTimings.length == 0 || numLines == 0) {
             // Fallback: distribute audio evenly across lines
-            double timePerLine = audioDuration / numLines;
+            double timePerLine = audioDuration / Math.max(1, numLines);
             for (int i = 0; i < numLines; i++) {
                 double startTime = i * timePerLine;
                 double endTime = (i == numLines - 1) ? audioDuration : (i + 1) * timePerLine;
@@ -10499,30 +10519,52 @@ public class arabicSync {
         for (FormattedLineArabicSync line : formattedData.lines) {
             totalOriginalWords += line.wordCount;
         }
+        // Guard against zero total (all empty lines)
+        if (totalOriginalWords == 0) totalOriginalWords = numLines;
 
-        // Distribute ElevenLabs words proportionally across lines
-        // Each line gets a share of ElevenLabs words based on its original word count
-        int elevenLabsWordIndex = 0;
-        double currentTime = 0;
+        // === PASS 1: Calculate how many ElevenLabs words each line should get ===
+        int[] wordsPerLine = new int[numLines];
+        int assignedWords = 0;
 
         for (int i = 0; i < numLines; i++) {
             FormattedLineArabicSync line = formattedData.lines.get(i);
+            double proportion = (double) Math.max(1, line.wordCount) / totalOriginalWords;
+            wordsPerLine[i] = (int) Math.round(proportion * elevenLabsWordCount);
+            wordsPerLine[i] = Math.max(1, wordsPerLine[i]); // at least 1 word per line
+            assignedWords += wordsPerLine[i];
+        }
 
-            // Calculate how many ElevenLabs words this line should get
-            double proportion = (double) line.wordCount / totalOriginalWords;
-            int wordsForThisLine = (int) Math.round(proportion * elevenLabsWordCount);
-
-            // Ensure at least 1 word per line, and don't exceed remaining words
-            wordsForThisLine = Math.max(1, wordsForThisLine);
-            int remainingLines = numLines - i - 1;
-            int remainingWords = elevenLabsWordCount - elevenLabsWordIndex;
-            if (remainingLines > 0) {
-                wordsForThisLine = Math.min(wordsForThisLine, remainingWords - remainingLines);
+        // Adjust to ensure total assigned words == elevenLabsWordCount
+        // Distribute surplus/deficit across lines proportionally
+        int diff = elevenLabsWordCount - assignedWords;
+        if (diff != 0) {
+            // Add/remove from lines with the most words first
+            int direction = diff > 0 ? 1 : -1;
+            int remaining = Math.abs(diff);
+            for (int pass = 0; remaining > 0 && pass < numLines * 2; pass++) {
+                for (int i = numLines - 1; i >= 0 && remaining > 0; i--) {
+                    if (direction > 0 || wordsPerLine[i] > 1) { // don't go below 1
+                        wordsPerLine[i] += direction;
+                        remaining--;
+                    }
+                }
             }
+        }
 
-            // For the last line, take all remaining words
+        // === PASS 2: Assign timings and update line word indices to match ===
+        int elevenLabsWordIndex = 0;
+
+        for (int i = 0; i < numLines; i++) {
+            FormattedLineArabicSync line = formattedData.lines.get(i);
+            int wordsForThisLine = wordsPerLine[i];
+
+            // Clamp to remaining words
+            int remainingWords = elevenLabsWordCount - elevenLabsWordIndex;
             if (i == numLines - 1) {
-                wordsForThisLine = elevenLabsWordCount - elevenLabsWordIndex;
+                // Last line gets all remaining words
+                wordsForThisLine = Math.max(1, remainingWords);
+            } else {
+                wordsForThisLine = Math.max(1, Math.min(wordsForThisLine, remainingWords - (numLines - i - 1)));
             }
 
             // Get timing from actual ElevenLabs words
@@ -10563,8 +10605,15 @@ public class arabicSync {
 
             quoteTimings[i] = new QuoteTimingInfoArabicSync(i, startTime, endTime);
 
+            // CRITICAL FIX: Update line's word indices to match the actual ElevenLabs
+            // word distribution used for timing. This keeps word-level highlighting
+            // aligned with line-level timing.
+            line.wordStartIndex = elevenLabsWordIndex;
+            line.wordCount = wordsForThisLine;
+
             System.out.println("🎯 Line " + (i + 1) + ": " + String.format("%.2f", startTime) + "s → " +
-                    String.format("%.2f", endTime) + "s (ElevenLabs words " + elevenLabsWordIndex + "-" + lastWordIdx + ")");
+                    String.format("%.2f", endTime) + "s (ElevenLabs words " + elevenLabsWordIndex + "-" + lastWordIdx +
+                    ", count=" + wordsForThisLine + ")");
 
             elevenLabsWordIndex += wordsForThisLine;
         }
@@ -12952,7 +13001,12 @@ public class arabicSync {
                     new InputStreamReader(new FileInputStream(arabicFile), "UTF-8"))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    arabicTranslations.add(line);
+                    // Skip empty lines to match the UI paragraph mode loader
+                    // (loadParaModeLinesFromFile) which also skips empty lines.
+                    // This ensures the video generation uses the same line set as the UI.
+                    if (!line.trim().isEmpty()) {
+                        arabicTranslations.add(line);
+                    }
                 }
             }
             return arabicTranslations.isEmpty() ? null : arabicTranslations.toArray(new String[0]);
@@ -16147,12 +16201,13 @@ public class arabicSync {
         boolean lineIsActive = displayInfo.isActive;
 
         // Determine which lines to draw
+        // Bound to both formattedData lines AND available styles (matching the preview panel)
         int startLine = 0;
-        int endLine = formattedData.lines.size();
+        int endLine = Math.min(formattedData.lines.size(), config.paraLineStyles.size());
 
         // In one-line-at-a-time mode, only draw the active line
         if (config.paraModeOneLineAtATime) {
-            if (lineIsActive && activeLine >= 0 && activeLine < formattedData.lines.size()) {
+            if (lineIsActive && activeLine >= 0 && activeLine < endLine) {
                 startLine = activeLine;
                 endLine = activeLine + 1;
             } else {
@@ -16163,13 +16218,7 @@ public class arabicSync {
         }
 
         // Calculate starting Y position
-        int currentY;
-        if (config.paraModeOneLineAtATime) {
-            // In one-line-at-a-time mode, position the single line at the startY position
-            currentY = (int) (height * config.paraModeStartY / 100.0);
-        } else {
-            currentY = (int) (height * config.paraModeStartY / 100.0);
-        }
+        int currentY = (int) (height * config.paraModeStartY / 100.0);
 
         // Draw lines
         for (int i = startLine; i < endLine; i++) {
