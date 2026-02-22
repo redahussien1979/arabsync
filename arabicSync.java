@@ -39,6 +39,11 @@ public class arabicSync {
     private java.util.Map<String, BufferedImage> generalImageCache = new java.util.HashMap<>();
     // Background video frame for paragraph mode (piped from FFmpeg during generation)
     private BufferedImage currentBgVideoFrame = null;
+    // Reusable frame buffer to avoid per-frame allocation (major perf optimization)
+    private BufferedImage reusableFrameBuffer = null;
+    // Cached background image for paragraph mode (avoid reading from disk every frame)
+    private BufferedImage cachedParaModeBgImage = null;
+    private String cachedParaModeBgImagePath = null;
     private static final int USE_CHANGING_BACKGROUNDS = 1; //
     private VideoConfig config = new VideoConfig();
 
@@ -9004,6 +9009,27 @@ public class arabicSync {
                 bgFrameBuffer = new byte[config.videoWidth * config.videoHeight * 3];
             }
 
+            // Pre-allocate reusable objects for background video pipe (avoid per-frame allocation)
+            BufferedImage reusableBgFrame = useBgVideoPipe ? new BufferedImage(config.videoWidth, config.videoHeight, BufferedImage.TYPE_INT_RGB) : null;
+            int[] bgPixelBuffer = useBgVideoPipe ? new int[config.videoWidth * config.videoHeight] : null;
+
+            // Pre-allocate reusable frame buffer for paragraph mode
+            reusableFrameBuffer = new BufferedImage(config.videoWidth, config.videoHeight, BufferedImage.TYPE_INT_RGB);
+
+            // Pre-cache background image for paragraph mode (avoid reading from disk every frame)
+            if (config.backgroundMode == 8 && config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
+                try {
+                    File bgFile = new File(config.paraModeBackgroundImage);
+                    if (bgFile.exists()) {
+                        cachedParaModeBgImage = ImageIO.read(bgFile);
+                        cachedParaModeBgImagePath = config.paraModeBackgroundImage;
+                        System.out.println("✓ Background image pre-cached for fast frame generation");
+                    }
+                } catch (IOException e) {
+                    System.out.println("Warning: Failed to pre-cache background image: " + e.getMessage());
+                }
+            }
+
             // Generate frames
             for (int frame = 0; frame < totalFrames; frame++) {
 
@@ -9028,16 +9054,15 @@ public class arabicSync {
                             totalRead += read;
                         }
                         if (totalRead == bgFrameBuffer.length) {
-                            BufferedImage bgFrame = new BufferedImage(config.videoWidth, config.videoHeight, BufferedImage.TYPE_INT_RGB);
-                            int[] pixels = new int[config.videoWidth * config.videoHeight];
-                            for (int p = 0; p < pixels.length; p++) {
-                                int r = bgFrameBuffer[p * 3] & 0xFF;
-                                int g = bgFrameBuffer[p * 3 + 1] & 0xFF;
-                                int b = bgFrameBuffer[p * 3 + 2] & 0xFF;
-                                pixels[p] = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                            // Bulk convert RGB bytes to packed int pixels (reuse pre-allocated arrays)
+                            for (int p = 0; p < bgPixelBuffer.length; p++) {
+                                bgPixelBuffer[p] = (0xFF << 24)
+                                    | ((bgFrameBuffer[p * 3] & 0xFF) << 16)
+                                    | ((bgFrameBuffer[p * 3 + 1] & 0xFF) << 8)
+                                    | (bgFrameBuffer[p * 3 + 2] & 0xFF);
                             }
-                            bgFrame.setRGB(0, 0, config.videoWidth, config.videoHeight, pixels, 0, config.videoWidth);
-                            currentBgVideoFrame = bgFrame;
+                            reusableBgFrame.setRGB(0, 0, config.videoWidth, config.videoHeight, bgPixelBuffer, 0, config.videoWidth);
+                            currentBgVideoFrame = reusableBgFrame;
                         }
                     } catch (IOException e) {
                         // Pipe read failed, continue without bg video for this frame
@@ -9086,6 +9111,11 @@ public class arabicSync {
                 bgVideoProcess.destroyForcibly();
                 currentBgVideoFrame = null;
             }
+
+            // Release reusable buffers
+            reusableFrameBuffer = null;
+            cachedParaModeBgImage = null;
+            cachedParaModeBgImagePath = null;
 
             System.out.println("✅ Arabic audio sync sequence generated!");
             return tempFolder;
@@ -16181,7 +16211,11 @@ public class arabicSync {
         int width = config.videoWidth;
         int height = config.videoHeight;
 
-        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        // Reuse frame buffer to avoid per-frame allocation (major performance optimization)
+        BufferedImage image = (reusableFrameBuffer != null &&
+                reusableFrameBuffer.getWidth() == width && reusableFrameBuffer.getHeight() == height)
+                ? reusableFrameBuffer
+                : new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = image.createGraphics();
 
         // High-quality rendering
@@ -16207,12 +16241,20 @@ public class arabicSync {
             }
         }
 
-        // Draw background image if specified and no video bg was drawn (on top of color)
+        // Draw background image if specified and no video bg was drawn (use cached image)
         if (!bgDrawn && config.paraModeBackgroundImage != null && !config.paraModeBackgroundImage.isEmpty()) {
             try {
-                File bgFile = new File(config.paraModeBackgroundImage);
-                if (bgFile.exists()) {
-                    BufferedImage bgImage = ImageIO.read(bgFile);
+                // Use cached background image instead of reading from disk every frame
+                BufferedImage bgImage = cachedParaModeBgImage;
+                if (bgImage == null || !config.paraModeBackgroundImage.equals(cachedParaModeBgImagePath)) {
+                    File bgFile = new File(config.paraModeBackgroundImage);
+                    if (bgFile.exists()) {
+                        bgImage = ImageIO.read(bgFile);
+                        cachedParaModeBgImage = bgImage;
+                        cachedParaModeBgImagePath = config.paraModeBackgroundImage;
+                    }
+                }
+                if (bgImage != null) {
                     g2d.drawImage(bgImage, 0, 0, width, height, null);
                     // Apply opacity overlay if needed
                     if (config.paraModeBackgroundOpacity < 100) {
