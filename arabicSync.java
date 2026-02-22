@@ -481,6 +481,8 @@ public class arabicSync {
         boolean paraModeOneLineAtATime = false; // Show only one line at a time (appears/disappears)
         int paramodeGlobalLineSpacing = 25; // Global line spacing in pixels
         int paraModeHighlightMode = 0; // 0=color change, 1=scale up, 2=glow pulse, 3=underline
+        boolean paraModeSpokenWordShake = false; // Enable shake effect on currently spoken word
+        int paraModeSpokenWordShakeIntensity = 3; // Shake intensity in pixels (1-10)
         boolean paraModeAnimateTransition = true; // Smooth transition between lines
         int paraModeTextBoxOpacity = 0; // Semi-transparent box behind text (0-100)
         Color paraModeTextBoxColor = new Color(0, 0, 0); // Text box color
@@ -1782,6 +1784,8 @@ public class arabicSync {
         private JComboBox<String> paraModeGlobalAlignmentCombo;
         private JSpinner paraModeGlobalHShiftSpinner;
         private JComboBox<String> paraModeGlobalHighlightModeCombo;
+        private JCheckBox paraModeSpokenWordShakeCheck;
+        private JSpinner paraModeSpokenWordShakeIntensitySpinner;
         private JSpinner paraModeGlobalTextBoxOpacitySpinner;
         private JCheckBox paraModeGlobalShowProgressBarCheck;
         private JCheckBox paraModeGlobalVideoBorderEnabledCheck;
@@ -2124,8 +2128,28 @@ public class arabicSync {
             });
             globalPanel.add(highlightModeCombo, gbc);
 
-            // Text Box Opacity
+            // Shake Spoken Word toggle
             gbc.gridx = 0; gbc.gridy = 12; gbc.weightx = 0.0;
+            globalPanel.add(new JLabel("Word Shake:"), gbc);
+            gbc.gridx = 1; gbc.weightx = 1.0;
+            JPanel shakeWordPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+            paraModeSpokenWordShakeCheck = new JCheckBox("Enable", config.paraModeSpokenWordShake);
+            paraModeSpokenWordShakeCheck.addActionListener(e -> {
+                config.paraModeSpokenWordShake = paraModeSpokenWordShakeCheck.isSelected();
+                updateParaModePreview();
+            });
+            shakeWordPanel.add(paraModeSpokenWordShakeCheck);
+            shakeWordPanel.add(new JLabel("Intensity:"));
+            paraModeSpokenWordShakeIntensitySpinner = new JSpinner(new SpinnerNumberModel(config.paraModeSpokenWordShakeIntensity, 1, 10, 1));
+            paraModeSpokenWordShakeIntensitySpinner.addChangeListener(e -> {
+                config.paraModeSpokenWordShakeIntensity = (Integer) paraModeSpokenWordShakeIntensitySpinner.getValue();
+                updateParaModePreview();
+            });
+            shakeWordPanel.add(paraModeSpokenWordShakeIntensitySpinner);
+            globalPanel.add(shakeWordPanel, gbc);
+
+            // Text Box Opacity
+            gbc.gridx = 0; gbc.gridy = 13; gbc.weightx = 0.0;
             globalPanel.add(new JLabel("Box Alpha:"), gbc);
             gbc.gridx = 1; gbc.weightx = 1.0;
             paraModeGlobalTextBoxOpacitySpinner = new JSpinner(new SpinnerNumberModel(config.paraModeTextBoxOpacity, 0, 100, 5));
@@ -2137,7 +2161,7 @@ public class arabicSync {
             globalPanel.add(textBoxOpacitySpinner, gbc);
 
             // Background Image
-            gbc.gridx = 0; gbc.gridy = 13; gbc.weightx = 0.0;
+            gbc.gridx = 0; gbc.gridy = 14; gbc.weightx = 0.0;
             globalPanel.add(new JLabel("BG Image:"), gbc);
             gbc.gridx = 1; gbc.weightx = 1.0;
             JPanel bgImagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
@@ -2160,7 +2184,7 @@ public class arabicSync {
             globalPanel.add(bgImagePanel, gbc);
 
             // Background Video
-            gbc.gridx = 0; gbc.gridy = 14; gbc.weightx = 0.0; gbc.gridwidth = 1;
+            gbc.gridx = 0; gbc.gridy = 15; gbc.weightx = 0.0; gbc.gridwidth = 1;
             globalPanel.add(new JLabel("BG Video:"), gbc);
             gbc.gridx = 1; gbc.weightx = 1.0;
             JPanel bgVideoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
@@ -2193,7 +2217,7 @@ public class arabicSync {
             globalPanel.add(bgVideoPanel, gbc);
 
             // One Line at a Time mode
-            gbc.gridx = 0; gbc.gridy = 15; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 16; gbc.gridwidth = 2;
             JCheckBox oneLineCheck = new JCheckBox("One Line at a Time", config.paraModeOneLineAtATime);
             oneLineCheck.setToolTipText("Show only the active line, centered on screen. Lines appear and disappear one by one.");
             oneLineCheck.addActionListener(e -> {
@@ -2204,7 +2228,7 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // Show/Hide Progress Bar
-            gbc.gridx = 0; gbc.gridy = 16; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 17; gbc.gridwidth = 2;
             paraModeGlobalShowProgressBarCheck = new JCheckBox("Show Progress Bar", config.paraModeShowProgressBar);
             JCheckBox showProgressBarCheck = paraModeGlobalShowProgressBarCheck;
             showProgressBarCheck.addActionListener(e -> {
@@ -2215,7 +2239,7 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // === VIDEO BORDER SETTINGS (collapsible section) ===
-            gbc.gridx = 0; gbc.gridy = 17; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 18; gbc.gridwidth = 2;
             paraModeGlobalVideoBorderEnabledCheck = new JCheckBox("Enable Video Border", config.paraModeVideoBorderEnabled);
             JCheckBox videoBorderEnabledCheck = paraModeGlobalVideoBorderEnabledCheck;
             videoBorderEnabledCheck.addActionListener(e -> {
@@ -2226,7 +2250,7 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // Border Style
-            gbc.gridx = 0; gbc.gridy = 18;
+            gbc.gridx = 0; gbc.gridy = 19;
             globalPanel.add(new JLabel("Border Style:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderStyleCombo = new JComboBox<>(new String[]{
@@ -2241,7 +2265,7 @@ public class arabicSync {
             globalPanel.add(videoBorderStyleCombo, gbc);
 
             // Border Thickness
-            gbc.gridx = 0; gbc.gridy = 19;
+            gbc.gridx = 0; gbc.gridy = 20;
             globalPanel.add(new JLabel("Border Thickness:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderThicknessSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderThickness, 1, 50, 2));
@@ -2253,7 +2277,7 @@ public class arabicSync {
             globalPanel.add(videoBorderThicknessSpinner, gbc);
 
             // Border Color
-            gbc.gridx = 0; gbc.gridy = 20;
+            gbc.gridx = 0; gbc.gridy = 21;
             globalPanel.add(new JLabel("Border Color:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderColorPanel = new JPanel();
@@ -2274,7 +2298,7 @@ public class arabicSync {
             globalPanel.add(videoBorderColorPanel, gbc);
 
             // Border Color 2 (for gradient)
-            gbc.gridx = 0; gbc.gridy = 21;
+            gbc.gridx = 0; gbc.gridy = 22;
             globalPanel.add(new JLabel("Gradient Color 2:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderColor2Panel = new JPanel();
@@ -2295,7 +2319,7 @@ public class arabicSync {
             globalPanel.add(videoBorderColor2Panel, gbc);
 
             // Border Padding
-            gbc.gridx = 0; gbc.gridy = 22;
+            gbc.gridx = 0; gbc.gridy = 23;
             globalPanel.add(new JLabel("Border Padding:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderPaddingSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderPadding, 0, 100, 5));
@@ -2307,7 +2331,7 @@ public class arabicSync {
             globalPanel.add(videoBorderPaddingSpinner, gbc);
 
             // Border Radius
-            gbc.gridx = 0; gbc.gridy = 23;
+            gbc.gridx = 0; gbc.gridy = 24;
             globalPanel.add(new JLabel("Border Radius:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderRadiusSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderRadius, 0, 100, 5));
@@ -2319,18 +2343,18 @@ public class arabicSync {
             globalPanel.add(videoBorderRadiusSpinner, gbc);
 
             // === TEXT OVERLAYS SECTION ===
-            gbc.gridx = 0; gbc.gridy = 24; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 25; gbc.gridwidth = 2;
             JSeparator sep = new JSeparator();
             globalPanel.add(sep, gbc);
 
-            gbc.gridy = 25;
+            gbc.gridy = 26;
             JLabel overlayTitle = new JLabel("── Text Overlays ──");
             overlayTitle.setFont(overlayTitle.getFont().deriveFont(Font.BOLD));
             globalPanel.add(overlayTitle, gbc);
             gbc.gridwidth = 1;
 
             // Overlay list
-            gbc.gridy = 26; gbc.gridwidth = 2;
+            gbc.gridy = 27; gbc.gridwidth = 2;
             DefaultListModel<String> overlayListModel = new DefaultListModel<>();
             JList<String> overlayList = new JList<>(overlayListModel);
             overlayList.setVisibleRowCount(3);
@@ -2351,7 +2375,7 @@ public class arabicSync {
             Runnable refreshOverlayList = paraModeRefreshOverlayList;
 
             // Add overlay button
-            gbc.gridy = 27; gbc.gridwidth = 1;
+            gbc.gridy = 28; gbc.gridwidth = 1;
             gbc.gridx = 0;
             JButton addOverlayBtn = new JButton("Add");
             addOverlayBtn.addActionListener(e -> {
@@ -2371,7 +2395,7 @@ public class arabicSync {
             globalPanel.add(editOverlayBtn, gbc);
 
             // Copy overlay button
-            gbc.gridy = 28; gbc.gridx = 0;
+            gbc.gridy = 29; gbc.gridx = 0;
             JButton copyOverlayBtn = new JButton("Copy");
             copyOverlayBtn.addActionListener(e -> {
                 int idx = overlayList.getSelectedIndex();
@@ -2400,7 +2424,7 @@ public class arabicSync {
             globalPanel.add(removeOverlayBtn, gbc);
 
             // Add Multiple overlays button
-            gbc.gridy = 28; gbc.gridx = 0;
+            gbc.gridy = 29; gbc.gridx = 0;
             JButton addMultipleOverlaysBtn = new JButton("Add Multiple");
             addMultipleOverlaysBtn.addActionListener(e -> {
                 showAddMultipleOverlaysDialog(refreshOverlayList);
@@ -2420,7 +2444,7 @@ public class arabicSync {
             globalPanel.add(editAllOverlaysBtn, gbc);
 
             // Clear all overlays button
-            gbc.gridy = 29; gbc.gridx = 0; gbc.gridwidth = 2;
+            gbc.gridy = 30; gbc.gridx = 0; gbc.gridwidth = 2;
             JButton clearOverlaysBtn = new JButton("Clear All");
             clearOverlaysBtn.addActionListener(e -> {
                 config.textOverlays.clear();
@@ -3097,6 +3121,8 @@ public class arabicSync {
                 p.setProperty("paraModeBackgroundImage", config.paraModeBackgroundImage);
                 p.setProperty("paraModeBackgroundVideo", config.paraModeBackgroundVideo);
                 p.setProperty("paraModeHighlightMode", String.valueOf(config.paraModeHighlightMode));
+                p.setProperty("paraModeSpokenWordShake", String.valueOf(config.paraModeSpokenWordShake));
+                p.setProperty("paraModeSpokenWordShakeIntensity", String.valueOf(config.paraModeSpokenWordShakeIntensity));
                 p.setProperty("paraModeTextBoxOpacity", String.valueOf(config.paraModeTextBoxOpacity));
                 p.setProperty("paraModeShowProgressBar", String.valueOf(config.paraModeShowProgressBar));
                 p.setProperty("paraModeOneLineAtATime", String.valueOf(config.paraModeOneLineAtATime));
@@ -3201,6 +3227,8 @@ public class arabicSync {
                     bgVideoFirstFrame = extractFirstFrameFromVideo(config.paraModeBackgroundVideo);
                 }
                 config.paraModeHighlightMode = Integer.parseInt(p.getProperty("paraModeHighlightMode", "0"));
+                config.paraModeSpokenWordShake = Boolean.parseBoolean(p.getProperty("paraModeSpokenWordShake", "false"));
+                config.paraModeSpokenWordShakeIntensity = Integer.parseInt(p.getProperty("paraModeSpokenWordShakeIntensity", "3"));
                 config.paraModeTextBoxOpacity = Integer.parseInt(p.getProperty("paraModeTextBoxOpacity", "0"));
                 config.paraModeShowProgressBar = Boolean.parseBoolean(p.getProperty("paraModeShowProgressBar", "false"));
                 config.paraModeOneLineAtATime = Boolean.parseBoolean(p.getProperty("paraModeOneLineAtATime", "false"));
@@ -3320,6 +3348,8 @@ public class arabicSync {
                     paraModeGlobalAlignmentCombo.setSelectedIndex(tpl.alignment);
                     paraModeGlobalHShiftSpinner.setValue(tpl.horizontalOffset);
                     paraModeGlobalHighlightModeCombo.setSelectedIndex(config.paraModeHighlightMode);
+                    paraModeSpokenWordShakeCheck.setSelected(config.paraModeSpokenWordShake);
+                    paraModeSpokenWordShakeIntensitySpinner.setValue(config.paraModeSpokenWordShakeIntensity);
                     paraModeGlobalTextBoxOpacitySpinner.setValue(config.paraModeTextBoxOpacity);
                     paraModeGlobalShowProgressBarCheck.setSelected(config.paraModeShowProgressBar);
                     paraModeGlobalVideoBorderEnabledCheck.setSelected(config.paraModeVideoBorderEnabled);
@@ -16743,11 +16773,19 @@ public class arabicSync {
                     String word = words[wordIdx];
                     int wordWidth = fm.stringWidth(word);
 
-                    // Draw subtle underline under the active word
-                    g2d.setColor(new Color(255, 255, 255, 150));
-                    g2d.setStroke(new BasicStroke(2));
-                    g2d.drawLine(currentX, lineY + 3, currentX + wordWidth, lineY + 3);
-                    g2d.setStroke(new BasicStroke(1));
+                    // Shake effect on the spoken word (replaces underline when enabled)
+                    if (config.paraModeSpokenWordShake) {
+                        int[] shakeOffset = calculateShakeOffset(currentTime, config.paraModeSpokenWordShakeIntensity);
+                        // Redraw the word at the shaken position with highlight color
+                        g2d.setColor(style.highlightColor);
+                        g2d.drawString(word, currentX + shakeOffset[0], lineY + shakeOffset[1]);
+                    } else {
+                        // Default: draw subtle underline under the active word
+                        g2d.setColor(new Color(255, 255, 255, 150));
+                        g2d.setStroke(new BasicStroke(2));
+                        g2d.drawLine(currentX, lineY + 3, currentX + wordWidth, lineY + 3);
+                        g2d.setStroke(new BasicStroke(1));
+                    }
                 }
                 break;
             }
