@@ -478,6 +478,7 @@ public class arabicSync {
         String paraModeBackgroundVideo = ""; // Optional background video path
         int paraModeBackgroundOpacity = 100; // Background opacity (0-100)
         boolean paraModeShowEnglish = false; // Show English text above Arabic
+        boolean paraModeOneLineAtATime = false; // Show only one line at a time (appears/disappears)
         int paramodeGlobalLineSpacing = 25; // Global line spacing in pixels
         int paraModeHighlightMode = 0; // 0=color change, 1=scale up, 2=glow pulse, 3=underline
         boolean paraModeAnimateTransition = true; // Smooth transition between lines
@@ -2191,8 +2192,19 @@ public class arabicSync {
             bgVideoClearBtn.addActionListener(e2 -> bgVideoLabel.setText("(none)"));
             globalPanel.add(bgVideoPanel, gbc);
 
-            // Show/Hide Progress Bar
+            // One Line at a Time mode
             gbc.gridx = 0; gbc.gridy = 15; gbc.gridwidth = 2;
+            JCheckBox oneLineCheck = new JCheckBox("One Line at a Time", config.paraModeOneLineAtATime);
+            oneLineCheck.setToolTipText("Show only the active line, centered on screen. Lines appear and disappear one by one.");
+            oneLineCheck.addActionListener(e -> {
+                config.paraModeOneLineAtATime = oneLineCheck.isSelected();
+                updateParaModePreview();
+            });
+            globalPanel.add(oneLineCheck, gbc);
+            gbc.gridwidth = 1;
+
+            // Show/Hide Progress Bar
+            gbc.gridx = 0; gbc.gridy = 16; gbc.gridwidth = 2;
             paraModeGlobalShowProgressBarCheck = new JCheckBox("Show Progress Bar", config.paraModeShowProgressBar);
             JCheckBox showProgressBarCheck = paraModeGlobalShowProgressBarCheck;
             showProgressBarCheck.addActionListener(e -> {
@@ -2203,7 +2215,7 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // === VIDEO BORDER SETTINGS (collapsible section) ===
-            gbc.gridx = 0; gbc.gridy = 16; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 17; gbc.gridwidth = 2;
             paraModeGlobalVideoBorderEnabledCheck = new JCheckBox("Enable Video Border", config.paraModeVideoBorderEnabled);
             JCheckBox videoBorderEnabledCheck = paraModeGlobalVideoBorderEnabledCheck;
             videoBorderEnabledCheck.addActionListener(e -> {
@@ -2214,7 +2226,7 @@ public class arabicSync {
             gbc.gridwidth = 1;
 
             // Border Style
-            gbc.gridx = 0; gbc.gridy = 17;
+            gbc.gridx = 0; gbc.gridy = 18;
             globalPanel.add(new JLabel("Border Style:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderStyleCombo = new JComboBox<>(new String[]{
@@ -2229,7 +2241,7 @@ public class arabicSync {
             globalPanel.add(videoBorderStyleCombo, gbc);
 
             // Border Thickness
-            gbc.gridx = 0; gbc.gridy = 18;
+            gbc.gridx = 0; gbc.gridy = 19;
             globalPanel.add(new JLabel("Border Thickness:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderThicknessSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderThickness, 1, 50, 2));
@@ -2241,7 +2253,7 @@ public class arabicSync {
             globalPanel.add(videoBorderThicknessSpinner, gbc);
 
             // Border Color
-            gbc.gridx = 0; gbc.gridy = 19;
+            gbc.gridx = 0; gbc.gridy = 20;
             globalPanel.add(new JLabel("Border Color:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderColorPanel = new JPanel();
@@ -2262,7 +2274,7 @@ public class arabicSync {
             globalPanel.add(videoBorderColorPanel, gbc);
 
             // Border Color 2 (for gradient)
-            gbc.gridx = 0; gbc.gridy = 20;
+            gbc.gridx = 0; gbc.gridy = 21;
             globalPanel.add(new JLabel("Gradient Color 2:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderColor2Panel = new JPanel();
@@ -2283,7 +2295,7 @@ public class arabicSync {
             globalPanel.add(videoBorderColor2Panel, gbc);
 
             // Border Padding
-            gbc.gridx = 0; gbc.gridy = 21;
+            gbc.gridx = 0; gbc.gridy = 22;
             globalPanel.add(new JLabel("Border Padding:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderPaddingSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderPadding, 0, 100, 5));
@@ -2295,7 +2307,7 @@ public class arabicSync {
             globalPanel.add(videoBorderPaddingSpinner, gbc);
 
             // Border Radius
-            gbc.gridx = 0; gbc.gridy = 22;
+            gbc.gridx = 0; gbc.gridy = 23;
             globalPanel.add(new JLabel("Border Radius:"), gbc);
             gbc.gridx = 1;
             paraModeGlobalVideoBorderRadiusSpinner = new JSpinner(new SpinnerNumberModel(config.paraModeVideoBorderRadius, 0, 100, 5));
@@ -2307,18 +2319,18 @@ public class arabicSync {
             globalPanel.add(videoBorderRadiusSpinner, gbc);
 
             // === TEXT OVERLAYS SECTION ===
-            gbc.gridx = 0; gbc.gridy = 23; gbc.gridwidth = 2;
+            gbc.gridx = 0; gbc.gridy = 24; gbc.gridwidth = 2;
             JSeparator sep = new JSeparator();
             globalPanel.add(sep, gbc);
 
-            gbc.gridy = 24;
+            gbc.gridy = 25;
             JLabel overlayTitle = new JLabel("── Text Overlays ──");
             overlayTitle.setFont(overlayTitle.getFont().deriveFont(Font.BOLD));
             globalPanel.add(overlayTitle, gbc);
             gbc.gridwidth = 1;
 
             // Overlay list
-            gbc.gridy = 25; gbc.gridwidth = 2;
+            gbc.gridy = 26; gbc.gridwidth = 2;
             DefaultListModel<String> overlayListModel = new DefaultListModel<>();
             JList<String> overlayList = new JList<>(overlayListModel);
             overlayList.setVisibleRowCount(3);
@@ -2339,7 +2351,7 @@ public class arabicSync {
             Runnable refreshOverlayList = paraModeRefreshOverlayList;
 
             // Add overlay button
-            gbc.gridy = 26; gbc.gridwidth = 1;
+            gbc.gridy = 27; gbc.gridwidth = 1;
             gbc.gridx = 0;
             JButton addOverlayBtn = new JButton("Add");
             addOverlayBtn.addActionListener(e -> {
@@ -2359,7 +2371,7 @@ public class arabicSync {
             globalPanel.add(editOverlayBtn, gbc);
 
             // Copy overlay button
-            gbc.gridy = 27; gbc.gridx = 0;
+            gbc.gridy = 28; gbc.gridx = 0;
             JButton copyOverlayBtn = new JButton("Copy");
             copyOverlayBtn.addActionListener(e -> {
                 int idx = overlayList.getSelectedIndex();
@@ -3087,6 +3099,7 @@ public class arabicSync {
                 p.setProperty("paraModeHighlightMode", String.valueOf(config.paraModeHighlightMode));
                 p.setProperty("paraModeTextBoxOpacity", String.valueOf(config.paraModeTextBoxOpacity));
                 p.setProperty("paraModeShowProgressBar", String.valueOf(config.paraModeShowProgressBar));
+                p.setProperty("paraModeOneLineAtATime", String.valueOf(config.paraModeOneLineAtATime));
 
                 // Video border
                 p.setProperty("paraModeVideoBorderEnabled", String.valueOf(config.paraModeVideoBorderEnabled));
@@ -3190,6 +3203,7 @@ public class arabicSync {
                 config.paraModeHighlightMode = Integer.parseInt(p.getProperty("paraModeHighlightMode", "0"));
                 config.paraModeTextBoxOpacity = Integer.parseInt(p.getProperty("paraModeTextBoxOpacity", "0"));
                 config.paraModeShowProgressBar = Boolean.parseBoolean(p.getProperty("paraModeShowProgressBar", "false"));
+                config.paraModeOneLineAtATime = Boolean.parseBoolean(p.getProperty("paraModeOneLineAtATime", "false"));
 
                 // Video border
                 config.paraModeVideoBorderEnabled = Boolean.parseBoolean(p.getProperty("paraModeVideoBorderEnabled", "false"));
@@ -4451,16 +4465,33 @@ public class arabicSync {
                 drawVideoBorderFullRes(vg, videoWidth, videoHeight);
             }
 
-            // Draw all lines at full resolution
+            // Draw lines at full resolution
             int currentY = (int) (videoHeight * config.paraModeStartY / 100.0);
             int simulatedActiveLine = paraModeSelectedLineIndex >= 0 ? paraModeSelectedLineIndex : 0;
 
-            for (int i = 0; i < paraModeCurrentLines.size() && i < config.paraLineStyles.size(); i++) {
+            // Determine which lines to draw
+            int previewStartLine = 0;
+            int previewEndLine = Math.min(paraModeCurrentLines.size(), config.paraLineStyles.size());
+
+            // In one-line-at-a-time mode, only draw the selected/active line
+            if (config.paraModeOneLineAtATime) {
+                if (simulatedActiveLine >= 0 && simulatedActiveLine < previewEndLine) {
+                    previewStartLine = simulatedActiveLine;
+                    previewEndLine = simulatedActiveLine + 1;
+                } else {
+                    previewStartLine = 0;
+                    previewEndLine = 0;
+                }
+            }
+
+            for (int i = previewStartLine; i < previewEndLine; i++) {
                 String lineText = paraModeCurrentLines.get(i);
                 ParaLineStyle style = config.paraLineStyles.get(i);
                 boolean isActive = (i == simulatedActiveLine);
 
-                currentY += style.lineSpacingBefore;
+                if (!config.paraModeOneLineAtATime) {
+                    currentY += style.lineSpacingBefore;
+                }
 
                 int fontStyle = Font.PLAIN;
                 if (style.bold) fontStyle |= Font.BOLD;
@@ -16204,11 +16235,26 @@ public class arabicSync {
         int activeLine = displayInfo.currentQuote;
         boolean lineIsActive = displayInfo.isActive;
 
+        // Determine which lines to draw
+        int startLine = 0;
+        int endLine = formattedData.lines.size();
+
+        // In one-line-at-a-time mode, only draw the active line
+        if (config.paraModeOneLineAtATime) {
+            if (lineIsActive && activeLine >= 0 && activeLine < formattedData.lines.size()) {
+                startLine = activeLine;
+                endLine = activeLine + 1;
+            } else {
+                startLine = 0;
+                endLine = 0;
+            }
+        }
+
         // Calculate starting Y position
         int currentY = (int) (height * config.paraModeStartY / 100.0);
 
-        // Draw all lines
-        for (int i = 0; i < formattedData.lines.size(); i++) {
+        // Draw lines
+        for (int i = startLine; i < endLine; i++) {
             // Get or create style for this line
             ParaLineStyle style;
             if (i < config.paraLineStyles.size()) {
@@ -16224,8 +16270,10 @@ public class arabicSync {
             String lineText = line.arabicContent;
             boolean isActive = (i == activeLine) && lineIsActive;
 
-            // Add line spacing
-            currentY += style.lineSpacingBefore;
+            // Add line spacing (skip in one-line-at-a-time mode since we position directly)
+            if (!config.paraModeOneLineAtATime) {
+                currentY += style.lineSpacingBefore;
+            }
 
             // Create font
             int fontStyle = Font.PLAIN;
